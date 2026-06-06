@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBTECH — Panel Superadmin</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐄</text></svg>">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/login.css">
+  <style>
+    /* ── Panel layout ── */
+    .sa-wrapper {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 860px;
+      padding: 0 var(--space-4);
+    }
+
+    /* Header */
+    .sa-header {
+      text-align: center;
+      margin-bottom: var(--space-8);
+    }
+
+    /* Card panel — mismo glassmorphism que el login */
+    .sa-card {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6) var(--space-8);
+      box-shadow: 0 24px 64px rgba(0,0,0,.4);
+    }
+
+    .sa-card-title {
+      font-family: var(--font-display);
+      color: #fff; font-size: 1.15rem; font-weight: 700;
+      margin-bottom: var(--space-5);
+      display: flex; align-items: center; gap: var(--space-3);
+    }
+    .sa-card-title span.sa-badge {
+      font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+      background: rgba(255,255,255,.15); color: rgba(255,255,255,.8);
+      padding: 3px 10px; border-radius: 99px;
+    }
+
+    /* Topbar mínimo del panel */
+    .sa-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--space-6);
+    }
+    .sa-topbar-user {
+      font-size: .82rem; color: rgba(255,255,255,.55);
+    }
+    .sa-topbar-user strong {
+      color: rgba(255,255,255,.9);
+    }
+    .sa-logout {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15);
+      color: rgba(255,255,255,.7);
+      font-size: .78rem; font-weight: 600;
+      padding: 5px 14px; border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .sa-logout:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+    /* Tabla de tenants */
+    .sa-table {
+      width: 100%; border-collapse: collapse;
+      font-size: .85rem; color: rgba(255,255,255,.88);
+    }
+    .sa-table th {
+      font-size: .65rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: rgba(255,255,255,.45);
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      text-align: left;
+    }
+    .sa-table td {
+      padding: var(--space-3) var(--space-3);
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      vertical-align: middle;
+    }
+    .sa-table tr:last-child td { border-bottom: none; }
+    .sa-table tr:hover td { background: rgba(255,255,255,.04); }
+
+    /* Badge de estado */
+    .badge-aprobado {
+      display: inline-block;
+      font-size: .7rem; font-weight: 700; letter-spacing: .06em;
+      padding: 2px 10px; border-radius: 99px;
+    }
+    .badge-aprobado.si {
+      background: rgba(52,211,153,.18); color: #6ee7b7;
+    }
+    .badge-aprobado.no {
+      background: rgba(251,191,36,.15); color: #fcd34d;
+    }
+
+    /* Botón de aprobar/revocar */
+    .btn-aprobar {
+      font-size: .75rem; font-weight: 700;
+      padding: 4px 14px; border-radius: var(--radius-md);
+      border: none; cursor: pointer;
+      transition: opacity var(--transition-fast);
+    }
+    .btn-aprobar:hover { opacity: .85; }
+    .btn-aprobar.aprobar {
+      background: var(--green-500); color: #fff;
+    }
+    .btn-aprobar.revocar {
+      background: rgba(248,113,113,.2);
+      border: 1px solid rgba(248,113,113,.3);
+      color: #fca5a5;
+    }
+
+    /* Empty / loading state */
+    .sa-empty {
+      text-align: center; padding: var(--space-10) 0;
+      color: rgba(255,255,255,.35); font-size: .88rem;
+    }
+
+    /* Footer */
+    .sa-footer {
+      text-align: center; margin-top: var(--space-6);
+      font-size: 0.72rem; color: rgba(255,255,255,.3);
+    }
+
+    /* Spinner simple */
+    .sa-spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.2);
+      border-top-color: rgba(255,255,255,.7);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+
+<body class="login-page">
+
+  <!-- Fondo igual al login -->
+  <div class="login-bg" aria-hidden="true">
+    <div class="login-bg-grid"></div>
+    <div class="login-bg-circle1"></div>
+    <div class="login-bg-circle2"></div>
+  </div>
+
+  <div class="sa-wrapper">
+
+    <!-- Logo / header -->
+    <div class="sa-header">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <img src="assets/logo.png" alt="BBTECH Logo" class="login-logo-img"
+          onerror="this.style.display='none';document.getElementById('sa-logo-fallback').style.display='flex'">
+        <div id="sa-logo-fallback" style="display:none;align-items:center;gap:12px">
+          <div class="login-logo-icon" aria-hidden="true">🐄</div>
+          <span class="login-logo-text">BBTECH</span>
+        </div>
+      </div>
+      <div class="login-tagline">Panel de Administración</div>
+    </div>
+
+    <!-- Topbar con usuario y logout -->
+    <div class="sa-topbar">
+      <div class="sa-topbar-user">Sesión: <strong id="sa-username">—</strong></div>
+      <button class="sa-logout" id="sa-logout-btn">Cerrar sesión</button>
+    </div>
+
+    <!-- Card principal: tabla de tenants -->
+    <div class="sa-card">
+      <div class="sa-card-title">
+        Empresas registradas
+        <span class="sa-badge" id="sa-tenant-count">—</span>
+      </div>
+
+      <div id="sa-table-wrapper">
+        <div class="sa-empty"><span class="sa-spinner"></span>Cargando...</div>
+      </div>
+    </div>
+
+    <div class="sa-footer">© 2026 BBTECH · Solo acceso autorizado</div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/superadmin.js"></script>
+
+</body>
+</html>

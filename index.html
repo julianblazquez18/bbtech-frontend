@@ -87,7 +87,11 @@
       'use strict';
 
       if (BBT.Auth.isLoggedIn()) {
-        window.location.href = 'app.html';
+        // Decodificar el JWT para saber el rol sin hacer un request async
+        var tok = localStorage.getItem('bbtech_token') || sessionStorage.getItem('bbtech_token');
+        var rol = null;
+        try { rol = JSON.parse(atob(tok.split('.')[1])).rol; } catch(e) {}
+        window.location.href = rol === 'superadmin' ? 'superadmin.html' : 'app.html';
         return;
       }
 
@@ -140,7 +144,12 @@
         BBT.Auth.login(email, password, remember.checked).then(function (res) {
           if (res.ok) {
             btn.textContent = '✓ Ingresando...';
-            window.location.href = 'app.html';
+            // Superadmin va a su panel separado
+            if (res.user && res.user.rol === 'superadmin') {
+              window.location.href = 'superadmin.html';
+            } else {
+              window.location.href = 'app.html';
+            }
           } else {
             showError(res.error || 'Credenciales incorrectas.');
             btn.disabled = false;

@@ -13,6 +13,9 @@ const App = {
   async init() {
     this.currentUser = BBT.Auth.getCurrentUser();
     if (!this.currentUser) { window.location.href = 'index.html'; return; }
+    // Superadmin no debe ver la interfaz bovina
+    var tok = localStorage.getItem('bbtech_token') || sessionStorage.getItem('bbtech_token');
+    try { if (JSON.parse(atob(tok.split('.')[1])).rol === 'superadmin') { window.location.href = 'superadmin.html'; return; } } catch(e) {}
     this._renderTopbar();
     this._bindMobileMenu();
     this._bindLogout();
