@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBTECH — Iniciar Sesión</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐄</text></svg>">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/login.css">
+</head>
+
+<body class="login-page">
+
+  <div class="login-bg" aria-hidden="true">
+    <div class="login-bg-grid"></div>
+    <div class="login-bg-circle1"></div>
+    <div class="login-bg-circle2"></div>
+  </div>
+
+  <div class="login-container">
+    <div class="login-header">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <img src="assets/logo.png" alt="BBTECH Logo" class="login-logo-img"
+          onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='flex'">
+        <div id="login-logo-fallback" style="display:none;align-items:center;gap:12px">
+          <div class="login-logo-icon" aria-hidden="true">🐄</div>
+          <span class="login-logo-text">BBTECH</span>
+        </div>
+      </div>
+      <div class="login-tagline">Sistema de Control Bovino</div>
+    </div>
+
+    <div class="login-card">
+      <h2>Iniciar sesión</h2>
+      <p class="subtitle">Ingresá con tus credenciales para continuar</p>
+
+      <div class="login-error hidden" id="login-error" role="alert">
+        <span>⚠</span>
+        <span id="login-error-msg"></span>
+      </div>
+
+      <form class="login-form" id="login-form" novalidate autocomplete="on">
+        <div class="form-group">
+          <label class="form-label" for="email">Correo electrónico</label>
+          <div class="login-input-wrapper">
+            <span class="login-input-icon">✉</span>
+            <input class="input" type="email" id="email" name="email" autocomplete="email"
+              placeholder="usuario@bbtech.com" required maxlength="100">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Contraseña</label>
+          <div class="login-input-wrapper">
+            <span class="login-input-icon">🔒</span>
+            <input class="input" type="password" id="password" name="password" autocomplete="current-password"
+              placeholder="••••••••" required maxlength="128">
+            <button type="button" class="login-toggle-pw" id="toggle-pw" aria-label="Mostrar contraseña">
+              <span id="eye-icon">👁</span>
+            </button>
+          </div>
+        </div>
+
+        <label class="remember-me">
+          <input type="checkbox" id="remember-me" name="remember">
+          Recordar sesión
+        </label>
+
+        <button type="submit" class="login-submit" id="login-btn">
+          Ingresar al sistema
+        </button>
+      </form>
+    </div>
+
+    <div class="login-footer">
+      <p>© 2026 BBTECH · Sistema de Control Bovino</p>
+      <p style="margin-top:4px;opacity:.4">Demo: admin@bbtech.com / bbtech2024</p>
+    </div>
+  </div>
+
+  <!-- store.js PRIMERO, luego el script inline — orden garantizado al final del body -->
+  <script src="js/store.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      if (BBT.Auth.isLoggedIn()) {
+        window.location.href = 'app.html';
+        return;
+      }
+
+      var form = document.getElementById('login-form');
+      var emailEl = document.getElementById('email');
+      var pwEl = document.getElementById('password');
+      var errorEl = document.getElementById('login-error');
+      var errorMsg = document.getElementById('login-error-msg');
+      var btn = document.getElementById('login-btn');
+      var togglePw = document.getElementById('toggle-pw');
+      var eyeIcon = document.getElementById('eye-icon');
+      var remember = document.getElementById('remember-me');
+
+      function showError(msg) {
+        errorMsg.textContent = msg;
+        errorEl.classList.remove('hidden');
+      }
+
+      togglePw.addEventListener('click', function () {
+        if (pwEl.type === 'password') {
+          pwEl.type = 'text';
+          eyeIcon.textContent = '🙈';
+        } else {
+          pwEl.type = 'password';
+          eyeIcon.textContent = '👁';
+        }
+      });
+
+      [emailEl, pwEl].forEach(function (el) {
+        el.addEventListener('input', function () {
+          errorEl.classList.add('hidden');
+        });
+      });
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        var email = emailEl.value.trim();
+        var password = pwEl.value;
+
+        if (!email || !password) {
+          showError('Completá todos los campos.');
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Verificando...';
+        errorEl.classList.add('hidden');
+
+        BBT.Auth.login(email, password, remember.checked).then(function (res) {
+          if (res.ok) {
+            btn.textContent = '✓ Ingresando...';
+            window.location.href = 'app.html';
+          } else {
+            showError(res.error || 'Credenciales incorrectas.');
+            btn.disabled = false;
+            btn.textContent = 'Ingresar al sistema';
+          }
+        }).catch(function () {
+          showError('Error de conexión. Verificá tu internet.');
+          btn.disabled = false;
+          btn.textContent = 'Ingresar al sistema';
+        });
+      });
+
+    })();
+  </script>
+
+</body>
+
+</html>
