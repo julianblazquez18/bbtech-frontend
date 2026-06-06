@@ -158,7 +158,7 @@ const App = {
   },
 
     _updateSidebarActive() {
-    $$('.nav-sub-item, .nav-item').forEach(el => el.classList.remove('active'));
+    $$('.nav-sub-item, .nav-item, .sidebar-safra, .sidebar-nav-item').forEach(el => el.classList.remove('active'));
     if (this.currentView === 'ciclo' && this.currentCicloId) {
       const item = $(`[data-ciclo-id="${this.currentCicloId}"]`);
       if (item) item.classList.add('active');

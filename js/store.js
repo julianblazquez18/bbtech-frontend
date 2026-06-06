@@ -311,7 +311,9 @@ const Ciclos = {
         existing._vacaCount  = parseInt(c.vaca_count) || Object.keys(existing.vacas).length;
       } else {
         // Sin vacas en caché — reemplazar normalmente
-        this._cache[c.id] = _normCiclo(c);
+        const norm = _normCiclo(c);
+        norm._vacaCount = parseInt(c.vaca_count) || 0;
+        this._cache[c.id] = norm;
       }
     });
     return raw.map(c => this._cache[c.id]);
