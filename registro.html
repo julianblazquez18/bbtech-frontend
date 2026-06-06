@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBTECH — Solicitar acceso</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐄</text></svg>">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/login.css">
+  <style>
+    /* Ancho levemente mayor al login para acomodar más campos */
+    .login-container { max-width: 460px; }
+
+    /* Pantalla de éxito */
+    .success-box {
+      text-align: center;
+      padding: var(--space-8) var(--space-4);
+      display: none;
+    }
+    .success-icon {
+      font-size: 3rem; margin-bottom: var(--space-4);
+    }
+    .success-title {
+      font-family: var(--font-display);
+      color: #fff; font-size: 1.3rem; font-weight: 700;
+      margin-bottom: var(--space-3);
+    }
+    .success-desc {
+      color: rgba(255,255,255,.55); font-size: .88rem; line-height: 1.6;
+      margin-bottom: var(--space-6);
+    }
+    .success-back {
+      display: inline-block;
+      color: rgba(255,255,255,.6); font-size: .82rem; text-decoration: none;
+      transition: color var(--transition-fast);
+    }
+    .success-back:hover { color: #fff; }
+
+    /* Separador entre secciones del form */
+    .form-section-label {
+      font-size: .68rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: rgba(255,255,255,.35);
+      margin-top: var(--space-2);
+    }
+
+    /* Password strength hint */
+    .pw-hint {
+      font-size: .72rem; color: rgba(255,255,255,.3);
+      margin-top: 3px;
+    }
+  </style>
+</head>
+
+<body class="login-page">
+
+  <div class="login-bg" aria-hidden="true">
+    <div class="login-bg-grid"></div>
+    <div class="login-bg-circle1"></div>
+    <div class="login-bg-circle2"></div>
+  </div>
+
+  <div class="login-container">
+
+    <!-- Logo -->
+    <div class="login-header">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <img src="assets/logo.png" alt="BBTECH Logo" class="login-logo-img"
+          onerror="this.style.display='none';document.getElementById('reg-logo-fallback').style.display='flex'">
+        <div id="reg-logo-fallback" style="display:none;align-items:center;gap:12px">
+          <div class="login-logo-icon" aria-hidden="true">🐄</div>
+          <span class="login-logo-text">BBTECH</span>
+        </div>
+      </div>
+      <div class="login-tagline">Solicitar acceso</div>
+    </div>
+
+    <!-- Card -->
+    <div class="login-card">
+
+      <!-- Form visible por defecto -->
+      <div id="reg-form-wrapper">
+        <h2>Nueva empresa</h2>
+        <p class="subtitle">Completá los datos para solicitar acceso al sistema</p>
+
+        <div class="login-error hidden" id="reg-error" role="alert">
+          <span>⚠</span>
+          <span id="reg-error-msg"></span>
+        </div>
+
+        <form class="login-form" id="reg-form" novalidate autocomplete="off">
+
+          <!-- Datos de la empresa -->
+          <div class="form-section-label">Empresa</div>
+
+          <div class="form-group">
+            <label class="form-label" for="empresa-nombre">Nombre de la empresa</label>
+            <div class="login-input-wrapper">
+              <span class="login-input-icon">🏢</span>
+              <input class="input" type="text" id="empresa-nombre" name="empresa-nombre"
+                placeholder="Ej: Familia García" required maxlength="100">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="email-contacto">Email de contacto de la empresa</label>
+            <div class="login-input-wrapper">
+              <span class="login-input-icon">✉</span>
+              <input class="input" type="email" id="email-contacto" name="email-contacto"
+                placeholder="contacto@miempresa.com" maxlength="100">
+            </div>
+          </div>
+
+          <!-- Datos del administrador -->
+          <div class="form-section-label" style="margin-top:var(--space-2)">Administrador de la cuenta</div>
+
+          <div class="form-group">
+            <label class="form-label" for="admin-nombre">Tu nombre</label>
+            <div class="login-input-wrapper">
+              <span class="login-input-icon">👤</span>
+              <input class="input" type="text" id="admin-nombre" name="admin-nombre"
+                placeholder="Nombre y apellido" required maxlength="80">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="admin-email">Tu email (para iniciar sesión)</label>
+            <div class="login-input-wrapper">
+              <span class="login-input-icon">✉</span>
+              <input class="input" type="email" id="admin-email" name="admin-email"
+                placeholder="vos@miempresa.com" required maxlength="100">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="admin-password">Contraseña</label>
+            <div class="login-input-wrapper">
+              <span class="login-input-icon">🔒</span>
+              <input class="input" type="password" id="admin-password" name="admin-password"
+                placeholder="Mínimo 8 caracteres" required maxlength="128">
+              <button type="button" class="login-toggle-pw" id="toggle-pw" aria-label="Mostrar contraseña">
+                <span id="eye-icon">👁</span>
+              </button>
+            </div>
+            <div class="pw-hint">Mínimo 8 caracteres</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="admin-password2">Confirmar contraseña</label>
+            <div class="login-input-wrapper">
+              <span class="login-input-icon">🔒</span>
+              <input class="input" type="password" id="admin-password2" name="admin-password2"
+                placeholder="Repetí la contraseña" required maxlength="128">
+            </div>
+          </div>
+
+          <button type="submit" class="login-submit" id="reg-btn" style="margin-top:var(--space-4)">
+            Enviar solicitud
+          </button>
+
+        </form>
+      </div>
+
+      <!-- Pantalla de éxito (oculta inicialmente) -->
+      <div class="success-box" id="reg-success">
+        <div class="success-icon">✅</div>
+        <div class="success-title">¡Solicitud enviada!</div>
+        <div class="success-desc">
+          Tu empresa fue registrada correctamente.<br>
+          Vamos a revisar tu solicitud y te avisaremos por email cuando tu cuenta esté aprobada.
+        </div>
+        <a href="index.html" class="success-back">← Volver al inicio de sesión</a>
+      </div>
+
+    </div>
+
+    <div class="login-footer">
+      <p>© 2026 BBTECH · Sistema de Control Bovino</p>
+      <p style="margin-top:8px">
+        <a href="index.html" style="color:rgba(255,255,255,.45);text-decoration:none;font-size:.8rem"
+          onmouseover="this.style.color='rgba(255,255,255,.8)'" onmouseout="this.style.color='rgba(255,255,255,.45)'">
+          ← Ya tengo cuenta, iniciar sesión
+        </a>
+      </p>
+    </div>
+
+  </div>
+
+  <script src="config.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/registro.js"></script>
+
+</body>
+</html>
