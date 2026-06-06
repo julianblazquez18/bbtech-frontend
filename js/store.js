@@ -7,7 +7,8 @@
 /* ── URL de la API ───────────────────────────────────────── */
 // En desarrollo: http://localhost:3000
 // En producción: se sobreescribe con window.BBTECH_API_URL
-const API_URL = window.BBTECH_API_URL || 'http://localhost:3000';
+const API_URL = window.BBTECH_API_URL || 
+  (window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://bbtech-api.onrender.com');
 
 /* ── Security (sin cambios) ──────────────────────────────── */
 const Security = {
