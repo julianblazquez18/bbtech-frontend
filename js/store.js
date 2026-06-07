@@ -405,12 +405,15 @@ const Ciclos = {
   async addVacasBulk(cicloId, ids) {
     try {
       const data = await API.post('/api/vacas/bulk', { cicloId, caravanas: ids });
-      await this.fetchByCiclo(cicloId);
-      return [
-        ...data.ok.map(id     => ({ id, result: { ok: true } })),
-        ...(data.errors || []).map(e => ({ id: e.caravana, result: { ok: false, error: e.motivo } })),
-      ];
-    } catch (err) { return ids.map(id => ({ id, result: { ok: false, error: err.message } })); }
+      // El backend devuelve: { ok: NUMBER (éxitos), errors: [{caravana, motivo}] }
+      // Usamos directamente esos valores — sin reconstruir
+      const okCount = typeof data.ok === 'number' ? data.ok : 0;
+      const errors  = Array.isArray(data.errors) ? data.errors : [];
+      this.fetchByCiclo(cicloId).catch(() => {});
+      return { okCount, errors };
+    } catch (err) {
+      return { okCount: 0, errors: [{ caravana: '—', motivo: err.message }] };
+    }
   },
 
   async updateEtapa(cicloId, vacaId, etapa, estado, fecha, obs) {
@@ -454,13 +457,15 @@ const Ciclos = {
     } catch (err) { console.error('setEstadoDescarte:', err.message); }
   },
 
-  async moverVacasBulk(deCicloId, vacaIds, aCicloId) {
-    const ids = vacaIds.map(vid => { const v = this.getVaca(deCicloId, vid); return v ? v._id : null; }).filter(Boolean);
+  async unsetDescarte(cicloId, vacaId) {
+    const v = this.getVaca(cicloId, vacaId);
+    if (!v || !v._id) return;
     try {
-      await API.post('/api/vacas/mover', { deCicloId, vacaIds: ids, aCicloId });
-      await Promise.all([this.fetchByCiclo(deCicloId), this.fetchByCiclo(aCicloId)]);
-      return vacaIds.map(id => ({ id, result: { ok: true } }));
-    } catch (err) { return vacaIds.map(id => ({ id, result: { ok: false, error: err.message } })); }
+      const updated = await API.del('/api/vacas/' + v._id + '/descarte');
+      if (this._cache[cicloId]) {
+        this._cache[cicloId].vacas[vacaId] = _normVaca(updated, this._cache[cicloId].grupoId);
+      }
+    } catch (err) { console.error('unsetDescarte:', err.message); }
   },
 
   async deleteVacas(cicloId, vacaIds) {

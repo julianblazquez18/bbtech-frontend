@@ -99,13 +99,16 @@ const CicloView = {
             </div>
             <div class="flex gap-2 wrap-gap">
               <input class="input input-sm" style="width:180px" id="search-input" placeholder="🔍 Buscar caravana...">
-              <select class="select input-sm" style="width:170px" id="filter-etapa">
+              <select class="select input-sm" style="width:185px" id="filter-etapa">
                 <option value="">Todas</option>
                 <option value="entore_preniada">Preñadas</option>
                 <option value="entore_vacia">Vacías</option>
                 <option value="parto_pario">Parieron</option>
-                <option value="parto_no_pario">No parieron</option>
+                <option value="aun_no_pario">Aún no parió</option>
+                <option value="parto_aborto">Aborto</option>
                 <option value="destete_desteto">Destetaron</option>
+                <option value="aun_no_desteto">Aún no destetó</option>
+                <option value="destete_muerte_ternero">Muerte Ternero</option>
                 <option value="descarte">Descarte</option>
               </select>
             </div>
@@ -119,9 +122,8 @@ const CicloView = {
             <button class="btn btn-sm btn-secondary" id="btn-bulk-entore">✏ Entore</button>
             <button class="btn btn-sm btn-secondary" id="btn-bulk-parto">✏ Parto</button>
             <button class="btn btn-sm btn-secondary" id="btn-bulk-destete">✏ Destete</button>
-            <button class="btn btn-danger btn-sm" id="btn-bulk-descarte">⚠ Descarte</button>
+            <button class="btn btn-sm btn-secondary" id="btn-bulk-descarte">✏ Descarte</button>
             <button class="btn btn-warning btn-sm" id="btn-bulk-traspasar">↗ Traspasar</button>
-            <button class="btn btn-info btn-sm" id="btn-bulk-mover">↔ Mover</button>
             <button class="btn btn-warning btn-sm" id="btn-bulk-borrar">🗑 Borrar</button>
             ` : ''}
           </div>
@@ -194,42 +196,42 @@ const CicloView = {
         <div class="stat-sub">animales</div>
       </div>
       <div class="stat-card highlight-green">
-        <div style="display:flex;gap:var(--space-4)">
+        <div style="display:flex;gap:var(--space-4);flex:1">
           <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
-            <div class="stat-label">Preñadas</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Preñadas</div>
             <div class="stat-value">${stats.preniadas}</div>
             <div class="stat-sub">${stats.pctPrenez}% del total</div>
           </div>
           <div style="flex:1">
-            <div class="stat-label" style="color:var(--status-muerte)">Vacías</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--status-muerte)">Vacías</div>
             <div class="stat-value" style="color:var(--status-muerte)">${stats.vacias}</div>
             <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctVacias}% del total</div>
           </div>
         </div>
       </div>
-      <div class="stat-card">
-        <div style="display:flex;gap:var(--space-4)">
+      <div class="stat-card highlight-green">
+        <div style="display:flex;gap:var(--space-4);flex:1">
           <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
-            <div class="stat-label">Parieron</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Parieron</div>
             <div class="stat-value">${stats.parieron}</div>
             <div class="stat-sub">${stats.pctParto}% de preñadas</div>
           </div>
           <div style="flex:1">
-            <div class="stat-label" style="color:var(--status-muerte)">Aborto</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--status-muerte)">Aborto</div>
             <div class="stat-value" style="color:var(--status-muerte)">${stats.abortaron}</div>
             <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctAborto}% de preñadas</div>
           </div>
         </div>
       </div>
-      <div class="stat-card">
-        <div style="display:flex;gap:var(--space-4)">
+      <div class="stat-card highlight-green">
+        <div style="display:flex;gap:var(--space-4);flex:1">
           <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
-            <div class="stat-label">Destetaron</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Destetaron</div>
             <div class="stat-value">${stats.destetaron}</div>
             <div class="stat-sub">${stats.pctDestete}% de paridas</div>
           </div>
           <div style="flex:1">
-            <div class="stat-label" style="color:var(--status-muerte)">Muerte ternero</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--status-muerte)">Muerte ternero</div>
             <div class="stat-value" style="color:var(--status-muerte)">${stats.muerteTernero}</div>
             <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctMuerteTernero}% de paridas</div>
           </div>
@@ -252,8 +254,18 @@ const CicloView = {
     const filter = ($('#filter-etapa') || { value: '' }).value;
     let vacas = BBT.Ciclos.getVacas(this.cicloId);
     if (search) vacas = vacas.filter(v => v.vacaId.toLowerCase().includes(search));
-    if (filter === 'descarte') vacas = vacas.filter(v => v.rechazo);
-    else if (filter) {
+    if (filter === 'descarte') {
+      vacas = vacas.filter(v => v.rechazo);
+    } else if (filter === 'aun_no_pario') {
+      // Preñadas con parto todavía pendiente
+      vacas = vacas.filter(v => v.entore.estado === 'preniada' && v.parto.estado === 'pendiente');
+    } else if (filter === 'aun_no_desteto') {
+      // Paridas con destete pendiente o en curso (aún sin resolver)
+      vacas = vacas.filter(v => v.parto.estado === 'pario' && (v.destete.estado === 'pendiente' || v.destete.estado === 'en_curso'));
+    } else if (filter) {
+      // Caso genérico: "etapa_estado" → split por '_', join el resto
+      // Cubre: entore_preniada, entore_vacia, parto_pario, parto_aborto,
+      //        destete_desteto, destete_muerte_ternero
       const parts = filter.split('_');
       const etapa = parts[0];
       const estado = parts.slice(1).join('_');
@@ -293,19 +305,13 @@ const CicloView = {
         ? `${BBT.Security.sanitize(getNombreGrupo(v.grupoActual))} <span style="color:var(--text-muted);font-size:.72rem">← ${BBT.Security.sanitize(getNombreGrupo(v.grupoOrigen))}</span>`
         : BBT.Security.sanitize(getNombreGrupo(v.grupoActual));
 
-      /* Columna descarte: solo select si está descartada */
+      /* Columna descarte: siempre badge estático */
       let descCol = '<span class="text-muted text-xs">—</span>';
       if (v.rechazo) {
-        if (!cerrado) {
-          descCol = `<select class="select descarte-select" style="font-size:.78rem;padding:3px 6px;height:28px;min-width:105px;border-color:${descEst === 'muerte' ? '#fca5a5' : descEst === 'rechazo' ? '#93c5fd' : '#fcd34d'}" data-id="${BBT.Security.sanitize(v.vacaId)}">
-            <option value="pendiente"${descEst === 'pendiente' ? ' selected' : ''}>⚠ Pendiente</option>
-            <option value="muerte"   ${descEst === 'muerte'    ? ' selected' : ''}>💀 Muerte</option>
-            <option value="rechazo"  ${descEst === 'rechazo'   ? ' selected' : ''}>⛔ Rechazo</option>
-          </select>`;
-        } else {
-          const lbl = descEst === 'muerte' ? '💀 Muerte' : descEst === 'rechazo' ? '⛔ Rechazo' : '⚠ Pendiente';
-          descCol = `<span class="badge" style="font-size:.72rem;background:${descEst === 'muerte' ? 'var(--status-muerte-bg)' : descEst === 'rechazo' ? 'var(--status-venta-bg)' : '#fef3c7'};color:${descEst === 'muerte' ? 'var(--status-muerte)' : descEst === 'rechazo' ? 'var(--status-venta)' : 'var(--status-vacia)'}">${lbl}</span>`;
-        }
+        const lbl = descEst === 'muerte' ? '💀 Muerte' : descEst === 'rechazo' ? '⛔ Rechazo' : '⚠ Pendiente';
+        const bg  = descEst === 'muerte' ? 'var(--status-muerte-bg)' : descEst === 'rechazo' ? 'var(--status-venta-bg)' : '#fef3c7';
+        const col = descEst === 'muerte' ? 'var(--status-muerte)'    : descEst === 'rechazo' ? 'var(--status-venta)'    : 'var(--status-vacia)';
+        descCol = `<span class="badge" style="font-size:.72rem;background:${bg};color:${col}">${lbl}</span>`;
       }
 
       return `
@@ -357,23 +363,6 @@ const CicloView = {
     if (tbody) {
       tbody.addEventListener('change', e => {
         if (e.target.classList.contains('vaca-check')) { this._updateCheckAll(); this._updateBulkBar(); }
-        if (e.target.classList.contains('descarte-select')) {
-          const vacaId = e.target.dataset.id;
-          const estado = e.target.value;
-          // Actualizar caché local y re-render — sin tocar API (es optimista)
-          const cache = BBT.Ciclos._cache[this.cicloId];
-          if (cache && cache.vacas[vacaId]) {
-            if (!cache.vacas[vacaId].rechazo) {
-              cache.vacas[vacaId].rechazo = { obs: '', fecha: '', estado };
-            } else {
-              cache.vacas[vacaId].rechazo.estado = estado;
-            }
-          }
-          this._refreshLocal();
-          // Sync API en background
-          BBT.Ciclos.setEstadoDescarte(this.cicloId, vacaId, estado)
-            .catch(err => console.error('descarte sync:', err));
-        }
       });
       tbody.addEventListener('click', e => {
         const btn = e.target.closest('button');
@@ -394,7 +383,6 @@ const CicloView = {
     if (b('btn-bulk-destete')) b('btn-bulk-destete').addEventListener('click', () => this._bulkEtapa('destete'));
     if (b('btn-bulk-descarte')) b('btn-bulk-descarte').addEventListener('click', () => this._bulkDescarte());
     if (b('btn-bulk-traspasar')) b('btn-bulk-traspasar').addEventListener('click', () => this._traspasarSeleccion());
-    if (b('btn-bulk-mover')) b('btn-bulk-mover').addEventListener('click', () => this._bulkMover());
     if (b('btn-bulk-borrar')) b('btn-bulk-borrar').addEventListener('click', () => this._bulkBorrar());
   },
 
@@ -441,12 +429,14 @@ const CicloView = {
     m.querySelector('#b-ok').addEventListener('click', async () => {
       const ids = m.querySelector('#bulk-ids').value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
       if (!ids.length) { Toast.error('Ingresá al menos una caravana.'); return; }
-      const results = await BBT.Ciclos.addVacasBulk(this.cicloId, ids);
-      const ok   = results.filter(r => r.result.ok).length;
-      const fail = results.filter(r => !r.result.ok).length;
+      const okBtn = m.querySelector('#b-ok');
+      const cancelBtn = m.querySelector('#b-cancel');
+      okBtn.disabled = true; okBtn.textContent = 'Procesando...';
+      cancelBtn.disabled = true;
+      const { okCount, errors } = await BBT.Ciclos.addVacasBulk(this.cicloId, ids);
       Modal.close(m);
-      if (ok)   Toast.success(`${ok} ${ok === 1 ? 'animal agregado' : 'animales agregados'}.`);
-      if (fail) Toast.warning(`${fail} no se pudieron agregar.`);
+      if (okCount > 0)    Toast.success(`${okCount} ${okCount === 1 ? 'animal agregado' : 'animales agregados'}.`);
+      if (errors.length)  Toast.warning(`${errors.length} no se ${errors.length === 1 ? 'pudo agregar' : 'pudieron agregar'}.`);
       this._refresh();
     });
   },
@@ -498,24 +488,58 @@ const CicloView = {
   async _bulkDescarte() {
     const ids = this._getSelectedIds();
     if (!ids.length) return;
-    const ok = await Modal.confirm('Marcar como Descarte', `¿Marcar ${ids.length} ${ids.length === 1 ? 'animal' : 'animales'} como descarte?`, 'Sí, marcar', 'danger');
-    if (!ok) return;
-    const obs = await Modal.prompt(
-      `Observación${ids.length === 1 ? ' — ' + ids[0] : 's'}`,
-      'Motivo del descarte (se agrega a la observación general de la vaca)...'
-    );
-    for (const id of ids) {
-      await BBT.Ciclos.setRechazo(this.cicloId, id, '');
-      if (obs && obs.trim()) {
-        const vaca = BBT.Ciclos.getVaca(this.cicloId, id);
-        if (vaca && vaca._id) {
-          const newObs = (vaca.obs ? vaca.obs + ' | ' : '') + 'Descarte: ' + obs.trim();
-          await BBT.API.put('/api/vacas/' + vaca._id + '/obs', { obs: newObs });
-          if (BBT.Ciclos._cache[this.cicloId]) BBT.Ciclos._cache[this.cicloId].vacas[id].obs = newObs;
+    const m = Modal.show({
+      title: `Descarte — ${ids.length} ${ids.length === 1 ? 'animal' : 'animales'}`,
+      body: `
+        <div class="flex flex-col gap-4">
+          <div class="form-group">
+            <label class="form-label">Estado</label>
+            <select class="select" id="desc-estado">
+              <option value="no">No descartada</option>
+              <option value="si">Descartar</option>
+            </select>
+          </div>
+          <div class="form-group" id="desc-tipo-group" style="display:none">
+            <label class="form-label">Tipo</label>
+            <select class="select" id="desc-tipo">
+              <option value="muerte">💀 Muerte</option>
+              <option value="rechazo">⛔ Rechazo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha (opcional)</label>
+            <input class="input" type="date" id="desc-fecha">
+          </div>
+        </div>`,
+      footer: `<button class="btn btn-secondary" id="d-cancel">Cancelar</button><button class="btn btn-primary" id="d-ok">Guardar</button>`
+    });
+
+    const estadoSel = m.querySelector('#desc-estado');
+    const tipoGroup = m.querySelector('#desc-tipo-group');
+    estadoSel.addEventListener('change', () => {
+      tipoGroup.style.display = estadoSel.value === 'si' ? 'block' : 'none';
+    });
+
+    m.querySelector('#d-cancel').addEventListener('click', () => Modal.close(m));
+    m.querySelector('#d-ok').addEventListener('click', async () => {
+      const estado = estadoSel.value;
+      const tipo   = m.querySelector('#desc-tipo').value;
+      const okBtn  = m.querySelector('#d-ok');
+      okBtn.disabled = true; okBtn.textContent = 'Procesando...';
+
+      for (const id of ids) {
+        if (estado === 'no') {
+          await BBT.Ciclos.unsetDescarte(this.cicloId, id);
+        } else {
+          await BBT.Ciclos.setRechazo(this.cicloId, id, '');
+          await BBT.Ciclos.setEstadoDescarte(this.cicloId, id, tipo);
         }
       }
-    }
-    Toast.warning(`${ids.length} marcados como descarte.`); this._refreshLocal(); await App.refreshSidebar();
+      Modal.close(m);
+      Toast.success(`Descarte actualizado para ${ids.length} ${ids.length === 1 ? 'animal' : 'animales'}.`);
+      this._refreshLocal();
+      await App.refreshSidebar();
+    });
   },
 
   /* ── TRASPASAR SELECCIÓN (bulk) — solo las seleccionadas ── */
@@ -561,48 +585,16 @@ const CicloView = {
       footer: `<button class="btn btn-secondary" id="t-cancel">Cancelar</button><button class="btn btn-primary" id="t-ok">Traspasar ${cantidad} animales</button>`
     });
     m.querySelector('#t-cancel').addEventListener('click', () => Modal.close(m));
-    m.querySelector('#t-ok').addEventListener('click', () => {
+    m.querySelector('#t-ok').addEventListener('click', async () => {
       const dest = m.querySelector('#trasp-destino').value;
       if (!dest) { Toast.error('Seleccioná una safra destino.'); return; }
-      const res = BBT.Ciclos.traspasar(this.cicloId, dest, vacaIds || null);
-      if (!res.ok) { Toast.error(res.error); return; }
+      const okBtn = m.querySelector('#t-ok');
+      okBtn.disabled = true; okBtn.textContent = 'Traspasando...';
+      const res = await BBT.Ciclos.traspasar(this.cicloId, dest, vacaIds || null);
+      if (!res.ok) { Toast.error(res.error); okBtn.disabled = false; okBtn.textContent = `Traspasar ${cantidad} animales`; return; }
       Modal.close(m);
       Toast.success(`${res.count} ${res.count === 1 ? 'animal traspasado' : 'animales traspasados'}.`);
       App.refreshSidebar();
-    });
-  },
-
-  /* ── Bulk mover ── */
-  async _bulkMover() {
-    const ids = this._getSelectedIds();
-    if (!ids.length) return;
-    const todosRodeos = BBT.Estancias.getAllRodeos();
-    let opciones = [];
-    for (const r of todosRodeos) {
-      BBT.Ciclos.getActivosByGrupo(r.id).filter(c => c.id !== this.cicloId).forEach(c => {
-        opciones.push({ cicloId: c.id, label: `${r.nombre} → ${c.nombre}` });
-      });
-    }
-    if (!opciones.length) { Toast.warning('No hay safras activas disponibles.'); return; }
-    const opts = opciones.map(o => `<option value="${o.cicloId}">${BBT.Security.sanitize(o.label)}</option>`).join('');
-    const m = Modal.show({
-      title: `Mover ${ids.length} ${ids.length === 1 ? 'animal' : 'animales'}`,
-      body: `<div class="form-group"><label class="form-label">Safra destino</label>
-        <select class="select" id="move-destino"><option value="">— Seleccioná —</option>${opts}</select></div>
-        <p class="text-sm text-muted mt-4">Los animales se moverán con toda su información actual.</p>`,
-      footer: `<button class="btn btn-secondary" id="m-cancel">Cancelar</button><button class="btn btn-primary" id="m-ok">Mover</button>`
-    });
-    m.querySelector('#m-cancel').addEventListener('click', () => Modal.close(m));
-    m.querySelector('#m-ok').addEventListener('click', () => {
-      const dest = m.querySelector('#move-destino').value;
-      if (!dest) { Toast.error('Seleccioná un destino.'); return; }
-      const results = BBT.Ciclos.moverVacasBulk(this.cicloId, ids, dest);
-      const ok = results.filter(r => r.result.ok).length, fail = results.filter(r => !r.result.ok).length;
-      Modal.close(m);
-      if (ok) Toast.success(`${ok} ${ok === 1 ? 'animal movido' : 'animales movidos'}.`);
-      if (fail) Toast.warning(`${fail} no se pudieron mover.`);
-      this._refresh(); App.refreshSidebar();
-      this._refresh(); App.refreshSidebar();
     });
   },
 
@@ -668,7 +660,8 @@ const CicloView = {
       Se descargará el Excel y la safra quedará archivada.`,
       'Sí, finalizar', 'danger');
     if (!ok) return;
-    const res = BBT.Ciclos.finalizar(this.cicloId);
+    Toast.info('Finalizando safra, por favor esperá...');
+    const res = await BBT.Ciclos.finalizar(this.cicloId);
     if (!res.ok) { Toast.error(res.error); return; }
     this._exportar();
     Toast.success(`Safra "${ciclo.nombre}" finalizada y archivada.`);
@@ -709,8 +702,8 @@ const CicloView = {
         'Vacía':          [G.red,        G.redText,  '#fca5a5'],
         'Aborto':         [G.red,        G.redText,  '#fca5a5'],
         'Muerte Ternero': [G.red,        G.redText,  '#fca5a5'],
-        'Muerte':         [G.red,        G.redText,  '#fca5a5'],
-        'Rechazo':        [G.blue,       G.blueText, '#93c5fd'],
+        'Muerte':         [G.red,  G.redText,  '#fca5a5'],
+        'Rechazo':        [G.blue, G.blueText, '#93c5fd'],
         'En curso':       [G.gray,       G.grayText, G.grayBorder],
         'Pendiente':      [G.gray,       G.grayText, G.grayBorder],
       };
@@ -794,8 +787,8 @@ const CicloView = {
       + sRow('Destetaron',      stats.destetaron,    stats.pctDestete,       G.greenLight, G.green,       'de paridas')
       + sRow('Muerte ternero',  stats.muerteTernero, stats.pctMuerteTernero, G.yellow,     G.yellowText,  'de paridas')
       + sRow('Descarte total',  stats.descartadas,   stats.pctDescarte,      G.red,        G.redText,     'del total')
-      + sRow('  \ud83d\udc80 Muerte',   stats.muerte,        stats.pctMuerte,        G.red,        G.redText,     'del total')
-      + sRow('  \u26d4 Rechazo', stats.rechazo,       stats.pctRechazo,       G.blue,       G.blueText,    'del total')
+      + sRow('  \ud83d\udc80 Muerte',   stats.muerte,        stats.pctMuerte,        G.yellow,     G.yellowText,  'del total')
+      + sRow('  \u26d4 Rechazo', stats.rechazo,       stats.pctRechazo,       G.yellow,     G.yellowText,  'del total')
       + '</tbody></table>'
 
       // Planilla — título
