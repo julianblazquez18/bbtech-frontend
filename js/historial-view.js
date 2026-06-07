@@ -64,7 +64,7 @@ const HistorialView = {
               <div class="stat-sub">${stats.pctDescarte || '0.0'}% del total</div>
               <div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">
                 <span style="font-size:.72rem;color:var(--status-muerte)">💀 Muerte: ${stats.muerte || 0} (${stats.pctMuerte || '0.0'}%)</span>
-                <span style="font-size:.72rem;color:var(--status-venta)">🐂 Feedlot: ${stats.feedlot || 0} (${stats.pctFeedlot || '0.0'}%)</span>
+                <span style="font-size:.72rem;color:var(--status-venta)">⛔ Rechazo: ${stats.rechazo || 0} (${stats.pctRechazo || '0.0'}%)</span>
               </div>
             </div>
           </div>

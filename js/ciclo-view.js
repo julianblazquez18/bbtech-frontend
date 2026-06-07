@@ -162,17 +162,24 @@ const CicloView = {
 
   /* ── Badges de etapa ── */
   _estadoBadge(estado) {
+    const R = 'background:var(--status-muerte-bg);color:var(--status-muerte)';
+    const B = 'background:var(--status-venta-bg);color:var(--status-venta)';
+    const G = 'background:var(--gray-100);color:var(--gray-500)';
+    if (!estado || estado === 'pendiente' || estado === 'no_aplica') {
+      return '<span class="text-muted text-xs">—</span>';
+    }
     const map = {
-      pendiente: ['', 'background:var(--gray-100);color:var(--gray-500)', '—'],
-      preniada: ['badge-preniada', '', 'Preñada'],
-      vacia: ['badge-vacia', '', 'Vacía'],
-      pario: ['badge-preniada', '', 'Parió'],
-      no_pario: ['', 'background:var(--status-rechazo-bg);color:var(--status-rechazo)', 'No parió'],
-      en_curso: ['badge-vacia', '', 'En curso'],
-      desteto: ['badge-preniada', '', 'Destetó'],
-      no_desteto: ['', 'background:var(--status-rechazo-bg);color:var(--status-rechazo)', 'No destetó'],
+      en_curso:       ['', G,  'En curso'],
+      preniada:       ['badge-preniada', '', 'Preñada'],
+      pario:          ['badge-preniada', '', 'Parió'],
+      desteto:        ['badge-preniada', '', 'Destetó'],
+      vacia:          ['', R,  'Vacía'],
+      aborto:         ['', R,  'Aborto'],
+      muerte_ternero: ['', R,  'Muerte Ternero'],
+      muerte:         ['', R,  'Muerte'],
+      rechazo:        ['', B,  'Rechazo'],
     };
-    const [cls, style, label] = map[estado] || ['', 'background:var(--gray-100);color:var(--gray-500)', estado || '—'];
+    const [cls, style, label] = map[estado] || ['', G, estado];
     return `<span class="badge ${cls}" style="${style}">${label}</span>`;
   },
 
@@ -187,24 +194,46 @@ const CicloView = {
         <div class="stat-sub">animales</div>
       </div>
       <div class="stat-card highlight-green">
-        <div class="stat-label">Preñadas</div>
-        <div class="stat-value">${stats.preniadas}</div>
-        <div class="stat-sub">${stats.pctPrenez}% del total</div>
+        <div style="display:flex;gap:var(--space-4)">
+          <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
+            <div class="stat-label">Preñadas</div>
+            <div class="stat-value">${stats.preniadas}</div>
+            <div class="stat-sub">${stats.pctPrenez}% del total</div>
+          </div>
+          <div style="flex:1">
+            <div class="stat-label" style="color:var(--status-muerte)">Vacías</div>
+            <div class="stat-value" style="color:var(--status-muerte)">${stats.vacias}</div>
+            <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctVacias}% del total</div>
+          </div>
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Vacías</div>
-        <div class="stat-value">${stats.vacias}</div>
-        <div class="stat-sub">${stats.pctVacias}% del total</div>
+        <div style="display:flex;gap:var(--space-4)">
+          <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
+            <div class="stat-label">Parieron</div>
+            <div class="stat-value">${stats.parieron}</div>
+            <div class="stat-sub">${stats.pctParto}% de preñadas</div>
+          </div>
+          <div style="flex:1">
+            <div class="stat-label" style="color:var(--status-muerte)">Aborto</div>
+            <div class="stat-value" style="color:var(--status-muerte)">${stats.abortaron}</div>
+            <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctAborto}% de preñadas</div>
+          </div>
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Parieron</div>
-        <div class="stat-value">${stats.parieron}</div>
-        <div class="stat-sub">${stats.pctParto}% del total</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Destetaron</div>
-        <div class="stat-value">${stats.destetaron}</div>
-        <div class="stat-sub">${stats.pctDestete}% del total</div>
+        <div style="display:flex;gap:var(--space-4)">
+          <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
+            <div class="stat-label">Destetaron</div>
+            <div class="stat-value">${stats.destetaron}</div>
+            <div class="stat-sub">${stats.pctDestete}% de paridas</div>
+          </div>
+          <div style="flex:1">
+            <div class="stat-label" style="color:var(--status-muerte)">Muerte ternero</div>
+            <div class="stat-value" style="color:var(--status-muerte)">${stats.muerteTernero}</div>
+            <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctMuerteTernero}% de paridas</div>
+          </div>
+        </div>
       </div>
       <div class="stat-card" style="border-color:#fca5a5">
         <div class="stat-label">Descarte</div>
@@ -212,7 +241,7 @@ const CicloView = {
         <div class="stat-sub">${stats.pctDescarte}% del total</div>
         <div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">
           <span style="font-size:.72rem;color:var(--status-muerte)">💀 Muerte: ${stats.muerte} (${stats.pctMuerte}%)</span>
-          <span style="font-size:.72rem;color:var(--status-venta)">🐂 Feedlot: ${stats.feedlot} (${stats.pctFeedlot}%)</span>
+          <span style="font-size:.72rem;color:var(--status-venta)">⛔ Rechazo: ${stats.rechazo} (${stats.pctRechazo}%)</span>
         </div>
       </div>`;
   },
@@ -256,7 +285,7 @@ const CicloView = {
     tbody.innerHTML = vacas.map(v => {
       const descEst = v.rechazo ? (v.rechazo.estado || 'pendiente') : null;
       const rowClass = descEst === 'muerte' ? 'row-muerte'
-        : descEst === 'feedlot' ? 'row-venta'
+        : descEst === 'rechazo' ? 'row-venta'
           : descEst === 'pendiente' ? 'row-descarte-pendiente'
             : '';
 
@@ -268,14 +297,14 @@ const CicloView = {
       let descCol = '<span class="text-muted text-xs">—</span>';
       if (v.rechazo) {
         if (!cerrado) {
-          descCol = `<select class="select descarte-select" style="font-size:.78rem;padding:3px 6px;height:28px;min-width:105px;border-color:${descEst === 'muerte' ? '#fca5a5' : descEst === 'feedlot' ? '#93c5fd' : '#fcd34d'}" data-id="${BBT.Security.sanitize(v.vacaId)}">
+          descCol = `<select class="select descarte-select" style="font-size:.78rem;padding:3px 6px;height:28px;min-width:105px;border-color:${descEst === 'muerte' ? '#fca5a5' : descEst === 'rechazo' ? '#93c5fd' : '#fcd34d'}" data-id="${BBT.Security.sanitize(v.vacaId)}">
             <option value="pendiente"${descEst === 'pendiente' ? ' selected' : ''}>⚠ Pendiente</option>
-            <option value="muerte"   ${descEst === 'muerte' ? ' selected' : ''}>💀 Muerte</option>
-            <option value="feedlot"  ${descEst === 'feedlot' ? ' selected' : ''}>🐂 Feedlot</option>
+            <option value="muerte"   ${descEst === 'muerte'    ? ' selected' : ''}>💀 Muerte</option>
+            <option value="rechazo"  ${descEst === 'rechazo'   ? ' selected' : ''}>⛔ Rechazo</option>
           </select>`;
         } else {
-          const lbl = descEst === 'muerte' ? '💀 Muerte' : descEst === 'feedlot' ? '🐂 Feedlot' : '⚠ Pendiente';
-          descCol = `<span class="badge" style="font-size:.72rem;background:${descEst === 'muerte' ? 'var(--status-muerte-bg)' : descEst === 'feedlot' ? 'var(--status-venta-bg)' : '#fef3c7'};color:${descEst === 'muerte' ? 'var(--status-muerte)' : descEst === 'feedlot' ? 'var(--status-venta)' : 'var(--status-vacia)'}">${lbl}</span>`;
+          const lbl = descEst === 'muerte' ? '💀 Muerte' : descEst === 'rechazo' ? '⛔ Rechazo' : '⚠ Pendiente';
+          descCol = `<span class="badge" style="font-size:.72rem;background:${descEst === 'muerte' ? 'var(--status-muerte-bg)' : descEst === 'rechazo' ? 'var(--status-venta-bg)' : '#fef3c7'};color:${descEst === 'muerte' ? 'var(--status-muerte)' : descEst === 'rechazo' ? 'var(--status-venta)' : 'var(--status-vacia)'}">${lbl}</span>`;
         }
       }
 
@@ -442,8 +471,8 @@ const CicloView = {
     if (!ids.length) return;
     const opciones = {
       entore: [['preniada', 'Preñada'], ['vacia', 'Vacía']],
-      parto: [['pario', 'Parió'], ['no_pario', 'No parió']],
-      destete: [['en_curso', 'En curso'], ['desteto', 'Destetó'], ['no_desteto', 'No destetó']]
+      parto: [['pario', 'Parió'], ['aborto', 'Aborto']],
+      destete: [['en_curso', 'En curso'], ['desteto', 'Destetó'], ['muerte_ternero', 'Muerte Ternero']]
     };
     const nombre = { entore: 'Entore', parto: 'Parto', destete: 'Destete' }[etapa];
     const opts = opciones[etapa].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
@@ -672,18 +701,18 @@ const CicloView = {
     const esc = v => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     const badge = (val) => {
-      if (!val || val === '—') return '<span style="color:' + G.grayText + '">—</span>';
+      if (!val || val === '—' || val === 'no_aplica') return '<span style="color:' + G.grayText + '">—</span>';
       const map = {
-        'Preñada': [G.greenLight, G.green, G.greenBorder],
-        'Parió': [G.greenLight, G.green, G.greenBorder],
-        'Destetó': [G.greenLight, G.green, G.greenBorder],
-        'Vacía': [G.yellow, G.yellowText, G.yellowBorder],
-        'No parió': [G.yellow, G.yellowText, G.yellowBorder],
-        'No destetó': [G.yellow, G.yellowText, G.yellowBorder],
-        'En curso': [G.gray, G.grayText, G.grayBorder],
-        'Pendiente': [G.gray, G.grayText, G.grayBorder],
-        'Muerte': [G.red, G.redText, '#fca5a5'],
-        'Feedlot': [G.blue, G.blueText, '#93c5fd'],
+        'Preñada':        [G.greenLight, G.green,    G.greenBorder],
+        'Parió':          [G.greenLight, G.green,    G.greenBorder],
+        'Destetó':        [G.greenLight, G.green,    G.greenBorder],
+        'Vacía':          [G.red,        G.redText,  '#fca5a5'],
+        'Aborto':         [G.red,        G.redText,  '#fca5a5'],
+        'Muerte Ternero': [G.red,        G.redText,  '#fca5a5'],
+        'Muerte':         [G.red,        G.redText,  '#fca5a5'],
+        'Rechazo':        [G.blue,       G.blueText, '#93c5fd'],
+        'En curso':       [G.gray,       G.grayText, G.grayBorder],
+        'Pendiente':      [G.gray,       G.grayText, G.grayBorder],
       };
       const [bg, color, border] = map[val] || [G.gray, G.grayText, G.grayBorder];
       return '<span style="display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;background:' + bg + ';color:' + color + ';border:1px solid ' + border + ';white-space:nowrap">' + val + '</span>';
@@ -697,7 +726,7 @@ const CicloView = {
       const destete = r['Destete'];
       const rowBg = i % 2 === 0 ? G.white : G.gray;
       const showParto = entore !== 'Vacía';
-      const showDestete = entore !== 'Vacía' && parto !== 'No parió';
+      const showDestete = entore !== 'Vacía' && parto !== 'Aborto';
       return '<tr style="background:' + rowBg + '">'
         + '<td style="padding:7px 10px;font-weight:700;font-family:Courier New,monospace;color:' + G.black + ';border:1px solid ' + G.grayBorder + '">' + esc(r['Caravana']) + '</td>'
         + '<td style="padding:7px 8px;color:' + G.grayText + ';font-size:12px;border:1px solid ' + G.grayBorder + '">' + esc(r['Grupo Actual']) + '</td>'
@@ -755,15 +784,18 @@ const CicloView = {
       + '<thead><tr style="background:' + G.green + ';color:#fff">'
       + '<th style="padding:8px 14px;text-align:left;font-size:13px;font-weight:700;letter-spacing:.03em;border:1px solid ' + G.green + ';width:60%">Indicador</th>'
       + '<th style="padding:8px 14px;text-align:center;font-size:13px;font-weight:700;border:1px solid ' + G.green + ';width:20%">Cantidad</th>'
-      + '<th style="padding:8px 14px;text-align:center;font-size:13px;font-weight:700;border:1px solid ' + G.green + ';width:20%">% del total</th>'
+      + '<th style="padding:8px 14px;text-align:center;font-size:13px;font-weight:700;border:1px solid ' + G.green + ';width:20%">Porcentaje</th>'
       + '</tr></thead><tbody>'
-      + sRow('Total animales', stats.total, '100', G.white, G.black, '')
-      + sRow('Vacías', stats.vacias, stats.pctVacias, G.yellow, G.yellowText, '')
-      + sRow('Preñadas', stats.preniadas, stats.pctPrenez, G.greenLight, G.green, '')
-      + sRow('Parieron', stats.parieron, stats.pctParto, G.greenLight, G.green, '')
-      + sRow('Destetaron', stats.destetaron, stats.pctDestete, G.greenLight, G.green, '')
-      + sRow('Descarte', stats.descartadas, stats.pctDescarte, G.red, G.redText,
-        '(Muerte: ' + stats.muerte + ' \u00b7 Feedlot: ' + stats.feedlot + ')')
+      + sRow('Total animales',  stats.total,         '100',                  G.white,      G.black,       'del total')
+      + sRow('Pre\u00f1adas',        stats.preniadas,     stats.pctPrenez,        G.greenLight, G.green,       'del total')
+      + sRow('Vac\u00edas',          stats.vacias,        stats.pctVacias,        G.yellow,     G.yellowText,  'del total')
+      + sRow('Parieron',        stats.parieron,      stats.pctParto,         G.greenLight, G.green,       'de pre\u00f1adas')
+      + sRow('Aborto',          stats.abortaron,     stats.pctAborto,        G.yellow,     G.yellowText,  'de pre\u00f1adas')
+      + sRow('Destetaron',      stats.destetaron,    stats.pctDestete,       G.greenLight, G.green,       'de paridas')
+      + sRow('Muerte ternero',  stats.muerteTernero, stats.pctMuerteTernero, G.yellow,     G.yellowText,  'de paridas')
+      + sRow('Descarte total',  stats.descartadas,   stats.pctDescarte,      G.red,        G.redText,     'del total')
+      + sRow('  \ud83d\udc80 Muerte',   stats.muerte,        stats.pctMuerte,        G.red,        G.redText,     'del total')
+      + sRow('  \u26d4 Rechazo', stats.rechazo,       stats.pctRechazo,       G.blue,       G.blueText,    'del total')
       + '</tbody></table>'
 
       // Planilla — título

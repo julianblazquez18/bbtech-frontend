@@ -320,21 +320,30 @@ const Ciclos = {
   },
 
   getStats(cicloId) {
-    const vacas       = this.getVacas(cicloId);
-    const total       = vacas.length;
-    const pct         = n => total > 0 ? ((n / total) * 100).toFixed(1) : '0.0';
-    const descartadas = vacas.filter(v => v.rechazo).length;
-    const muerte      = vacas.filter(v => v.rechazo && v.rechazo.estado === 'muerte').length;
-    const feedlot     = vacas.filter(v => v.rechazo && v.rechazo.estado === 'feedlot').length;
-    const preniadas   = vacas.filter(v => v.entore.estado === 'preniada').length;
-    const vacias      = vacas.filter(v => v.entore.estado === 'vacia').length;
-    const parieron    = vacas.filter(v => v.parto.estado   === 'pario').length;
-    const destetaron  = vacas.filter(v => v.destete.estado === 'desteto').length;
+    const vacas          = this.getVacas(cicloId);
+    const total          = vacas.length;
+    const pctOf = (n, d) => d > 0 ? ((n / d) * 100).toFixed(1) : '0.0';
+    const descartadas    = vacas.filter(v => v.rechazo).length;
+    const muerte         = vacas.filter(v => v.rechazo && v.rechazo.estado === 'muerte').length;
+    const rechazo        = vacas.filter(v => v.rechazo && v.rechazo.estado === 'rechazo').length;
+    const preniadas      = vacas.filter(v => v.entore.estado === 'preniada').length;
+    const vacias         = vacas.filter(v => v.entore.estado === 'vacia').length;
+    const parieron       = vacas.filter(v => v.parto.estado  === 'pario').length;
+    const abortaron      = vacas.filter(v => v.parto.estado  === 'aborto').length;
+    const destetaron     = vacas.filter(v => v.destete.estado === 'desteto').length;
+    const muerteTernero  = vacas.filter(v => v.destete.estado === 'muerte_ternero').length;
     return {
-      total, descartadas, muerte, feedlot, preniadas, vacias, parieron, destetaron,
-      pctDescarte: pct(descartadas), pctMuerte: pct(muerte), pctFeedlot: pct(feedlot),
-      pctPrenez:   pct(preniadas),   pctVacias: pct(vacias),
-      pctParto:    pct(parieron),    pctDestete: pct(destetaron),
+      total, descartadas, muerte, rechazo,
+      preniadas, vacias, parieron, abortaron, destetaron, muerteTernero,
+      pctDescarte:      pctOf(descartadas, total),
+      pctMuerte:        pctOf(muerte, total),
+      pctRechazo:       pctOf(rechazo, total),
+      pctPrenez:        pctOf(preniadas, total),
+      pctVacias:        pctOf(vacias, total),
+      pctParto:         pctOf(parieron, preniadas),
+      pctAborto:        pctOf(abortaron, preniadas),
+      pctDestete:       pctOf(destetaron, parieron),
+      pctMuerteTernero: pctOf(muerteTernero, parieron),
     };
   },
 
@@ -408,9 +417,8 @@ const Ciclos = {
     const v = this.getVaca(cicloId, vacaId);
     if (!v || !v._id) return;
     // Bloqueos
-    if (etapa === 'parto'   && v.entore.estado === 'vacia')    return;
-    if (etapa === 'destete' && v.entore.estado === 'vacia')    return;
-    if (etapa === 'destete' && v.parto.estado  === 'no_pario') return;
+    if (etapa === 'parto'   && v.parto.locked)   return;
+    if (etapa === 'destete' && v.destete.locked) return;
     try {
       const updated = await API.put('/api/vacas/' + v._id + '/etapa', { etapa, estado, fecha, obs });
       if (this._cache[cicloId]) {
@@ -492,7 +500,7 @@ const Ciclos = {
     const vacas  = this.getVacas(cicloId);
     const rodeo  = Estancias.getAllRodeos().find(r => r.id === ciclo.grupoId);
     const getNom = gid => { const r = Estancias.getAllRodeos().find(r => r.id === gid); return r ? r.nombre : gid || ''; };
-    const lbl = { preniada:'Preñada', vacia:'Vacía', pendiente:'Pendiente', pario:'Parió', no_pario:'No parió', desteto:'Destetó', no_desteto:'No destetó', en_curso:'En curso' };
+    const lbl = { preniada:'Preñada', vacia:'Vacía', pendiente:'Pendiente', pario:'Parió', aborto:'Aborto', desteto:'Destetó', muerte_ternero:'Muerte Ternero', en_curso:'En curso' };
     const label = v => lbl[v] || v || '—';
     const rows = vacas.map(v => ({
       'Caravana': v.vacaId, 'Grupo Origen': getNom(v.grupoOrigen), 'Grupo Actual': getNom(v.grupoActual),
@@ -500,7 +508,7 @@ const Ciclos = {
       'Parto':  label(v.parto.estado),  'Fecha Parto':  v.parto.fecha  || '',
       'Destete':label(v.destete.estado),'Fecha Destete':v.destete.fecha|| '',
       'Descarte': v.rechazo ? 'Sí' : 'No',
-      'Estado Descarte': v.rechazo ? (v.rechazo.estado === 'muerte' ? 'Muerte' : v.rechazo.estado === 'feedlot' ? 'Feedlot' : 'Pendiente') : '',
+      'Estado Descarte': v.rechazo ? (v.rechazo.estado === 'muerte' ? 'Muerte' : v.rechazo.estado === 'rechazo' ? 'Rechazo' : 'Pendiente') : '',
       'Observaciones': v.obs || ''
     }));
     return {
