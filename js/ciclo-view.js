@@ -225,9 +225,9 @@ const CicloView = {
             <div class="stat-value">${stats.parieron}</div>
             <div class="stat-sub">${stats.pctParto}% de preñadas</div>
             <div style="margin-top:5px;font-size:.62rem;color:var(--text-muted);line-height:1.7">
-              CABEZA ${stats.cabeza} (${stats.pctCabeza}%)<br>
-              CUERPO ${stats.cuerpo} (${stats.pctCuerpo}%)<br>
-              COLA ${stats.cola} (${stats.pctCola}%)
+              <strong>CAB. ${stats.cabeza}</strong> (${stats.pctCabeza}%)<br>
+              <strong>CUER. ${stats.cuerpo}</strong> (${stats.pctCuerpo}%)<br>
+              <strong>COLA ${stats.cola}</strong> (${stats.pctCola}%)
             </div>
           </div>
           <div style="flex:1">
@@ -708,6 +708,17 @@ const CicloView = {
 
     const esc = v => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+    // Empresa: usa datos del usuario logueado
+    const empresaNombre = (BBT.Auth._user && BBT.Auth._user.empresaNombre) ? BBT.Auth._user.empresaNombre : 'BBTECH Systems';
+    const logoUrl       = (BBT.Auth._user && BBT.Auth._user.logoUrl)       ? BBT.Auth._user.logoUrl       : 'assets/logo.png';
+
+    // Fechas en formato argentino DD/MM/AAAA
+    const fmtDate = d => {
+      if (!d) return '';
+      const p = String(d).slice(0, 10).split('-');
+      return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d;
+    };
+
     const badge = (val) => {
       if (!val || val === '—' || val === 'no_aplica') return '<span style="color:' + G.grayText + '">—</span>';
       const map = {
@@ -746,46 +757,54 @@ const CicloView = {
         + '</tr>';
     }).join('');
 
-    const sRow = (label, val, pct, bg, textColor, note) =>
-      '<tr style="background:' + bg + '">'
-      + '<td style="padding:7px 14px;font-weight:600;border:1px solid ' + G.grayBorder + ';color:' + textColor + ';font-size:13px">'
-      + esc(label) + (note ? ' <span style="font-weight:400;font-size:11px;opacity:.8">' + esc(note) + '</span>' : '')
-      + '</td>'
-      + '<td style="padding:7px 14px;text-align:center;font-weight:800;font-size:16px;border:1px solid ' + G.grayBorder + ';color:' + textColor + '">' + val + '</td>'
-      + '<td style="padding:7px 14px;text-align:center;font-size:13px;border:1px solid ' + G.grayBorder + ';color:' + textColor + '">' + pct + '%</td>'
-      + '</tr>';
+    // opts.sep = true → línea negrita arriba (separador de etapa)
+    // opts.sub = true → subcategoría: sangría y guión
+    const sRow = (label, val, pct, bg, textColor, note, opts) => {
+      const sep     = opts && opts.sep;
+      const sub     = opts && opts.sub;
+      const topB    = sep ? 'border-top:2px solid ' + G.grayDark + ';' : '';
+      const lPad    = sub ? 'padding:4px 12px 4px 26px;' : 'padding:5px 12px;';
+      const dispLbl = sub ? '— ' + esc(label) : esc(label);
+      return '<tr style="background:' + bg + '">'
+        + '<td style="' + lPad + 'font-weight:600;border:1px solid ' + G.grayBorder + ';' + topB + 'color:' + textColor + ';font-size:12px">'
+        + dispLbl + (note ? ' <span style="font-weight:400;font-size:10px;opacity:.8">' + esc(note) + '</span>' : '')
+        + '</td>'
+        + '<td style="padding:5px 12px;text-align:center;font-weight:800;font-size:14px;border:1px solid ' + G.grayBorder + ';' + topB + 'color:' + textColor + '">' + val + '</td>'
+        + '<td style="padding:5px 12px;text-align:center;font-size:12px;border:1px solid ' + G.grayBorder + ';' + topB + 'color:' + textColor + '">' + pct + '%</td>'
+        + '</tr>';
+    };
 
     const html = '<!DOCTYPE html><html lang="es"><head>'
-      + '<meta charset="UTF-8"><title>BBTECH \u2014 ' + esc(cicloNombre) + '</title>'
+      + '<meta charset="UTF-8"><title>' + esc(empresaNombre) + ' \u2014 ' + esc(cicloNombre) + '</title>'
       + '<style>'
       + '* { box-sizing:border-box; margin:0; padding:0; }'
       + 'body { font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; font-size:13px; color:' + G.black + '; background:#fff; }'
-      + '@page { size:A4 landscape; margin:14mm 12mm; }'
+      + '@page { size:A4 landscape; margin:7mm 10mm; }'
       + '@media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .no-print { display:none !important; } tr { page-break-inside:avoid; } }'
       + '.btn-pdf { position:fixed; bottom:20px; right:20px; background:' + G.green + '; color:#fff; border:none; border-radius:8px; padding:10px 22px; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.2); z-index:100; }'
       + '</style></head><body>'
       + '<button class="btn-pdf no-print" onclick="window.print()">\u2b07 Guardar como PDF</button>'
 
       // Header
-      + '<table style="width:100%;border-collapse:collapse;background:' + G.green + ';margin-bottom:16px;border-radius:6px"><tr>'
-      + '<td style="padding:14px 16px;width:60px;vertical-align:middle"><img src="assets/logo.png" style="width:50px;height:50px;border-radius:50%;background:#fff;display:block" onerror="this.remove()"></td>'
-      + '<td style="padding:14px 8px;vertical-align:middle">'
-      + '<div style="color:#fff;font-size:21px;font-weight:800">BBTECH Systems \u2014 ' + esc(cicloNombre) + '</div>'
+      + '<table style="width:100%;border-collapse:collapse;background:' + G.green + ';margin-bottom:10px;border-radius:6px"><tr>'
+      + '<td style="padding:14px 16px;width:60px;vertical-align:middle"><img src="' + esc(logoUrl) + '" style="width:50px;height:50px;border-radius:50%;background:#fff;display:block;object-fit:contain" onerror="this.src=\'assets/logo.png\'"></td>'
+      + '<td style="padding:3px 15px;vertical-align:middle">'
+      + '<div style="color:#fff;font-size:21px;font-weight:800">' + esc(empresaNombre) + ' \u2014 ' + esc(cicloNombre) + '</div>'
       + '<div style="color:rgba(255,255,255,.75);font-size:12px;margin-top:3px">' + esc(campoNombre) + ' \u00b7 ' + esc(grupoNombre) + ' \u00b7 Generado el ' + new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }) + '</div>'
       + '</td></tr></table>'
 
       // Metadata
-      + '<table style="width:100%;border-collapse:collapse;margin-bottom:14px;border:1px solid ' + G.grayBorder + '"><tr style="background:' + G.gray + '">'
+      + '<table style="width:100%;border-collapse:collapse;margin-bottom:8px;border:1px solid ' + G.grayBorder + '"><tr style="background:' + G.gray + '">'
       + '<td style="padding:9px 14px;border-right:1px solid ' + G.grayBorder + ';width:25%"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:' + G.grayText + ';margin-bottom:3px">Safra</div><div style="font-weight:700;font-size:14px">' + esc(cicloNombre) + '</div></td>'
       + '<td style="padding:9px 14px;border-right:1px solid ' + G.grayBorder + ';width:25%"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:' + G.grayText + ';margin-bottom:3px">Campo</div><div style="font-weight:700;font-size:14px">' + esc(campoNombre) + '</div></td>'
       + '<td style="padding:9px 14px;border-right:1px solid ' + G.grayBorder + ';width:25%"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:' + G.grayText + ';margin-bottom:3px">Grupo</div><div style="font-weight:700;font-size:14px">' + esc(grupoNombre) + '</div></td>'
-      + '<td style="padding:9px 14px;width:25%"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:' + G.grayText + ';margin-bottom:3px">Inicio entore \u00b7 Fin safra</div><div style="font-weight:700;font-size:14px">' + esc(fechaInicio) + ' \u2192 ' + esc(data.fechaCierre || 'Activa') + '</div></td>'
+      + '<td style="padding:9px 14px;width:25%"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:' + G.grayText + ';margin-bottom:3px">Inicio entore \u00b7 Fin safra</div><div style="font-weight:700;font-size:14px">' + esc(fmtDate(fechaInicio)) + ' \u2192 ' + esc(data.fechaCierre ? fmtDate(data.fechaCierre) : 'Activa') + '</div></td>'
       + '</tr></table>'
 
-      + (obs ? '<div style="background:' + G.gray + ';border:1px solid ' + G.grayBorder + ';border-radius:6px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:' + G.grayText + '"><strong style="color:' + G.grayDark + '">Observaciones:</strong> ' + esc(obs) + '</div>' : '')
+      + (obs ? '<div style="background:' + G.gray + ';border:1px solid ' + G.grayBorder + ';border-radius:6px;padding:5px 12px;margin-bottom:6px;font-size:11px;color:' + G.grayText + '"><strong style="color:' + G.grayDark + '">Observaciones:</strong> ' + esc(obs) + '</div>' : '')
 
       // Resumen — título
-      + '<div style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:' + G.green + ';border-bottom:2px solid ' + G.green + ';padding-bottom:6px;margin-bottom:12px">Resumen general</div>'
+      + '<div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:' + G.green + ';border-bottom:2px solid ' + G.green + ';padding-bottom:4px;margin-bottom:8px">Resumen general</div>'
 
       // Resumen tabla — orden: Total → Vacías → Preñadas → Parieron → Destetaron → Descarte
       + '<table style="width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px;border:1px solid ' + G.grayBorder + '">'
@@ -795,22 +814,22 @@ const CicloView = {
       + '<th style="padding:8px 14px;text-align:center;font-size:13px;font-weight:700;border:1px solid ' + G.green + ';width:20%">Porcentaje</th>'
       + '</tr></thead><tbody>'
       + sRow('Total animales',  stats.total,         '100',                  G.white,      G.black,       'del total')
-      + sRow('Pre\u00f1adas',        stats.preniadas,     stats.pctPrenez,        G.greenLight, G.green,       'del total')
-      + sRow('Vac\u00edas',          stats.vacias,        stats.pctVacias,        G.yellow,     G.yellowText,  'del total')
-      + sRow('Parieron',        stats.parieron,      stats.pctParto,         G.greenLight, G.green,       'de pre\u00f1adas')
-      + sRow('  Cabeza',        stats.cabeza,        stats.pctCabeza,        G.greenLight, G.green,       'de paridas')
-      + sRow('  Cuerpo',        stats.cuerpo,        stats.pctCuerpo,        G.greenLight, G.green,       'de paridas')
-      + sRow('  Cola',          stats.cola,          stats.pctCola,          G.greenLight, G.green,       'de paridas')
-      + sRow('Aborto',          stats.abortaron,     stats.pctAborto,        G.yellow,     G.yellowText,  'de pre\u00f1adas')
-      + sRow('Destetaron',      stats.destetaron,    stats.pctDestete,       G.greenLight, G.green,       'de paridas')
-      + sRow('Muerte ternero',  stats.muerteTernero, stats.pctMuerteTernero, G.yellow,     G.yellowText,  'de paridas')
-      + sRow('Descarte total',  stats.descartadas,   stats.pctDescarte,      G.red,        G.redText,     'del total')
-      + sRow('  \ud83d\udc80 Muerte',   stats.muerte,        stats.pctMuerte,        G.yellow,     G.yellowText,  'del total')
-      + sRow('  \u26d4 Rechazo', stats.rechazo,       stats.pctRechazo,       G.yellow,     G.yellowText,  'del total')
+      + sRow('Pre\u00f1adas',  stats.preniadas,     stats.pctPrenez,        G.greenLight, G.green,       'del total',     {sep:true})
+      + sRow('Vac\u00edas',    stats.vacias,        stats.pctVacias,        G.yellow,     G.yellowText,  'del total')
+      + sRow('Parieron',       stats.parieron,      stats.pctParto,         G.greenLight, G.green,       'de pre\u00f1adas', {sep:true})
+      + sRow('Cabeza',         stats.cabeza,        stats.pctCabeza,        G.greenLight, G.green,       'de paridas',    {sub:true})
+      + sRow('Cuerpo',         stats.cuerpo,        stats.pctCuerpo,        G.greenLight, G.green,       'de paridas',    {sub:true})
+      + sRow('Cola',           stats.cola,          stats.pctCola,          G.greenLight, G.green,       'de paridas',    {sub:true})
+      + sRow('Aborto',         stats.abortaron,     stats.pctAborto,        G.yellow,     G.yellowText,  'de pre\u00f1adas')
+      + sRow('Destetaron',     stats.destetaron,    stats.pctDestete,       G.greenLight, G.green,       'de paridas',    {sep:true})
+      + sRow('Muerte ternero', stats.muerteTernero, stats.pctMuerteTernero, G.yellow,     G.yellowText,  'de paridas')
+      + sRow('Descarte total', stats.descartadas,   stats.pctDescarte,      G.red,        G.redText,     'del total',     {sep:true})
+      + sRow('\ud83d\udc80 Muerte',  stats.muerte,  stats.pctMuerte,        G.yellow,     G.yellowText,  'del total')
+      + sRow('\u26d4 Rechazo', stats.rechazo,       stats.pctRechazo,       G.yellow,     G.yellowText,  'del total')
       + '</tbody></table>'
 
       // Planilla — título
-      + '<div style="font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:' + G.green + ';border-bottom:2px solid ' + G.green + ';padding-bottom:6px;margin-bottom:12px">Planilla de animales \u2014 ' + rows.length + ' registros</div>'
+      + '<div style="page-break-before:always;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:' + G.green + ';border-bottom:2px solid ' + G.green + ';padding-bottom:6px;margin-bottom:12px;padding-top:4px">Planilla de animales \u2014 ' + rows.length + ' registros</div>'
 
       // Planilla tabla
       + '<table style="width:100%;border-collapse:collapse;font-size:12px">'
