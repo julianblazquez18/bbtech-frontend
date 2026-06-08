@@ -108,6 +108,29 @@ const Auth = {
   isLoggedIn() { return !!API.getToken(); }
 };
 
+/* ── Tipo de parto según fecha de inicio del ciclo ─────── */
+// Embarazo = 9 meses → mes 9 desde inicio = Cabeza, 10 = Cuerpo, 11+ = Cola
+// "mes" se cuenta de forma inclusiva: inicio = mes 1.
+// Ejemplo: inicio enero 2026 → septiembre = mes 9 → Cabeza
+//                             → octubre   = mes 10 → Cuerpo
+//                             → noviembre = mes 11 → Cola
+// Funciona cross-year: (año*12 + mes) absorbe el salto de año correctamente.
+// El DÍ nunca afecta: se usa .slice(0,7) para tomar solo "YYYY-MM".
+function _partoTipo(partoFecha, inicioFecha) {
+  if (!partoFecha || !inicioFecha) return null;
+  const pParts = String(partoFecha).slice(0, 7).split('-');
+  const iParts = String(inicioFecha).slice(0, 7).split('-');
+  if (pParts.length < 2 || iParts.length < 2) return null;
+  const pY = parseInt(pParts[0], 10), pM = parseInt(pParts[1], 10);
+  const iY = parseInt(iParts[0], 10), iM = parseInt(iParts[1], 10);
+  if (!pY || !pM || !iY || !iM) return null;
+  // mes inclusivo desde el inicio (enero→enero = mes 1, enero→septiembre = mes 9)
+  const mes = (pY * 12 + pM) - (iY * 12 + iM) + 1;
+  if (mes <= 9)  return 'cabeza';
+  if (mes === 10) return 'cuerpo';
+  return 'cola';
+}
+
 /* ── Normalizar vaca del backend al formato del frontend ─── */
 function _normFecha(f) {
   if (!f) return '';
@@ -332,9 +355,17 @@ const Ciclos = {
     const abortaron      = vacas.filter(v => v.parto.estado  === 'aborto').length;
     const destetaron     = vacas.filter(v => v.destete.estado === 'desteto').length;
     const muerteTernero  = vacas.filter(v => v.destete.estado === 'muerte_ternero').length;
+    // Cabeza/Cuerpo/Cola — requiere fecha de inicio del ciclo
+    const ciclo          = this.getById(cicloId);
+    const fechaInicio    = ciclo ? ciclo.fechaInicio : null;
+    const paridasVacas   = vacas.filter(v => v.parto.estado === 'pario');
+    const cabeza         = paridasVacas.filter(v => _partoTipo(v.parto.fecha, fechaInicio) === 'cabeza').length;
+    const cuerpo         = paridasVacas.filter(v => _partoTipo(v.parto.fecha, fechaInicio) === 'cuerpo').length;
+    const cola           = paridasVacas.filter(v => _partoTipo(v.parto.fecha, fechaInicio) === 'cola').length;
     return {
       total, descartadas, muerte, rechazo,
       preniadas, vacias, parieron, abortaron, destetaron, muerteTernero,
+      cabeza, cuerpo, cola,
       pctDescarte:      pctOf(descartadas, total),
       pctMuerte:        pctOf(muerte, total),
       pctRechazo:       pctOf(rechazo, total),
@@ -344,6 +375,9 @@ const Ciclos = {
       pctAborto:        pctOf(abortaron, preniadas),
       pctDestete:       pctOf(destetaron, parieron),
       pctMuerteTernero: pctOf(muerteTernero, parieron),
+      pctCabeza:        pctOf(cabeza, parieron),
+      pctCuerpo:        pctOf(cuerpo, parieron),
+      pctCola:          pctOf(cola,   parieron),
     };
   },
 
@@ -507,15 +541,19 @@ const Ciclos = {
     const getNom = gid => { const r = Estancias.getAllRodeos().find(r => r.id === gid); return r ? r.nombre : gid || ''; };
     const lbl = { preniada:'Preñada', vacia:'Vacía', pendiente:'Pendiente', pario:'Parió', aborto:'Aborto', desteto:'Destetó', muerte_ternero:'Muerte Ternero', en_curso:'En curso' };
     const label = v => lbl[v] || v || '—';
-    const rows = vacas.map(v => ({
-      'Caravana': v.vacaId, 'Grupo Origen': getNom(v.grupoOrigen), 'Grupo Actual': getNom(v.grupoActual),
-      'Entore': label(v.entore.estado), 'Fecha Entore': v.entore.fecha || '',
-      'Parto':  label(v.parto.estado),  'Fecha Parto':  v.parto.fecha  || '',
-      'Destete':label(v.destete.estado),'Fecha Destete':v.destete.fecha|| '',
-      'Descarte': v.rechazo ? 'Sí' : 'No',
-      'Estado Descarte': v.rechazo ? (v.rechazo.estado === 'muerte' ? 'Muerte' : v.rechazo.estado === 'rechazo' ? 'Rechazo' : 'Pendiente') : '',
-      'Observaciones': v.obs || ''
-    }));
+    const rows = vacas.map(v => {
+      const tipo = v.parto.estado === 'pario' ? _partoTipo(v.parto.fecha, ciclo.fechaInicio) : null;
+      const tipoLabel = tipo === 'cabeza' ? 'Cabeza' : tipo === 'cuerpo' ? 'Cuerpo' : tipo === 'cola' ? 'Cola' : '';
+      return {
+        'Caravana': v.vacaId, 'Grupo Origen': getNom(v.grupoOrigen), 'Grupo Actual': getNom(v.grupoActual),
+        'Entore': label(v.entore.estado), 'Fecha Entore': v.entore.fecha || '',
+        'Parto':  label(v.parto.estado),  'Tipo Parto': tipoLabel, 'Fecha Parto': v.parto.fecha || '',
+        'Destete':label(v.destete.estado),'Fecha Destete':v.destete.fecha|| '',
+        'Descarte': v.rechazo ? 'Sí' : 'No',
+        'Estado Descarte': v.rechazo ? (v.rechazo.estado === 'muerte' ? 'Muerte' : v.rechazo.estado === 'rechazo' ? 'Rechazo' : 'Pendiente') : '',
+        'Observaciones': v.obs || ''
+      };
+    });
     return {
       cicloNombre: ciclo.nombre, grupoNombre: rodeo ? rodeo.nombre : '',
       campoNombre: rodeo ? rodeo.estanciaNombre : '',

@@ -107,7 +107,7 @@ const CicloView = {
                 <option value="aun_no_pario">Aún no parió</option>
                 <option value="parto_aborto">Aborto</option>
                 <option value="destete_desteto">Destetaron</option>
-                <option value="aun_no_desteto">Aún no destetó</option>
+
                 <option value="destete_muerte_ternero">Muerte Ternero</option>
                 <option value="descarte">Descarte</option>
               </select>
@@ -160,6 +160,15 @@ const CicloView = {
     this._renderTable();
     if (!cerrado) this._bindEvents();
     else this._bindReadOnlyEvents();
+  },
+
+  /* ── Badge de parto con tipo Cabeza/Cuerpo/Cola ── */
+  _partoBadge(v, fechaInicio) {
+    if (v.parto.estado !== 'pario') return this._estadoBadge(v.parto.estado);
+    const tipo = _partoTipo(v.parto.fecha, fechaInicio);
+    const tipoLabel = tipo === 'cabeza' ? 'Cabeza' : tipo === 'cuerpo' ? 'Cuerpo' : tipo === 'cola' ? 'Cola' : null;
+    if (!tipoLabel) return '<span class="badge badge-preniada">Parió</span>';
+    return `<span class="badge badge-preniada">Parió</span><span style="font-size:.68rem;color:var(--text-muted);margin-left:4px;font-weight:600">${tipoLabel}</span>`;
   },
 
   /* ── Badges de etapa ── */
@@ -215,6 +224,11 @@ const CicloView = {
             <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Parieron</div>
             <div class="stat-value">${stats.parieron}</div>
             <div class="stat-sub">${stats.pctParto}% de preñadas</div>
+            <div style="margin-top:5px;font-size:.62rem;color:var(--text-muted);line-height:1.7">
+              CABEZA ${stats.cabeza} (${stats.pctCabeza}%)<br>
+              CUERPO ${stats.cuerpo} (${stats.pctCuerpo}%)<br>
+              COLA ${stats.cola} (${stats.pctCola}%)
+            </div>
           </div>
           <div style="flex:1">
             <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--status-muerte)">Aborto</div>
@@ -257,8 +271,8 @@ const CicloView = {
     if (filter === 'descarte') {
       vacas = vacas.filter(v => v.rechazo);
     } else if (filter === 'aun_no_pario') {
-      // Preñadas con parto todavía pendiente
-      vacas = vacas.filter(v => v.entore.estado === 'preniada' && v.parto.estado === 'pendiente');
+      // Preñadas con parto todavía pendiente, sin descartar
+      vacas = vacas.filter(v => v.entore.estado === 'preniada' && v.parto.estado === 'pendiente' && !v.rechazo);
     } else if (filter === 'aun_no_desteto') {
       // Paridas con destete pendiente o en curso (aún sin resolver)
       vacas = vacas.filter(v => v.parto.estado === 'pario' && (v.destete.estado === 'pendiente' || v.destete.estado === 'en_curso'));
@@ -282,6 +296,7 @@ const CicloView = {
 
     const ciclo = BBT.Ciclos.getById(this.cicloId);
     const cerrado = ciclo && ciclo.estado === 'cerrado';
+    const fechaInicio = ciclo ? ciclo.fechaInicio : null;
     const vacas = this._getFiltered();
     const allRodeos = BBT.Estancias.getAllRodeos();
     const getNombreGrupo = gid => { const r = allRodeos.find(r => r.id === gid); return r ? r.nombre : gid; };
@@ -319,7 +334,7 @@ const CicloView = {
           <td>${!cerrado ? `<input type="checkbox" class="vaca-check" data-id="${BBT.Security.sanitize(v.vacaId)}" style="accent-color:var(--brand-500);cursor:pointer">` : ''}</td>
           <td><span class="font-mono font-bold" style="font-size:.9rem">${BBT.Security.sanitize(v.vacaId)}</span></td>
           <td>${this._estadoBadge(v.entore.estado)}</td>
-          <td>${(v.entore.estado === 'vacia' && v.parto.locked) ? '<span class="text-muted text-xs">—</span>' : (v.entore.estado === 'preniada' ? this._estadoBadge(v.parto.estado) : '<span class="text-muted text-xs">—</span>')}</td>
+          <td>${v.parto.locked ? '<span class="text-muted text-xs">—</span>' : (v.entore.estado === 'preniada' ? this._partoBadge(v, fechaInicio) : '<span class="text-muted text-xs">—</span>')}</td>
           <td>${(v.parto.locked || v.entore.estado === 'vacia') ? '<span class="text-muted text-xs">—</span>' : (v.parto.estado === 'pario' ? this._estadoBadge(v.destete.estado) : '<span class="text-muted text-xs">—</span>')}</td>
           <td>${descCol}</td>
           <td style="max-width:200px"><span class="text-sm" style="display:block;color:var(--text-secondary);white-space:normal;word-break:break-word;line-height:1.4">${v.obs ? BBT.Security.sanitize(v.obs) : '<span style="color:var(--text-muted);font-size:.75rem">—</span>'}</span></td>
@@ -462,7 +477,7 @@ const CicloView = {
     const opciones = {
       entore: [['preniada', 'Preñada'], ['vacia', 'Vacía']],
       parto: [['pario', 'Parió'], ['aborto', 'Aborto']],
-      destete: [['en_curso', 'En curso'], ['desteto', 'Destetó'], ['muerte_ternero', 'Muerte Ternero']]
+      destete: [['desteto', 'Destetó'], ['muerte_ternero', 'Muerte Ternero']]
     };
     const nombre = { entore: 'Entore', parto: 'Parto', destete: 'Destete' }[etapa];
     const opts = opciones[etapa].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
@@ -724,7 +739,7 @@ const CicloView = {
         + '<td style="padding:7px 10px;font-weight:700;font-family:Courier New,monospace;color:' + G.black + ';border:1px solid ' + G.grayBorder + '">' + esc(r['Caravana']) + '</td>'
         + '<td style="padding:7px 8px;color:' + G.grayText + ';font-size:12px;border:1px solid ' + G.grayBorder + '">' + esc(r['Grupo Actual']) + '</td>'
         + '<td style="padding:7px 8px;text-align:center;border:1px solid ' + G.grayBorder + '">' + badge(entore) + '</td>'
-        + '<td style="padding:7px 8px;text-align:center;border:1px solid ' + G.grayBorder + '">' + (showParto ? badge(parto) : '<span style="color:' + G.grayText + '">—</span>') + '</td>'
+        + '<td style="padding:7px 8px;text-align:center;border:1px solid ' + G.grayBorder + '">' + (showParto ? (badge(parto) + (r['Tipo Parto'] ? '<div style="font-size:10px;color:' + G.grayText + ';margin-top:2px">' + esc(r['Tipo Parto']) + '</div>' : '')) : '<span style="color:' + G.grayText + '">—</span>') + '</td>'
         + '<td style="padding:7px 8px;text-align:center;border:1px solid ' + G.grayBorder + '">' + (showDestete ? badge(destete) : '<span style="color:' + G.grayText + '">—</span>') + '</td>'
         + '<td style="padding:7px 8px;text-align:center;border:1px solid ' + G.grayBorder + '">' + (descarte ? badge(estDesc || 'Pendiente') : '<span style="color:' + G.grayText + '">—</span>') + '</td>'
         + '<td style="padding:7px 10px;font-size:12px;color:' + G.grayText + ';border:1px solid ' + G.grayBorder + ';white-space:normal;word-break:break-word;max-width:200px">' + esc(r['Observaciones']) + '</td>'
@@ -783,6 +798,9 @@ const CicloView = {
       + sRow('Pre\u00f1adas',        stats.preniadas,     stats.pctPrenez,        G.greenLight, G.green,       'del total')
       + sRow('Vac\u00edas',          stats.vacias,        stats.pctVacias,        G.yellow,     G.yellowText,  'del total')
       + sRow('Parieron',        stats.parieron,      stats.pctParto,         G.greenLight, G.green,       'de pre\u00f1adas')
+      + sRow('  Cabeza',        stats.cabeza,        stats.pctCabeza,        G.greenLight, G.green,       'de paridas')
+      + sRow('  Cuerpo',        stats.cuerpo,        stats.pctCuerpo,        G.greenLight, G.green,       'de paridas')
+      + sRow('  Cola',          stats.cola,          stats.pctCola,          G.greenLight, G.green,       'de paridas')
       + sRow('Aborto',          stats.abortaron,     stats.pctAborto,        G.yellow,     G.yellowText,  'de pre\u00f1adas')
       + sRow('Destetaron',      stats.destetaron,    stats.pctDestete,       G.greenLight, G.green,       'de paridas')
       + sRow('Muerte ternero',  stats.muerteTernero, stats.pctMuerteTernero, G.yellow,     G.yellowText,  'de paridas')
