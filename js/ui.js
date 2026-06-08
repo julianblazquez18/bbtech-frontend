@@ -173,3 +173,48 @@ window.$$     = $$;
 window.el     = el;
 window.formatDate = formatDate;
 window.debounce   = debounce;
+
+/* ── Selectores de fecha DD / Mes / AAAA ─────────────────── */
+// Reemplaza <input type="date"> para mostrar siempre en formato argentino.
+// valorInicial: 'YYYY-MM-DD' o ''
+// prefijo: string base de los ids (ej: 'nc-fecha' → 'nc-fecha-dia', etc.)
+
+function _crearSelectorFecha(prefijo, valorInicial) {
+  var d = '', m = '', y = '';
+  if (valorInicial && valorInicial.length >= 10) {
+    var p = valorInicial.split('-');
+    y = p[0] || ''; m = p[1] || ''; d = p[2] || '';
+  }
+  var dias = '<option value="">Día</option>';
+  for (var i = 1; i <= 31; i++) {
+    var v = i < 10 ? '0' + i : '' + i;
+    dias += '<option value="' + v + '"' + (d === v ? ' selected' : '') + '>' + v + '</option>';
+  }
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var mesOpts = '<option value="">Mes</option>';
+  for (var j = 0; j < meses.length; j++) {
+    var mv = j < 9 ? '0' + (j+1) : '' + (j+1);
+    mesOpts += '<option value="' + mv + '"' + (m === mv ? ' selected' : '') + '>' + meses[j] + '</option>';
+  }
+  var anioOpts = '<option value="">Año</option>';
+  for (var k = 2020; k <= 2035; k++) {
+    anioOpts += '<option value="' + k + '"' + (y === '' + k ? ' selected' : '') + '>' + k + '</option>';
+  }
+  return '<div style="display:flex;gap:8px">'
+    + '<select class="select" id="' + prefijo + '-dia"  style="flex:0 0 70px">'  + dias     + '</select>'
+    + '<select class="select" id="' + prefijo + '-mes"  style="flex:1">'          + mesOpts  + '</select>'
+    + '<select class="select" id="' + prefijo + '-anio" style="flex:0 0 82px">'  + anioOpts + '</select>'
+    + '</div>';
+}
+
+function _leerFecha(prefijo) {
+  var dEl = document.getElementById(prefijo + '-dia');
+  var mEl = document.getElementById(prefijo + '-mes');
+  var yEl = document.getElementById(prefijo + '-anio');
+  var d = dEl ? dEl.value : '';
+  var m = mEl ? mEl.value : '';
+  var y = yEl ? yEl.value : '';
+  if (!d || !m || !y) return '';
+  return y + '-' + m + '-' + d;
+}

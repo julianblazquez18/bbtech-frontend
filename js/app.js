@@ -310,7 +310,7 @@ const App = {
           </div>
           <div class="form-group">
             <label class="form-label">Fecha de inicio del entore</label>
-            <input class="input" type="date" id="nc-fecha" value="${hoy}">
+            ${_crearSelectorFecha('nc-fecha', hoy)}
           </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="nc-cancel">Cancelar</button><button class="btn btn-primary" id="nc-ok">Crear ciclo</button>`
@@ -319,7 +319,7 @@ const App = {
     m.querySelector('#nc-cancel').addEventListener('click', () => Modal.close(m));
     m.querySelector('#nc-ok').addEventListener('click', async () => {
       const nombre = m.querySelector('#nc-nombre').value.trim();
-      const fecha  = m.querySelector('#nc-fecha').value;
+      const fecha  = _leerFecha('nc-fecha');
       const res = await BBT.Ciclos.crear(grupoId, nombre, fecha);
       if (!res.ok) { Toast.error(res.error); return; }
       Modal.close(m);

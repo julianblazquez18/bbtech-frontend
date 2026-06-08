@@ -485,14 +485,14 @@ const CicloView = {
       title: `Actualizar ${nombre} — ${ids.length} animales`,
       body: `<div class="flex flex-col gap-4">
         <div class="form-group"><label class="form-label">Estado</label><select class="select" id="etapa-estado">${opts}</select></div>
-        <div class="form-group"><label class="form-label">Fecha (opcional)</label><input class="input" type="date" id="etapa-fecha"></div>
+        <div class="form-group"><label class="form-label">Fecha (opcional)</label>${_crearSelectorFecha('etapa-fecha', '')}</div>
       </div>`,
       footer: `<button class="btn btn-secondary" id="e-cancel">Cancelar</button><button class="btn btn-primary" id="e-ok">Guardar</button>`
     });
     m.querySelector('#e-cancel').addEventListener('click', () => Modal.close(m));
     m.querySelector('#e-ok').addEventListener('click', async () => {
       const estado = m.querySelector('#etapa-estado').value;
-      const fecha  = m.querySelector('#etapa-fecha').value;
+      const fecha  = _leerFecha('etapa-fecha');
       for (const id of ids) {
         await BBT.Ciclos.updateEtapa(this.cicloId, id, etapa, estado, fecha, '');
       }
@@ -523,7 +523,7 @@ const CicloView = {
           </div>
           <div class="form-group">
             <label class="form-label">Fecha (opcional)</label>
-            <input class="input" type="date" id="desc-fecha">
+            ${_crearSelectorFecha('desc-fecha', '')}
           </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="d-cancel">Cancelar</button><button class="btn btn-primary" id="d-ok">Guardar</button>`
@@ -634,7 +634,7 @@ const CicloView = {
         <div class="form-group"><label class="form-label">Nombre</label>
           <input class="input" id="ec-nombre" value="${BBT.Security.sanitize(ciclo.nombre)}" maxlength="30"></div>
         <div class="form-group"><label class="form-label">Fecha de inicio</label>
-          <input class="input" type="date" id="ec-fecha" value="${BBT.Security.sanitize(ciclo.fechaInicio)}"></div>
+          ${_crearSelectorFecha('ec-fecha', ciclo.fechaInicio)}</div>
       </div>`,
       footer: `<button class="btn btn-secondary" id="ec-cancel">Cancelar</button><button class="btn btn-primary" id="ec-ok">Guardar</button>`
     });
@@ -642,7 +642,7 @@ const CicloView = {
     m.querySelector('#ec-cancel').addEventListener('click', () => Modal.close(m));
     m.querySelector('#ec-ok').addEventListener('click', () => {
       const nombre = m.querySelector('#ec-nombre').value.trim();
-      const fecha = m.querySelector('#ec-fecha').value;
+      const fecha = _leerFecha('ec-fecha');
       const res = BBT.Ciclos.editar(this.cicloId, nombre, fecha);
       if (!res.ok) { Toast.error(res.error); return; }
       Modal.close(m); Toast.success('Safra actualizada.'); App.refreshSidebar(); App.navigateToCiclo(this.cicloId);
