@@ -200,9 +200,18 @@ const CicloView = {
     if (!c) return;
     c.innerHTML = `
       <div class="stat-card">
-        <div class="stat-label">Total</div>
-        <div class="stat-value">${stats.total}</div>
-        <div class="stat-sub">animales</div>
+        <div style="display:flex;gap:var(--space-4);flex:1">
+          <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
+            <div class="stat-label">Total</div>
+            <div class="stat-value">${stats.total}</div>
+            <div class="stat-sub">animales entorados</div>
+          </div>
+          <div style="flex:1">
+            <div class="stat-label">Actual</div>
+            <div class="stat-value">${stats.total - stats.descartadas}</div>
+            <div class="stat-sub">sin descarte</div>
+          </div>
+        </div>
       </div>
       <div class="stat-card highlight-green">
         <div style="display:flex;gap:var(--space-4);flex:1">
