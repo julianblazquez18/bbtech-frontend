@@ -13,6 +13,8 @@
 
   // ── Estado local ─────────────────────────────────────────
   let tenants = [];
+  let leads   = [];
+  let tabActual = 'tenants';
 
   // ── Helpers DOM ──────────────────────────────────────────
   function $(sel) { return document.querySelector(sel); }
@@ -114,6 +116,62 @@
         `<div class="sa-empty">Error al cargar: ${BBT.Security.sanitize(err.message)}</div>`;
     }
   }
+
+  // ── Renderizar tabla de leads ─────────────────────────────
+  function renderLeads() {
+    const wrapper = $('#sa-leads-wrapper');
+    const countEl = $('#sa-leads-count');
+    if (countEl) countEl.textContent = leads.length;
+
+    if (leads.length === 0) {
+      wrapper.innerHTML = '<div class="sa-empty">No hay leads registrados aún.</div>';
+      return;
+    }
+
+    const filas = leads.map(function (l) {
+      return `<tr>
+        <td style="color:#fff;font-weight:500">${BBT.Security.sanitize(l.email)}</td>
+        <td>${fmtFecha(l.creado_en)}</td>
+      </tr>`;
+    }).join('');
+
+    wrapper.innerHTML = `
+      <table class="sa-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Registrado</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>`;
+  }
+
+  // ── Cargar leads desde la API ────────────────────────────
+  async function cargarLeads() {
+    const wrapper = $('#sa-leads-wrapper');
+    wrapper.innerHTML = '<div class="sa-empty"><span class="sa-spinner"></span>Cargando...</div>';
+    try {
+      leads = await BBT.API.get('/api/superadmin/leads');
+      renderLeads();
+    } catch (err) {
+      wrapper.innerHTML =
+        `<div class="sa-empty">Error al cargar: ${BBT.Security.sanitize(err.message)}</div>`;
+    }
+  }
+
+  // ── Cambiar pestaña ───────────────────────────────────────
+  function switchTab(tab) {
+    tabActual = tab;
+    $('#tab-tenants').classList.toggle('active', tab === 'tenants');
+    $('#tab-leads').classList.toggle('active', tab === 'leads');
+    $('#sa-table-wrapper').style.display  = tab === 'tenants' ? '' : 'none';
+    $('#sa-leads-wrapper').style.display  = tab === 'leads'   ? '' : 'none';
+    if (tab === 'leads' && leads.length === 0) cargarLeads();
+  }
+
+  // Exponer switchTab al HTML
+  window.SA = { switchTab };
 
   // ── Logout ────────────────────────────────────────────────
   function bindLogout() {

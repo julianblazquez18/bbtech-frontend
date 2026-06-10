@@ -129,6 +129,22 @@
       font-size: 0.72rem; color: rgba(255,255,255,.3);
     }
 
+    /* Tabs */
+    .sa-tabs {
+      display: flex; gap: 4px; margin-bottom: var(--space-5);
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      padding-bottom: 0;
+    }
+    .sa-tab {
+      padding: 8px 18px 10px;
+      font-size: .82rem; font-weight: 700; letter-spacing: .03em;
+      color: rgba(255,255,255,.45); background: none; border: none;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: color .15s, border-color .15s;
+    }
+    .sa-tab:hover { color: rgba(255,255,255,.8); }
+    .sa-tab.active { color: #fff; border-bottom-color: var(--green-500); }
+
     /* Spinner simple */
     .sa-spinner {
       display: inline-block;
@@ -173,14 +189,22 @@
       <button class="sa-logout" id="sa-logout-btn">Cerrar sesión</button>
     </div>
 
-    <!-- Card principal: tabla de tenants -->
+    <!-- Card principal con tabs -->
     <div class="sa-card">
-      <div class="sa-card-title">
-        Empresas registradas
-        <span class="sa-badge" id="sa-tenant-count">—</span>
+      <div class="sa-tabs">
+        <button class="sa-tab active" id="tab-tenants" onclick="SA.switchTab('tenants')">
+          🏢 Empresas <span class="sa-badge" id="sa-tenant-count" style="margin-left:6px">—</span>
+        </button>
+        <button class="sa-tab" id="tab-leads" onclick="SA.switchTab('leads')">
+          📧 Leads <span class="sa-badge" id="sa-leads-count" style="margin-left:6px">—</span>
+        </button>
       </div>
 
       <div id="sa-table-wrapper">
+        <div class="sa-empty"><span class="sa-spinner"></span>Cargando...</div>
+      </div>
+
+      <div id="sa-leads-wrapper" style="display:none">
         <div class="sa-empty"><span class="sa-spinner"></span>Cargando...</div>
       </div>
     </div>
