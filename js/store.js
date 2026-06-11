@@ -126,8 +126,8 @@ function _partoTipo(partoFecha, inicioFecha) {
   if (!pY || !pM || !iY || !iM) return null;
   // mes inclusivo desde el inicio (enero→enero = mes 1, enero→septiembre = mes 9)
   const mes = (pY * 12 + pM) - (iY * 12 + iM) + 1;
-  if (mes <= 9)  return 'cabeza';
-  if (mes === 10) return 'cuerpo';
+  if (mes <= 10)  return 'cabeza';
+  if (mes === 11) return 'cuerpo';
   return 'cola';
 }
 
@@ -510,6 +510,16 @@ const Ciclos = {
     } catch (err) { console.error('deleteVacas:', err.message); }
   },
 
+  async mover(deCicloId, aCicloId, vacaIds) {
+    try {
+      const caravanas = vacaIds.map(vid => { const v = this.getVaca(deCicloId, vid); return v ? v.vacaId : null; }).filter(Boolean);
+      if (caravanas.length === 0) return { ok: false, error: 'No se encontraron las vacas.' };
+      const res = await API.post('/api/ciclos/' + deCicloId + '/mover', { aCicloId, caravanas });
+      await this.fetchByCiclo(deCicloId);
+      return { ok: true, count: res.count, duplicadas: res.duplicadas || [] };
+    } catch (err) { return { ok: false, error: err.message }; }
+  },
+
   async traspasar(deCicloId, aCicloId, vacaIds) {
     try {
       const caravanas = vacaIds
@@ -517,7 +527,7 @@ const Ciclos = {
         : null;
       const res = await API.post('/api/ciclos/' + deCicloId + '/traspasar', { aCicloId, caravanas });
       await this.fetchByCiclo(aCicloId);
-      return { ok: true, count: res.count };
+      return { ok: true, count: res.count, duplicadas: res.duplicadas || [] };
     } catch (err) { return { ok: false, error: err.message }; }
   },
 

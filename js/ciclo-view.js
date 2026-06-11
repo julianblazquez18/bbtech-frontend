@@ -10,6 +10,26 @@ function _fmtFecha(f) {
   return f;
 }
 
+// Muestra toast de resultado para Mover/Traspasar, incluyendo duplicadas si las hay
+function _toastMoverTraspasar(res, singularVerb, pluralVerb) {
+  const d = res.duplicadas || [];
+  const c = res.count || 0;
+  var msgOk = c === 1 ? `1 animal ${singularVerb}.` : `${c} animales ${pluralVerb}.`;
+  if (d.length === 0) {
+    if (c > 0) Toast.success(msgOk);
+    return;
+  }
+  var msgDup = d.length === 1
+    ? `La vaca ${d[0]} ya se encontraba en esa safra.`
+    : `${d.length} vacas ya se encontraban en esa safra: ${d.slice(0,3).join(', ')}${d.length > 3 ? '...' : ''}.`;
+  if (c > 0) {
+    Toast.success(msgOk);
+    Toast.warning(msgDup);
+  } else {
+    Toast.warning(msgDup);
+  }
+}
+
 const CicloView = {
   cicloId: null,
 
@@ -123,6 +143,7 @@ const CicloView = {
             <button class="btn btn-sm btn-secondary" id="btn-bulk-parto">✏ Parto</button>
             <button class="btn btn-sm btn-secondary" id="btn-bulk-destete">✏ Destete</button>
             <button class="btn btn-sm btn-secondary" id="btn-bulk-descarte">✏ Descarte</button>
+            <button class="btn btn-warning btn-sm" id="btn-bulk-mover">↪ Mover</button>
             <button class="btn btn-warning btn-sm" id="btn-bulk-traspasar">↗ Traspasar</button>
             <button class="btn btn-warning btn-sm" id="btn-bulk-borrar">🗑 Borrar</button>
             ` : ''}
@@ -209,7 +230,6 @@ const CicloView = {
           <div style="flex:1">
             <div class="stat-label">Actual</div>
             <div class="stat-value">${stats.total - stats.descartadas}</div>
-            <div class="stat-sub">sin descarte</div>
           </div>
         </div>
       </div>
@@ -406,6 +426,7 @@ const CicloView = {
     if (b('btn-bulk-parto')) b('btn-bulk-parto').addEventListener('click', () => this._bulkEtapa('parto'));
     if (b('btn-bulk-destete')) b('btn-bulk-destete').addEventListener('click', () => this._bulkEtapa('destete'));
     if (b('btn-bulk-descarte')) b('btn-bulk-descarte').addEventListener('click', () => this._bulkDescarte());
+    if (b('btn-bulk-mover')) b('btn-bulk-mover').addEventListener('click', () => this._bulkMover());
     if (b('btn-bulk-traspasar')) b('btn-bulk-traspasar').addEventListener('click', () => this._traspasarSeleccion());
     if (b('btn-bulk-borrar')) b('btn-bulk-borrar').addEventListener('click', () => this._bulkBorrar());
   },
@@ -502,10 +523,60 @@ const CicloView = {
     m.querySelector('#e-ok').addEventListener('click', async () => {
       const estado = m.querySelector('#etapa-estado').value;
       const fecha  = _leerFecha('etapa-fecha');
-      for (const id of ids) {
+
+      // Excluir descartadas — sus etapas están congeladas
+      const descartadas = ids.filter(id => { const v = BBT.Ciclos.getVaca(this.cicloId, id); return v && v.rechazo !== false; });
+      const idsNoDesc   = ids.filter(id => { const v = BBT.Ciclos.getVaca(this.cicloId, id); return !v || v.rechazo === false; });
+      if (idsNoDesc.length === 0) {
+        Toast.error('Todos los animales seleccionados están descartados. Retirá el descarte primero.');
+        Modal.close(m); return;
+      }
+
+      // Validar prerequisito por vaca (parto requiere preniada, destete requiere pario)
+      const prereq = {
+        parto:   v => v && v.entore && v.entore.estado === 'preniada',
+        destete: v => v && v.parto  && v.parto.estado  === 'pario'
+      };
+      const prereqTexto = {
+        parto:   'Entore debe estar en "Preñada"',
+        destete: 'Parto debe estar en "Parió"'
+      };
+
+      let idsAptos = idsNoDesc;
+      let bloqueadas = [];
+      if (prereq[etapa]) {
+        idsAptos   = idsNoDesc.filter(id =>  prereq[etapa](BBT.Ciclos.getVaca(this.cicloId, id)));
+        bloqueadas = idsNoDesc.filter(id => !prereq[etapa](BBT.Ciclos.getVaca(this.cicloId, id)));
+      }
+
+      if (idsAptos.length === 0) {
+        Toast.error(`Ningún animal puede actualizar ${nombre}: ${prereqTexto[etapa]}.`);
+        Modal.close(m); return;
+      }
+
+      const okBtn = m.querySelector('#e-ok');
+      okBtn.disabled = true; okBtn.textContent = 'Guardando...';
+
+      for (const id of idsAptos) {
         await BBT.Ciclos.updateEtapa(this.cicloId, id, etapa, estado, fecha, '');
       }
-      Modal.close(m); Toast.success(`${nombre} actualizado para ${ids.length} animales.`); this._refresh();
+      Modal.close(m);
+
+      // Armar mensajes finales
+      if (descartadas.length > 0 || bloqueadas.length > 0) {
+        Toast.success(`${nombre} actualizado para ${idsAptos.length} ${idsAptos.length === 1 ? 'animal' : 'animales'}.`);
+        if (bloqueadas.length > 0) {
+          const lista = bloqueadas.length === 1 ? `La vaca ${bloqueadas[0]} no pudo actualizarse` : `${bloqueadas.length} vacas no pudieron actualizarse`;
+          Toast.warning(`${lista}: ${prereqTexto[etapa]}.`);
+        }
+        if (descartadas.length > 0) {
+          const listDesc = descartadas.length === 1 ? `La vaca ${descartadas[0]} está descartada` : `${descartadas.length} vacas están descartadas`;
+          Toast.warning(`${listDesc} y no se modificaron.`);
+        }
+      } else {
+        Toast.success(`${nombre} actualizado para ${idsAptos.length} animales.`);
+      }
+      this._refresh();
     });
   },
 
@@ -566,6 +637,65 @@ const CicloView = {
     });
   },
 
+  /* ── MOVER SELECCIÓN (bulk) — quita del ciclo actual y pone en el destino ── */
+  async _bulkMover() {
+    const ids = this._getSelectedIds();
+    if (!ids.length) { Toast.warning('Seleccioná al menos un animal.'); return; }
+
+    const todosRodeos = BBT.Estancias.getAllRodeos();
+    let opciones = [];
+    for (const r of todosRodeos) {
+      BBT.Ciclos.getActivosByGrupo(r.id).filter(c => c.id !== this.cicloId).forEach(c => {
+        opciones.push({ cicloId: c.id, label: `${r.nombre} → ${c.nombre}` });
+      });
+    }
+
+    if (opciones.length === 0) {
+      Toast.warning('No hay safras activas disponibles como destino.');
+      return;
+    }
+
+    const opcionesCiclo = opciones.map(o =>
+      `<option value="${BBT.Security.sanitize(o.cicloId)}">${BBT.Security.sanitize(o.label)}</option>`
+    ).join('');
+
+    const m = Modal.show({
+      title: `Mover ${ids.length} ${ids.length === 1 ? 'animal' : 'animales'} a otra safra`,
+      body: `
+        <p style="color:var(--text-secondary);font-size:.9rem;margin-bottom:16px">
+          Los animales se <strong>quitarán de esta safra</strong> y se agregarán a la seleccionada con datos en cero.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Safra destino</label>
+          <select class="select w-full" id="mv-ciclo-dest">${opcionesCiclo}</select>
+        </div>
+        <div id="mv-err" class="login-error hidden mt-4"><span>⚠</span><span id="mv-err-msg"></span></div>`,
+      footer: `<button class="btn btn-secondary" id="mv-cancel">Cancelar</button>
+               <button class="btn btn-warning" id="mv-ok">Mover ${ids.length} animales</button>`
+    });
+
+    m.querySelector('#mv-cancel').addEventListener('click', () => Modal.close(m));
+    m.querySelector('#mv-ok').addEventListener('click', async () => {
+      const destId = m.querySelector('#mv-ciclo-dest').value;
+      if (!destId) { return; }
+      const okBtn = m.querySelector('#mv-ok');
+      okBtn.disabled = true;
+      okBtn.textContent = 'Moviendo...';
+
+      const res = await BBT.Ciclos.mover(this.cicloId, destId, ids);
+      if (!res.ok) {
+        m.querySelector('#mv-err').classList.remove('hidden');
+        m.querySelector('#mv-err-msg').textContent = res.error;
+        okBtn.disabled = false;
+        okBtn.textContent = `Mover ${ids.length} animales`;
+        return;
+      }
+      Modal.close(m);
+      _toastMoverTraspasar(res, 'movido', 'movidos');
+      this._refresh();
+    });
+  },
+
   /* ── TRASPASAR SELECCIÓN (bulk) — solo las seleccionadas ── */
   async _traspasarSeleccion() {
     const ids = this._getSelectedIds();
@@ -617,7 +747,7 @@ const CicloView = {
       const res = await BBT.Ciclos.traspasar(this.cicloId, dest, vacaIds || null);
       if (!res.ok) { Toast.error(res.error); okBtn.disabled = false; okBtn.textContent = `Traspasar ${cantidad} animales`; return; }
       Modal.close(m);
-      Toast.success(`${res.count} ${res.count === 1 ? 'animal traspasado' : 'animales traspasados'}.`);
+      _toastMoverTraspasar(res, 'traspasado', 'traspasados');
       App.refreshSidebar();
     });
   },
