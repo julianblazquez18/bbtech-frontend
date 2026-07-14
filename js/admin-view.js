@@ -69,6 +69,10 @@ const AdminView = {
   /* ── CAMPOS ── */
   async _loadCampos() {
     await BBT.Estancias.fetchAll();
+    // Cargar ciclos de todos los rodeos para poder mostrar las safras
+    const estancias = BBT.Estancias.getAll();
+    const rodeos = estancias.flatMap(e => e.rodeos || []);
+    await Promise.all(rodeos.map(r => BBT.Ciclos.fetchByGrupo(r.id).catch(() => [])));
     this._renderCampos();
   },
 
@@ -113,6 +117,21 @@ const AdminView = {
         html += '<button class="btn btn-ghost btn-sm btn-goto-grupo" data-id="' + r.id + '" style="font-size:.75rem">Ver →</button>';
         html += '<button class="btn btn-danger btn-icon btn-sm btn-delete-grupo" data-id="' + r.id + '" data-estancia="' + est.id + '">🗑</button>';
         html += '</div>';
+
+        ciclosActivos.forEach(function(c) {
+          const fechaStr = c.fechaInicio
+            ? new Date(c.fechaInicio).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '';
+          html += '<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-5) var(--space-2) 3.5rem;border-bottom:1px solid var(--border);background:var(--surface-2,rgba(0,0,0,.03))">';
+          html += '<span style="font-size:.8rem">📅</span>';
+          html += '<div style="flex:1">';
+          html += '<span class="text-xs font-bold">' + BBT.Security.sanitize(c.nombre) + '</span>';
+          if (fechaStr) html += '<span class="text-xs text-muted" style="margin-left:.4rem">· ' + fechaStr + '</span>';
+          html += '</div>';
+          html += '<button class="btn btn-ghost btn-sm btn-goto-ciclo" data-id="' + c.id + '" style="font-size:.7rem">✏ Ver</button>';
+          html += '<button class="btn btn-danger btn-icon btn-sm btn-delete-ciclo-admin" data-id="' + c.id + '">🗑</button>';
+          html += '</div>';
+        });
       });
 
       html += '<div style="padding:var(--space-2) var(--space-5) var(--space-3) var(--space-8)">';
@@ -168,8 +187,10 @@ const AdminView = {
         if (btn.classList.contains('btn-delete-campo')) self._deleteCampo(id);
         if (btn.classList.contains('btn-add-grupo'))    self._addGrupo(est);
         if (btn.classList.contains('btn-edit-grupo'))   self._editGrupo(est, id);
-        if (btn.classList.contains('btn-goto-grupo'))   App.navigateToGrupo(id);
-        if (btn.classList.contains('btn-delete-grupo')) self._deleteGrupo(est, id);
+        if (btn.classList.contains('btn-goto-grupo'))        App.navigateToGrupo(id);
+        if (btn.classList.contains('btn-delete-grupo'))      self._deleteGrupo(est, id);
+        if (btn.classList.contains('btn-goto-ciclo'))        App.navigateToCiclo(id);
+        if (btn.classList.contains('btn-delete-ciclo-admin')) self._deleteCicloFromAdmin(id);
       });
     }
 
@@ -344,6 +365,26 @@ const AdminView = {
     Toast.success(`Grupo "${nombre}" eliminado.`);
     await App.refreshSidebar();
     this._renderCampos();
+  },
+
+  async _deleteCicloFromAdmin(cicloId) {
+    const ciclo = BBT.Ciclos.getById(cicloId);
+    const nombre = ciclo ? ciclo.nombre : cicloId;
+    const totalVacas = ciclo ? Object.keys(ciclo.vacas || {}).length : 0;
+    const ok = await Modal.confirm(
+      'Eliminar safra',
+      `¿Eliminar la safra <strong>${BBT.Security.sanitize(nombre)}</strong>?${totalVacas > 0 ? `<br><br><span style="color:var(--status-muerte);font-weight:600">⚠ Tiene ${totalVacas} animales que también se eliminarán.</span>` : ''}<br><br>Esta acción no se puede deshacer.`,
+      'Sí, eliminar', 'danger'
+    );
+    if (!ok) return;
+    try {
+      await BBT.Ciclos.eliminar(cicloId);
+      Toast.success(`Safra "${nombre}" eliminada.`);
+      await App.refreshSidebar();
+      this._renderCampos();
+    } catch (err) {
+      Toast.error('Error al eliminar la safra.');
+    }
   },
 
   /* ── Lote actions ── */

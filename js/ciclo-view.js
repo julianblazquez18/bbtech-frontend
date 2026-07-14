@@ -130,6 +130,7 @@ const CicloView = {
 
                 <option value="destete_muerte_ternero">Muerte Ternero</option>
                 <option value="descarte">Descarte</option>
+                <option value="sin_info">Sin info</option>
               </select>
             </div>
           </div>
@@ -299,6 +300,13 @@ const CicloView = {
     if (search) vacas = vacas.filter(v => v.vacaId.toLowerCase().includes(search));
     if (filter === 'descarte') {
       vacas = vacas.filter(v => v.rechazo);
+    } else if (filter === 'sin_info') {
+      vacas = vacas.filter(v =>
+        v.entore.estado  === 'pendiente' &&
+        (v.parto.estado  === 'pendiente' || v.parto.locked)  &&
+        (v.destete.estado === 'pendiente' || v.destete.locked) &&
+        !v.rechazo
+      );
     } else if (filter === 'aun_no_pario') {
       // Preñadas con parto todavía pendiente, sin descartar
       vacas = vacas.filter(v => v.entore.estado === 'preniada' && v.parto.estado === 'pendiente' && !v.rechazo);
