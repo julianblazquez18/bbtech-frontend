@@ -447,7 +447,7 @@ h5 { font-size: 1rem; }
    ============================================================ */
 .dashboard-page {
   min-height: 100vh;
-  background: var(--green-950);
+  background: var(--surface-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -468,13 +468,13 @@ h5 { font-size: 1rem; }
   font-family: var(--font-display);
   font-size: clamp(28px, 4vw, 42px);
   font-weight: 700;
-  color: var(--green-50);
+  color: var(--text-primary);
   letter-spacing: .02em;
 }
 
 .dashboard-empresa {
   font-size: .9rem;
-  color: var(--green-400);
+  color: var(--green-700);
   font-weight: 500;
   margin-top: 4px;
   text-transform: uppercase;
@@ -494,8 +494,8 @@ h5 { font-size: 1rem; }
   flex: 1;
   min-width: 240px;
   max-width: 300px;
-  background: var(--green-900);
-  border: 1px solid var(--green-800);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 40px 32px;
   display: flex;
@@ -508,13 +508,13 @@ h5 { font-size: 1rem; }
 
 .module-active {
   cursor: pointer;
-  border-color: var(--green-700);
+  border-color: var(--green-300);
 }
 
 .module-active:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0,0,0,.4);
-  border-color: var(--green-500);
+  box-shadow: 0 12px 40px rgba(0,0,0,.1);
+  border-color: var(--green-600);
 }
 
 .module-soon {
@@ -529,27 +529,27 @@ h5 { font-size: 1rem; }
   justify-content: center;
   width: 80px;
   height: 80px;
-  background: var(--green-800);
+  background: var(--green-100);
   border-radius: 50%;
 }
 
 .module-active .module-icon {
-  color: var(--green-300);
-  background: var(--green-700);
+  color: var(--green-700);
+  background: var(--green-100);
 }
 
 .module-title {
   font-family: var(--font-display);
   font-size: 1.4rem;
   font-weight: 700;
-  color: var(--green-50);
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: .04em;
 }
 
 .module-stats {
   font-size: .82rem;
-  color: var(--green-400);
+  color: var(--text-muted);
   display: flex;
   gap: 6px;
   align-items: center;
@@ -557,13 +557,13 @@ h5 { font-size: 1rem; }
   justify-content: center;
 }
 
-.module-stats-sep { color: var(--green-700); }
+.module-stats-sep { color: var(--border-strong); }
 
 .module-cta {
   margin-top: 8px;
   font-size: .85rem;
   font-weight: 600;
-  color: var(--green-300);
+  color: var(--green-600);
   letter-spacing: .04em;
 }
 
@@ -572,8 +572,8 @@ h5 { font-size: 1rem; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .1em;
-  color: var(--green-700);
-  border: 1px solid var(--green-800);
+  color: var(--green-600);
+  border: 1px solid var(--green-200);
   padding: 4px 12px;
   border-radius: 100px;
 }
