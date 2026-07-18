@@ -110,7 +110,6 @@ const DashboardView = {
   },
 
   hide() {
-    App._exitFullscreen();
     if (this._hashListener) {
       window.removeEventListener('hashchange', this._hashListener);
       this._hashListener = null;
