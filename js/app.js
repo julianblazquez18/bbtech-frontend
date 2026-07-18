@@ -36,149 +36,21 @@ const App = {
       if (un) un.textContent = nombre;
       this._updateCompanyBranding(realUser);
     }
-    this._renderSidebar();
     this._bindHashChange();
     this._navigateFromHash();
   },
 
   /* ── Sidebar ── */
   _renderSidebar() {
-    const nav = $('#sidebar-nav');
-    if (!nav) return;
-    nav.innerHTML = '';
-
-    // Restore collapsed state from sessionStorage
-    const colState = JSON.parse(sessionStorage.getItem('bbtech_sidebar') || '{}');
-
-    BBT.Estancias.getAll().forEach(est => {
-      /* ── CAMPO (colapsable) ── */
-      const campoEl = document.createElement('div');
-      campoEl.className = 'sidebar-campo';
-
-      const campoOpen = colState['campo_' + est.id] === true; // default: closed
-
-      const campoHeader = document.createElement('div');
-      campoHeader.className = 'sidebar-campo-header sidebar-campo-toggle';
-      campoHeader.innerHTML =
-        '<span class="sidebar-campo-icon">' + BBT.Security.sanitize(est.icon || '🌾') + '</span>' +
-        '<span class="sidebar-campo-name">' + BBT.Security.sanitize(est.nombre) + '</span>' +
-        '<span class="sidebar-campo-chevron" style="transition:transform .2s;font-size:.65rem;opacity:.6">' + (campoOpen ? '▼' : '▶') + '</span>';
-      campoEl.appendChild(campoHeader);
-
-      // Content wrapper (collapsible)
-      const campoContent = document.createElement('div');
-      campoContent.className = 'sidebar-campo-content';
-      campoContent.style.display = campoOpen ? 'block' : 'none';
-
-      est.rodeos.forEach(rodeo => {
-        /* ── GRUPO (colapsable) ── */
-        const grupoEl = document.createElement('div');
-        grupoEl.className = 'sidebar-grupo';
-
-        const grupoOpen = colState['grupo_' + rodeo.id] === true; // default: closed
-
-        const grupoHeader = document.createElement('div');
-        grupoHeader.className = 'sidebar-grupo-header sidebar-grupo-toggle';
-        grupoHeader.innerHTML =
-          '<span class="sidebar-grupo-dot"></span>' +
-          '<span class="sidebar-grupo-name">' + BBT.Security.sanitize(rodeo.nombre) + '</span>' +
-          '<span class="sidebar-grupo-chevron" style="transition:transform .2s;font-size:.6rem;opacity:.5">' + (grupoOpen ? '▾' : '▸') + '</span>';
-        grupoEl.appendChild(grupoHeader);
-
-        const grupoContent = document.createElement('div');
-        grupoContent.className = 'sidebar-grupo-content';
-        grupoContent.style.display = grupoOpen ? 'block' : 'none';
-
-        /* ── SAFRAS ── */
-        const ciclos = BBT.Ciclos.getByGrupo(rodeo.id);
-        ciclos.forEach(ciclo => {
-          const isClosed  = ciclo.estado === 'cerrado';
-          const isActive  = App.currentCicloId === ciclo.id;
-          const vacCount  = Object.keys(ciclo.vacas || {}).length || ciclo._vacaCount || 0;
-
-          const safraEl = document.createElement('div');
-          safraEl.className = 'sidebar-safra' + (isClosed ? ' closed' : '');
-          safraEl.dataset.cicloId = ciclo.id;
-          safraEl.innerHTML =
-            '<span class="sidebar-safra-icon">' + (isClosed ? '🔒' : '📋') + '</span>' +
-            '<span class="sidebar-safra-name">' + BBT.Security.sanitize(ciclo.nombre) + '</span>' +
-            '<span class="sidebar-safra-count">' + vacCount + '</span>';
-          safraEl.addEventListener('click', () => App.navigateToCiclo(ciclo.id));
-          grupoContent.appendChild(safraEl);
-        });
-
-        /* ── Nueva safra ── */
-        const newSafra = document.createElement('div');
-        newSafra.className = 'sidebar-add-btn';
-        newSafra.innerHTML = '<span>＋</span><span>Nueva safra</span>';
-        newSafra.addEventListener('click', () => App._showNuevoCicloModal(rodeo.id, rodeo.nombre));
-        grupoContent.appendChild(newSafra);
-
-        grupoEl.appendChild(grupoContent);
-
-        // Toggle grupo
-        grupoHeader.addEventListener('click', () => {
-          const isOpen = grupoContent.style.display !== 'none';
-          grupoContent.style.display = isOpen ? 'none' : 'block';
-          grupoHeader.querySelector('.sidebar-grupo-chevron').textContent = isOpen ? '▸' : '▾';
-          const state = JSON.parse(sessionStorage.getItem('bbtech_sidebar') || '{}');
-          state['grupo_' + rodeo.id] = !isOpen;
-          sessionStorage.setItem('bbtech_sidebar', JSON.stringify(state));
-        });
-
-        campoContent.appendChild(grupoEl);
-      });
-
-      campoEl.appendChild(campoContent);
-
-      // Toggle campo
-      campoHeader.addEventListener('click', () => {
-        const isOpen = campoContent.style.display !== 'none';
-        campoContent.style.display = isOpen ? 'none' : 'block';
-        campoHeader.querySelector('.sidebar-campo-chevron').textContent = isOpen ? '▶' : '▼';
-        const state = JSON.parse(sessionStorage.getItem('bbtech_sidebar') || '{}');
-        state['campo_' + est.id] = !isOpen;
-        sessionStorage.setItem('bbtech_sidebar', JSON.stringify(state));
-      });
-
-      nav.appendChild(campoEl);
-    });
-
-    /* ── Divider ── */
-    const divider = document.createElement('div');
-    divider.className = 'sidebar-divider';
-    nav.appendChild(divider);
-
-    /* ── Historial ── */
-    const histItem = document.createElement('div');
-    histItem.className = 'sidebar-nav-item' + (App.currentView === 'historial' ? ' active' : '');
-    histItem.id = 'nav-historial';
-    histItem.innerHTML = '<span class="nav-item-icon">📁</span><span>Historial</span>';
-    histItem.addEventListener('click', () => App.navigateToHistorial());
-    nav.appendChild(histItem);
-
-    this._updateSidebarActive();
+    // Sidebar eliminado — stub para compatibilidad
   },
 
-    _updateSidebarActive() {
-    $$('.nav-sub-item, .nav-item, .sidebar-safra, .sidebar-nav-item').forEach(el => el.classList.remove('active'));
-    if (this.currentView === 'ciclo' && this.currentCicloId) {
-      const item = $(`[data-ciclo-id="${this.currentCicloId}"]`);
-      if (item) item.classList.add('active');
-    } else if (this.currentView === 'historial') {
-      const item = $('#nav-historial'); if (item) item.classList.add('active');
-    } else if (this.currentView === 'admin') {
-      // no specific sidebar item
-    }
+  _updateSidebarActive() {
+    // Sidebar eliminado — stub para compatibilidad
   },
 
   async refreshSidebar() {
-    try {
-      await BBT.Estancias.fetchAll();
-      const rodeos = BBT.Estancias.getAllRodeos();
-      await Promise.all(rodeos.map(r => BBT.Ciclos.fetchByGrupo(r.id)));
-    } catch (err) { console.error('refreshSidebar:', err); }
-    this._renderSidebar();
+    // Sidebar eliminado — stub para compatibilidad
   },
 
   /* ── Topbar ── */
@@ -192,22 +64,11 @@ const App = {
   },
 
   _updateCompanyBranding(user) {
-    if (!user) return;
-    const tagline = document.querySelector('.sidebar-tagline');
-    if (tagline && user.empresaNombre) tagline.textContent = user.empresaNombre;
-    const logoImg = document.querySelector('.sidebar-logo-img');
-    if (logoImg && user.logoUrl) {
-      logoImg.src = user.logoUrl;
-      logoImg.onerror = function() { this.style.display = 'none'; };
-    }
+    // Sidebar eliminado — stub para compatibilidad
   },
 
   _updateSidebarCount(cicloId) {
-    const el = document.querySelector('[data-ciclo-id="' + cicloId + '"] .sidebar-safra-count');
-    if (el) {
-      const ciclo = BBT.Ciclos.getById(cicloId);
-      if (ciclo) el.textContent = Object.keys(ciclo.vacas || {}).length || ciclo._vacaCount || 0;
-    }
+    // Sidebar eliminado — stub para compatibilidad
   },
 
   _updateBreadcrumb(parts = []) {
@@ -264,8 +125,6 @@ const App = {
     this._enterFullscreen();
     this._breadcrumbRodeo = rodeo;
     this._breadcrumbCiclo = ciclo;
-    this._updateSidebarActive();
-    this._updateSidebarCount(cicloId);
     await CicloView.render(cicloId);
   },
 
@@ -289,7 +148,6 @@ const App = {
     } else {
       this._exitFullscreen();
       this._updateBreadcrumb(['Historial']);
-      this._updateSidebarActive();
     }
     await HistorialView.render(fromGanadero);
   },
@@ -304,7 +162,6 @@ const App = {
     } else {
       this._exitFullscreen();
       this._updateBreadcrumb(['Administración']);
-      this._updateSidebarActive();
     }
     await AdminView.render(fromGanadero);
   },
@@ -431,24 +288,15 @@ const App = {
 
   /* ── Mobile ── */
   _bindMobileMenu() {
-    const btn = $('#mobile-menu-btn'), sidebar = $('#sidebar'), overlay = $('#sidebar-overlay');
-    if (!btn) return;
-    btn.addEventListener('click', () => { sidebar.classList.toggle('mobile-open'); overlay.classList.toggle('active'); });
-    overlay.addEventListener('click', () => { sidebar.classList.remove('mobile-open'); overlay.classList.remove('active'); });
+    // Sidebar eliminado — stub
   },
 
   _bindLogout() {
     const btn = $('#logout-btn');
     if (btn) btn.addEventListener('click', async () => {
       const ok = await Modal.confirm('Cerrar sesión', '¿Cerrár la sesión?', 'Cerrar sesión', 'danger');
-      if (ok) { BBT.Auth.logout(); sessionStorage.removeItem('bbtech_sidebar'); window.location.href = 'index.html'; }
+      if (ok) { BBT.Auth.logout(); window.location.href = 'index.html'; }
     });
-    // Click en avatar/nombre → Admin
-    const userEl = $('.sidebar-user');
-    if (userEl) {
-      userEl.style.cursor = 'pointer';
-      userEl.addEventListener('click', e => { if (!e.target.closest('#logout-btn')) this.navigateToAdmin(); });
-    }
   }
 };
 

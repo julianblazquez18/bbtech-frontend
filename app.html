@@ -19,34 +19,8 @@
   </div>
 
   <div id="app">
-    <div id="sidebar-overlay"></div>
-    <aside id="sidebar" role="navigation">
-      <div class="sidebar-brand">
-        <div class="sidebar-logo">
-          <img src="assets/logo.png" alt="BBTECH" class="sidebar-logo-img"
-               onerror="this.style.display='none';document.getElementById('sb-logo-fallback').style.display='flex'">
-          <div id="sb-logo-fallback" style="display:none;align-items:center;gap:8px">
-            <div class="sidebar-logo-icon">🐄</div>
-            <span>BBTECH</span>
-          </div>
-        </div>
-        <div class="sidebar-tagline">Control Bovino</div>
-      </div>
-      <nav class="sidebar-nav" id="sidebar-nav"></nav>
-      <div class="sidebar-footer">
-        <div class="sidebar-user" title="Click para Administración" style="cursor:pointer">
-          <div class="sidebar-avatar" id="topbar-avatar">A</div>
-          <div class="sidebar-user-info">
-            <div class="sidebar-user-name" id="topbar-username">Usuario</div>
-            <div class="sidebar-user-role">Administrador ⚙</div>
-          </div>
-          <button class="sidebar-logout-btn" id="logout-btn" title="Cerrar sesión">⏻</button>
-        </div>
-      </div>
-    </aside>
     <div id="main">
       <header id="topbar" role="banner">
-        <button class="mobile-menu-btn btn btn-ghost btn-icon" id="mobile-menu-btn">☰</button>
         <nav class="topbar-breadcrumb" id="topbar-breadcrumb"><span class="bc-current">BBTECH</span></nav>
         <div class="topbar-actions">
           <span style="font-size:.75rem;color:var(--text-muted);font-family:var(--font-mono)">v2.0</span>
