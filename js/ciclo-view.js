@@ -49,7 +49,27 @@ const CicloView = {
     const lotes = (await BBT.Estancias.getLotesNombres().catch(() => []));
     const loteOpts = lotes.map(l => `<option value="${BBT.Security.sanitize(l)}"${ciclo.lote === l ? ' selected' : ''}>${BBT.Security.sanitize(l)}</option>`).join('');
 
+    const isFullscreen = document.getElementById('app').classList.contains('fullscreen');
+    const bcRodeo = App._breadcrumbRodeo;
+    const bcCiclo = App._breadcrumbCiclo;
+    let breadcrumbHtml = '';
+    if (isFullscreen && bcRodeo && bcCiclo) {
+      const empresa = (BBT.Auth._user && BBT.Auth._user.empresaNombre) || 'BBTECH';
+      breadcrumbHtml = `<div class="fullscreen-breadcrumb">
+        <span class="fbc-link" data-nav="dashboard">${BBT.Security.sanitize(empresa)}</span>
+        <span class="bc-sep">›</span>
+        <span class="fbc-link" data-nav="ganadero">Control Ganadero</span>
+        <span class="bc-sep">›</span>
+        <span class="fbc-link" data-nav="ganadero">${BBT.Security.sanitize(bcRodeo.estanciaNombre)}</span>
+        <span class="bc-sep">›</span>
+        <span class="fbc-link" data-nav="ganadero">${BBT.Security.sanitize(bcRodeo.nombre)}</span>
+        <span class="bc-sep">›</span>
+        <span class="bc-current">${BBT.Security.sanitize(bcCiclo.nombre)}</span>
+      </div>`;
+    }
+
     main.innerHTML = `
+      ${breadcrumbHtml}
       <div class="page" id="ciclo-page">
 
         <!-- Header -->
@@ -177,6 +197,14 @@ const CicloView = {
           </div>
         </div>
       </div>`;
+
+    document.querySelectorAll('.fbc-link').forEach(el => {
+      el.addEventListener('click', () => {
+        const nav = el.dataset.nav;
+        if (nav === 'dashboard') App.navigateToDashboard();
+        else if (nav === 'ganadero') App.navigateToGanadero();
+      }, { once: true });
+    });
 
     this._renderStats(stats);
     this._renderTable();

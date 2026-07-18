@@ -441,3 +441,416 @@ h5 { font-size: 1rem; }
   .card-header { flex-direction: column; align-items: flex-start; }
   .modal { max-width: 100%; margin: var(--space-4); }
 }
+
+/* ============================================================
+   Dashboard de módulos
+   ============================================================ */
+.dashboard-page {
+  min-height: 100vh;
+  background: var(--green-950);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  gap: 48px;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 960px;
+}
+
+.dashboard-greeting {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  color: var(--green-50);
+  letter-spacing: .02em;
+}
+
+.dashboard-empresa {
+  font-size: .9rem;
+  color: var(--green-400);
+  font-weight: 500;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.dashboard-modules {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 960px;
+  width: 100%;
+}
+
+.module-card {
+  flex: 1;
+  min-width: 240px;
+  max-width: 300px;
+  background: var(--green-900);
+  border: 1px solid var(--green-800);
+  border-radius: 16px;
+  padding: 40px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+}
+
+.module-active {
+  cursor: pointer;
+  border-color: var(--green-700);
+}
+
+.module-active:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.4);
+  border-color: var(--green-500);
+}
+
+.module-soon {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.module-icon {
+  color: var(--green-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: var(--green-800);
+  border-radius: 50%;
+}
+
+.module-active .module-icon {
+  color: var(--green-300);
+  background: var(--green-700);
+}
+
+.module-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--green-50);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.module-stats {
+  font-size: .82rem;
+  color: var(--green-400);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.module-stats-sep { color: var(--green-700); }
+
+.module-cta {
+  margin-top: 8px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--green-300);
+  letter-spacing: .04em;
+}
+
+.module-badge {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--green-700);
+  border: 1px solid var(--green-800);
+  padding: 4px 12px;
+  border-radius: 100px;
+}
+
+@media (max-width: 700px) {
+  .dashboard-modules { flex-direction: column; align-items: center; }
+  .module-card { max-width: 100%; width: 100%; }
+}
+
+/* ============================================================
+   Vista árbol Ganadero
+   ============================================================ */
+.ganadero-page {
+  padding: 32px 40px;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.ganadero-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ganadero-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ganadero-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--green-500);
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background .15s, color .15s;
+}
+.ganadero-back-btn:hover { background: var(--green-50); color: var(--green-700); }
+
+.ganadero-title {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: .02em;
+}
+
+.ganadero-header-actions { display: flex; gap: 10px; }
+
+.ganadero-empty { text-align: center; padding: 80px 20px; }
+
+.ganadero-tree { display: flex; flex-direction: column; gap: 16px; }
+
+/* Campo */
+.gtree-campo {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.gtree-campo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--green-50);
+  border-bottom: 1px solid var(--border);
+}
+
+.gtree-campo-left { display: flex; align-items: center; gap: 10px; }
+.gtree-campo-icon { font-size: 1.1rem; }
+
+.gtree-campo-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--green-800);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.gtree-campo-actions { display: flex; gap: 4px; }
+
+.gtree-campo-footer {
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2, var(--gray-50));
+}
+
+/* Botones icono */
+.gtree-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.gtree-btn-icon:hover { background: var(--gray-100); color: var(--green-700); border-color: var(--gray-300); }
+.gtree-btn-danger:hover { background: rgba(153,27,27,.08); color: var(--status-muerte); border-color: rgba(153,27,27,.2); }
+
+.gtree-btn-sm {
+  background: transparent;
+  border: 1px solid var(--green-600);
+  color: var(--green-600);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.gtree-btn-sm:hover { background: var(--green-50); color: var(--green-700); }
+
+.gtree-add-rodeo, .gtree-link {
+  background: none;
+  border: none;
+  color: var(--green-600);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color .15s;
+}
+.gtree-add-rodeo:hover, .gtree-link:hover { color: var(--green-700); }
+
+/* Rodeo */
+.gtree-rodeo { border-bottom: 1px solid var(--border); }
+.gtree-rodeo:last-child { border-bottom: none; }
+
+.gtree-rodeo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 20px 11px 28px;
+  background: var(--surface);
+}
+.gtree-rodeo-header:hover { background: var(--gray-50); }
+
+.gtree-rodeo-left { display: flex; align-items: center; gap: 8px; }
+
+.gtree-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  transition: color .15s;
+}
+.gtree-toggle:hover { color: var(--green-600); }
+
+.gtree-rodeo-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green-500);
+  flex-shrink: 0;
+}
+
+.gtree-rodeo-name { font-weight: 600; font-size: .95rem; color: var(--text-primary); }
+
+.gtree-rodeo-count {
+  font-size: .72rem;
+  color: var(--text-muted);
+  background: var(--gray-100);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+
+.gtree-rodeo-actions { display: flex; gap: 4px; align-items: center; }
+
+.gtree-rodeo-empty {
+  padding: 10px 20px 10px 48px;
+  font-size: .82rem;
+  color: var(--text-muted);
+}
+
+/* Safras */
+.gtree-safras { background: var(--gray-50); }
+
+.gtree-safra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px 10px 48px;
+  border-top: 1px solid var(--border);
+  transition: background .12s;
+}
+.gtree-safra:hover { background: var(--gray-100); }
+
+.gtree-safra-closed { opacity: .55; }
+
+.gtree-safra-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.gtree-safra-icon { font-size: .9rem; }
+.gtree-safra-name { font-weight: 600; font-size: .88rem; color: var(--text-primary); }
+.gtree-safra-fecha { font-size: .75rem; color: var(--text-muted); }
+.gtree-safra-count { font-size: .72rem; color: var(--text-muted); }
+
+.gtree-safra-badge-activa {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--green-600);
+  border: 1px solid var(--green-300);
+  padding: 1px 6px;
+  border-radius: 100px;
+  background: var(--green-50);
+}
+
+.gtree-btn-ver {
+  background: transparent;
+  border: 1px solid var(--green-500);
+  color: var(--green-600);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.gtree-btn-ver:hover { background: var(--green-50); color: var(--green-700); }
+
+.gtree-safra-empty {
+  padding: 10px 20px 10px 48px;
+  font-size: .78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .ganadero-page { padding: 20px 16px; }
+  .ganadero-header { flex-direction: column; align-items: flex-start; }
+  .gtree-safra { padding-left: 32px; }
+  .gtree-rodeo-header { padding-left: 16px; }
+}
+
+/* ── Fullscreen breadcrumb (ciclo y admin desde ganadero) ─── */
+.fullscreen-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 40px 0;
+  font-size: .85rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.fbc-link {
+  cursor: pointer;
+  color: var(--green-500);
+  transition: color .15s;
+}
+.fbc-link:hover { color: var(--green-300); text-decoration: underline; }
+.fullscreen-breadcrumb .bc-current {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.fullscreen-breadcrumb .bc-sep { color: var(--border-strong); }

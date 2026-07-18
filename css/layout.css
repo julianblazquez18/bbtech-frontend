@@ -187,6 +187,8 @@
   flex: 1; min-width: 0;
 }
 .topbar-breadcrumb .bc-sep { color: var(--border-strong); }
+.topbar-breadcrumb .bc-link { cursor: pointer; color: var(--green-600); transition: color .15s; }
+.topbar-breadcrumb .bc-link:hover { color: var(--green-700); text-decoration: underline; }
 .topbar-breadcrumb .bc-current {
   font-weight: 600; color: var(--text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -207,7 +209,12 @@
   min-height: 100vh;
 }
 
-.page { padding: var(--space-8) var(--space-8); max-width: 1400px; }
+/* ── Fullscreen mode (sin sidebar ni topbar) ──────────────── */
+#app.fullscreen #sidebar { display: none !important; }
+#app.fullscreen #topbar  { display: none !important; }
+#app.fullscreen #main    { margin-left: 0; padding-top: 0; }
+
+.page { padding: var(--space-8) var(--space-8); max-width: 1400px; width: 100%; margin: 0 auto; }
 .page-header {
   margin-bottom: var(--space-8);
   display: flex; align-items: flex-start; justify-content: space-between;

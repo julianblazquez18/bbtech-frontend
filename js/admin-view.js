@@ -6,11 +6,15 @@
 
 const AdminView = {
 
-  async render() {
+  async render(fromGanadero = false) {
     const main = $('#main-content');
     if (!main) return;
     main.innerHTML = `
       <div class="page" id="admin-page">
+        ${fromGanadero ? `
+        <div class="fullscreen-breadcrumb" style="margin-bottom:4px">
+          <span class="fbc-link" id="admin-back">← Control Ganadero</span>
+        </div>` : ''}
         <div class="page-header">
           <div>
             <div class="page-title">Administración</div>
@@ -175,6 +179,9 @@ const AdminView = {
   /* ── EVENTS ── */
   _bindEvents() {
     const self = this;
+
+    const adminBack = document.getElementById('admin-back');
+    if (adminBack) adminBack.addEventListener('click', () => App.navigateToGanadero(), { once: true });
 
     const camposList = $('#campos-list');
     if (camposList) {

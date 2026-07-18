@@ -221,6 +221,34 @@ const App = {
     ).join('');
   },
 
+  _updateBreadcrumbGanadero(rodeo, ciclo) {
+    const bc = document.getElementById('topbar-breadcrumb');
+    if (!bc) return;
+    const empresa = (BBT.Auth._user && BBT.Auth._user.empresaNombre) || 'BBTECH';
+    let html = `<span>${BBT.Security.sanitize(empresa)}</span><span class="bc-sep">›</span>`;
+    html += `<span class="bc-link" id="bc-ganadero">Control Ganadero</span><span class="bc-sep">›</span>`;
+    if (rodeo) {
+      html += `<span class="bc-link" id="bc-campo">${BBT.Security.sanitize(rodeo.estanciaNombre)}</span><span class="bc-sep">›</span>`;
+      html += `<span class="bc-link" id="bc-rodeo">${BBT.Security.sanitize(rodeo.nombre)}</span><span class="bc-sep">›</span>`;
+    }
+    html += `<span class="bc-current">${BBT.Security.sanitize(ciclo.nombre)}</span>`;
+    bc.innerHTML = html;
+    const bcG = document.getElementById('bc-ganadero');
+    if (bcG) bcG.addEventListener('click', () => this.navigateToGanadero(), { once: true });
+    const bcC = document.getElementById('bc-campo');
+    if (bcC) bcC.addEventListener('click', () => this.navigateToGanadero(), { once: true });
+    const bcR = document.getElementById('bc-rodeo');
+    if (bcR) bcR.addEventListener('click', () => this.navigateToGanadero(), { once: true });
+  },
+
+  /* ── Fullscreen helpers ── */
+  _enterFullscreen() {
+    document.getElementById('app').classList.add('fullscreen');
+  },
+  _exitFullscreen() {
+    document.getElementById('app').classList.remove('fullscreen');
+  },
+
   /* ── Navigation ── */
   async navigateToCiclo(cicloId) {
     // Refrescar datos del ciclo desde la API
@@ -233,8 +261,9 @@ const App = {
     this.currentGrupoId = ciclo.grupoId;
     const newHash = `#ciclo/${cicloId}`;
     if (window.location.hash !== newHash) window.location.hash = `ciclo/${cicloId}`;
-    const parts = rodeo ? [rodeo.estanciaNombre, rodeo.nombre, ciclo.nombre] : [ciclo.nombre];
-    this._updateBreadcrumb(parts);
+    this._enterFullscreen();
+    this._breadcrumbRodeo = rodeo;
+    this._breadcrumbCiclo = ciclo;
     this._updateSidebarActive();
     this._updateSidebarCount(cicloId);
     await CicloView.render(cicloId);
@@ -260,35 +289,55 @@ const App = {
   },
 
   async navigateToAdmin() {
+    const fromGanadero = ['ganadero', 'ciclo', 'dashboard'].includes(this.currentView);
     this.currentView    = 'admin';
     this.currentCicloId = null;
     if (window.location.hash !== '#admin') window.location.hash = 'admin';
-    this._updateBreadcrumb(['Administración']);
-    this._updateSidebarActive();
-    await AdminView.render();
+    if (fromGanadero) {
+      this._enterFullscreen();
+    } else {
+      this._exitFullscreen();
+      this._updateBreadcrumb(['Administración']);
+      this._updateSidebarActive();
+    }
+    await AdminView.render(fromGanadero);
+  },
+
+  async navigateToDashboard() {
+    this.currentView    = 'dashboard';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#dashboard') window.location.hash = 'dashboard';
+    DashboardView.render();
+  },
+
+  async navigateToGanadero() {
+    this.currentView    = 'ganadero';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#ganadero') window.location.hash = 'ganadero';
+    await GanaderoView.render();
   },
 
   _navigateFromHash() {
     const hash = window.location.hash.slice(1);
+    if (!hash || hash === 'dashboard') { this.navigateToDashboard(); return; }
+    if (hash === 'ganadero')           { this.navigateToGanadero();  return; }
     if (hash.startsWith('ciclo/')) {
       const cid = hash.split('/')[1];
       if (BBT.Ciclos.getById(cid)) { this.navigateToCiclo(cid); return; }
     } else if (hash === 'historial')  { this.navigateToHistorial();  return;
     } else if (hash === 'admin')      { this.navigateToAdmin();      return; }
-
-    // Default: primer ciclo activo disponible
-    const rodeos = BBT.Estancias.getAllRodeos();
-    for (const r of rodeos) {
-      const activos = BBT.Ciclos.getActivosByGrupo(r.id);
-      if (activos.length) { this.navigateToCiclo(activos[activos.length-1].id); return; }
-    }
-    this._renderWelcome();
+    // Fallback: dashboard
+    this.navigateToDashboard();
   },
 
   _bindHashChange() {
     window.addEventListener('hashchange', () => {
       const hash = window.location.hash.slice(1);
-      if (hash.startsWith('ciclo/')) {
+      if (!hash || hash === 'dashboard') {
+        if (this.currentView !== 'dashboard') this.navigateToDashboard();
+      } else if (hash === 'ganadero') {
+        this.navigateToGanadero();
+      } else if (hash.startsWith('ciclo/')) {
         const cid = hash.split('/')[1];
         if (cid !== this.currentCicloId && BBT.Ciclos.getById(cid)) this.navigateToCiclo(cid);
       } else if (hash === 'historial' && this.currentView !== 'historial') this.navigateToHistorial();
@@ -324,7 +373,13 @@ const App = {
       if (!res.ok) { Toast.error(res.error); return; }
       Modal.close(m);
       Toast.success(`Ciclo "${nombre}" creado.`);
-      this.refreshSidebar();
+      if (this.currentView === 'ganadero') {
+        await BBT.Estancias.fetchAll();
+        const rodeos = BBT.Estancias.getAllRodeos();
+        await Promise.all(rodeos.map(r => BBT.Ciclos.fetchByGrupo(r.id)));
+      } else {
+        this.refreshSidebar();
+      }
       this.navigateToCiclo(res.id);
     });
     m.querySelector('#nc-nombre').addEventListener('keydown', e => { if (e.key === 'Enter') m.querySelector('#nc-ok').click(); });
