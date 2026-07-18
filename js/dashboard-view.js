@@ -11,7 +11,7 @@ const DashboardView = {
     const main = $('#main-content');
     if (!main) return;
 
-    App._exitFullscreen();
+    App._enterFullscreen();
 
     const user    = BBT.Auth._user || {};
     const nombre  = user.nombre || 'Bienvenido';
