@@ -42,9 +42,40 @@
   min-height: 100vh;
 }
 
-/* ── Fullscreen mode (sin topbar) ─────────────────────────── */
-#app.fullscreen #topbar { display: none !important; }
-#app.fullscreen #main   { margin-left: 0; padding-top: 0; }
+/* ── Fullscreen mode (topbar visible, solo brand) ────────── */
+#app.fullscreen #main                { margin-left: 0; }
+#app.fullscreen .topbar-breadcrumb   { display: none; }
+#app.fullscreen .topbar-actions      { display: none; }
+#app.fullscreen .topbar-brand        { display: flex; }
+
+/* ── Topbar brand (logo + empresa, visible en fullscreen) ── */
+.topbar-brand {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+.topbar-brand-logo {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.topbar-brand-logo-fallback {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--green-600);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 700; font-size: .9rem;
+  flex-shrink: 0;
+}
+.topbar-brand-name {
+  font-family: var(--font-display);
+  font-size: 1rem; font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: .02em;
+}
 
 .page { padding: var(--space-8) var(--space-8); max-width: 1400px; width: 100%; margin: 0 auto; }
 .page-header {

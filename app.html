@@ -21,10 +21,18 @@
   <div id="app">
     <div id="main">
       <header id="topbar" role="banner">
-        <nav class="topbar-breadcrumb" id="topbar-breadcrumb"><span class="bc-current">BBTECH</span></nav>
-        <div class="topbar-actions">
-          <span style="font-size:.75rem;color:var(--text-muted);font-family:var(--font-mono)">v2.0</span>
+        <!-- Marca (visible solo en fullscreen) -->
+        <div class="topbar-brand" id="topbar-brand">
+          <img id="topbar-brand-logo" src="assets/logo.png"
+            class="topbar-brand-logo" alt="Logo"
+            onerror="this.style.display='none';document.getElementById('topbar-brand-fallback').style.display='flex'">
+          <div id="topbar-brand-fallback" class="topbar-brand-logo-fallback" style="display:none">B</div>
+          <span class="topbar-brand-name" id="topbar-brand-name">BBTECH</span>
         </div>
+        <!-- Breadcrumb (visible fuera de fullscreen) -->
+        <nav class="topbar-breadcrumb" id="topbar-breadcrumb">
+          <span class="bc-current">BBTECH</span>
+        </nav>
       </header>
       <main id="main-content" role="main"></main>
     </div>

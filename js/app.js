@@ -64,7 +64,20 @@ const App = {
   },
 
   _updateCompanyBranding(user) {
-    // Sidebar eliminado — stub para compatibilidad
+    if (!user) return;
+    const brandName = document.getElementById('topbar-brand-name');
+    if (brandName) brandName.textContent = user.empresaNombre || 'BBTECH';
+    const brandLogo     = document.getElementById('topbar-brand-logo');
+    const brandFallback = document.getElementById('topbar-brand-fallback');
+    if (brandLogo && user.logoUrl) {
+      brandLogo.src = user.logoUrl;
+      brandLogo.style.display = '';
+      if (brandFallback) brandFallback.style.display = 'none';
+    } else if (brandFallback && user.empresaNombre) {
+      if (brandLogo) brandLogo.style.display = 'none';
+      brandFallback.textContent = user.empresaNombre.charAt(0).toUpperCase();
+      brandFallback.style.display = 'flex';
+    }
   },
 
   _updateSidebarCount(cicloId) {
@@ -170,6 +183,7 @@ const App = {
     this.currentView    = 'dashboard';
     this.currentCicloId = null;
     if (window.location.hash !== '#dashboard') window.location.hash = 'dashboard';
+    this._updateBreadcrumb();
     DashboardView.render();
   },
 
