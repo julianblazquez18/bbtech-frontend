@@ -62,7 +62,7 @@ const CicloView = {
         <span class="bc-sep">›</span>
         <span class="fbc-link" data-nav="ganadero">${BBT.Security.sanitize(bcRodeo.estanciaNombre)}</span>
         <span class="bc-sep">›</span>
-        <span class="fbc-link" data-nav="ganadero">${BBT.Security.sanitize(bcRodeo.nombre)}</span>
+        <span class="fbc-link" data-nav="rodeo" data-rodeo-id="${bcRodeo.id}">${BBT.Security.sanitize(bcRodeo.nombre)}</span>
         <span class="bc-sep">›</span>
         <span class="bc-current">${BBT.Security.sanitize(bcCiclo.nombre)}</span>
       </div>`;
@@ -203,6 +203,7 @@ const CicloView = {
         const nav = el.dataset.nav;
         if (nav === 'dashboard') App.navigateToDashboard();
         else if (nav === 'ganadero') App.navigateToGanadero();
+        else if (nav === 'rodeo') App.navigateToGanadero(el.dataset.rodeoId);
       }, { once: true });
     });
 

@@ -8,6 +8,12 @@ const GanaderoView = {
 
   _expanded: {},
   _clickHandler: null,
+  _rodeoToExpand: null,
+
+  renderWithRodeo(rodeoId) {
+    this._rodeoToExpand = rodeoId;
+    return this.render();
+  },
 
   async render() {
     const main = $('#main-content');
@@ -25,6 +31,14 @@ const GanaderoView = {
       await Promise.all(rodeos.map(r => BBT.Ciclos.fetchByGrupo(r.id)));
     } catch (err) {
       console.error('GanaderoView.render:', err);
+    }
+
+    // Resetear expansión — solo preservar el rodeo explícito
+    const rodeoToExpand = this._rodeoToExpand || null;
+    this._expanded = {};
+    if (rodeoToExpand) {
+      this._expanded[rodeoToExpand] = true;
+      this._rodeoToExpand = null;
     }
 
     const estancias = BBT.Estancias.getAll();

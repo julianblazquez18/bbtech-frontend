@@ -5,7 +5,7 @@
 'use strict';
 
 const HistorialView = {
-  async render() {
+  async render(fromGanadero = false) {
     const main = $('#main-content');
     if (!main) return;
     main.innerHTML = '<div class="page"><div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-title">Cargando historial...</div></div></div>';
@@ -15,6 +15,7 @@ const HistorialView = {
       <div class="page">
         <div class="page-header">
           <div>
+            ${fromGanadero ? '<button class="ganadero-back-btn" id="historial-back">← Control Ganadero</button>' : ''}
             <div class="page-title">Historial</div>
             <div class="page-subtitle">Ciclos finalizados y archivados</div>
           </div>
@@ -29,6 +30,9 @@ const HistorialView = {
           ${historial.map(h => this._renderCicloCard(h)).join('')}
         </div>`}
       </div>`;
+
+    const historialBack = document.getElementById('historial-back');
+    if (historialBack) historialBack.addEventListener('click', () => App.navigateToGanadero(), { once: true });
 
     // Bind export buttons
     $$('.btn-hist-export').forEach(btn => {

@@ -280,12 +280,18 @@ const App = {
   },
 
   async navigateToHistorial() {
+    const fromGanadero = ['ganadero', 'ciclo', 'dashboard'].includes(this.currentView);
     this.currentView    = 'historial';
     this.currentCicloId = null;
     if (window.location.hash !== '#historial') window.location.hash = 'historial';
-    this._updateBreadcrumb(['Historial']);
-    this._updateSidebarActive();
-    await HistorialView.render();
+    if (fromGanadero) {
+      this._enterFullscreen();
+    } else {
+      this._exitFullscreen();
+      this._updateBreadcrumb(['Historial']);
+      this._updateSidebarActive();
+    }
+    await HistorialView.render(fromGanadero);
   },
 
   async navigateToAdmin() {
@@ -310,11 +316,15 @@ const App = {
     DashboardView.render();
   },
 
-  async navigateToGanadero() {
+  async navigateToGanadero(expandRodeoId) {
     this.currentView    = 'ganadero';
     this.currentCicloId = null;
     if (window.location.hash !== '#ganadero') window.location.hash = 'ganadero';
-    await GanaderoView.render();
+    if (expandRodeoId) {
+      await GanaderoView.renderWithRodeo(expandRodeoId);
+    } else {
+      await GanaderoView.render();
+    }
   },
 
   _navigateFromHash() {
