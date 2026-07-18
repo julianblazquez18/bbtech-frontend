@@ -42,8 +42,11 @@ bbtech/
 
 | Email                | Contraseña  |
 |----------------------|-------------|
-| admin@bbtech.com     | bbtech2024  |
+|julianblazquez04@gmail.com   |#Julian09 | 
 
+Cuenta de prueba: 
+admin@bbtech.com y bbtech2024
+lascasuarinasagrosrl@gmail.com y #Julian09
 ---
 
 ## ✨ Funcionalidades implementadas
