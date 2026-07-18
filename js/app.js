@@ -345,7 +345,7 @@ const App = {
       const hash = window.location.hash.slice(1);
       if (!hash || hash === 'dashboard') {
         if (this.currentView !== 'dashboard') this.navigateToDashboard();
-      } else if (hash === 'ganadero') {
+      } else if (hash === 'ganadero' && this.currentView !== 'ganadero') {
         this.navigateToGanadero();
       } else if (hash.startsWith('ciclo/')) {
         const cid = hash.split('/')[1];
