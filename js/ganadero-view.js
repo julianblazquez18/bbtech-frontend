@@ -62,6 +62,19 @@ const GanaderoView = {
       html += '</div>';
     }
 
+    html += `
+      <div class="gtree-historial" id="btn-historial">
+        <div class="gtree-historial-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 8v4l3 3"/>
+            <path d="M3.05 11a9 9 0 1 1 .5 4"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </div>
+        <span>Historial</span>
+      </div>`;
+
     html += '</div>';
     main.innerHTML = html;
 
@@ -189,6 +202,8 @@ const GanaderoView = {
     document.getElementById('btn-back-dashboard').addEventListener('click', () => App.navigateToDashboard(), { once: true });
     document.getElementById('btn-ganadero-admin').addEventListener('click', () => App.navigateToAdmin(), { once: true });
     document.getElementById('btn-add-campo').addEventListener('click', () => this._addCampo(), { once: true });
+    const btnHistorial = document.getElementById('btn-historial');
+    if (btnHistorial) btnHistorial.addEventListener('click', () => App.navigateToHistorial(), { once: true });
 
     // Eliminar listener anterior antes de agregar nuevo — evita acumulación en renders repetidos
     if (this._clickHandler) main.removeEventListener('click', this._clickHandler);
