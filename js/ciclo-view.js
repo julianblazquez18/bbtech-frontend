@@ -808,7 +808,7 @@ const CicloView = {
       title: 'Editar safra',
       body: `<div class="flex flex-col gap-4">
         <div class="form-group"><label class="form-label">Nombre</label>
-          <input class="input" id="ec-nombre" value="${BBT.Security.sanitize(ciclo.nombre)}" maxlength="30"></div>
+          <input class="input" id="ec-nombre" value="${BBT.Security.sanitize(ciclo.nombre)}" maxlength="60"></div>
         <div class="form-group"><label class="form-label">Fecha de inicio</label>
           ${_crearSelectorFecha('ec-fecha', ciclo.fechaInicio)}</div>
       </div>`,
@@ -816,13 +816,15 @@ const CicloView = {
     });
     setTimeout(() => { const i = m.querySelector('#ec-nombre'); i.focus(); i.select(); }, 50);
     m.querySelector('#ec-cancel').addEventListener('click', () => Modal.close(m));
-    m.querySelector('#ec-ok').addEventListener('click', () => {
+    m.querySelector('#ec-ok').addEventListener('click', async () => {
       const nombre = m.querySelector('#ec-nombre').value.trim();
-      const fecha = _leerFecha('ec-fecha');
-      const res = BBT.Ciclos.editar(this.cicloId, nombre, fecha);
-      if (!res.ok) { Toast.error(res.error); return; }
-      Modal.close(m); Toast.success('Safra actualizada.'); App.refreshSidebar(); App.navigateToCiclo(this.cicloId);
-    });
+      const fecha  = _leerFecha('ec-fecha');
+      const res = await BBT.Ciclos.editar(this.cicloId, nombre, fecha);
+      if (!res.ok) { Toast.error(res.error || 'Error al guardar.'); return; }
+      Modal.close(m);
+      Toast.success('Safra actualizada.');
+      App.navigateToCiclo(this.cicloId);
+    }, { once: true });
   },
 
   async _deleteCiclo() {
