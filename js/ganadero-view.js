@@ -249,6 +249,19 @@ const GanaderoView = {
     main.addEventListener('click', this._clickHandler);
   },
 
+  /* ── Button helpers ───────────────────────────────────── */
+
+  _disableBtn(btn, text) {
+    btn.disabled = true;
+    btn._originalText = btn.textContent;
+    btn.textContent = text || 'Procesando...';
+  },
+
+  _enableBtn(btn) {
+    btn.disabled = false;
+    btn.textContent = btn._originalText || btn.textContent;
+  },
+
   /* ── CRUD helpers ─────────────────────────────────────── */
 
   async _addCampo() {
@@ -260,13 +273,19 @@ const GanaderoView = {
     setTimeout(() => m.querySelector('#gc-nombre').focus(), 50);
     m.querySelector('#gc-cancel').addEventListener('click', () => Modal.close(m), { once: true });
     m.querySelector('#gc-ok').addEventListener('click', async () => {
-      const nombre = m.querySelector('#gc-nombre').value.trim();
-      if (!nombre) { Toast.error('Nombre requerido.'); return; }
-      const res = await BBT.Estancias.addCampo(nombre);
-      if (!res.ok) { Toast.error(res.error); return; }
-      Modal.close(m);
-      Toast.success(`Campo "${nombre}" creado.`);
-      this.render();
+      const okBtn = m.querySelector('#gc-ok');
+      this._disableBtn(okBtn);
+      try {
+        const nombre = m.querySelector('#gc-nombre').value.trim();
+        if (!nombre) { Toast.error('Nombre requerido.'); return; }
+        const res = await BBT.Estancias.addCampo(nombre);
+        if (!res.ok) { Toast.error(res.error); return; }
+        Modal.close(m);
+        Toast.success(`Campo "${nombre}" creado.`);
+        this.render();
+      } finally {
+        this._enableBtn(okBtn);
+      }
     });
     m.querySelector('#gc-nombre').addEventListener('keydown', e => { if (e.key === 'Enter') m.querySelector('#gc-ok').click(); });
   },
@@ -282,12 +301,18 @@ const GanaderoView = {
     setTimeout(() => { const i = m.querySelector('#gec-nombre'); i.focus(); i.select(); }, 50);
     m.querySelector('#gec-cancel').addEventListener('click', () => Modal.close(m), { once: true });
     m.querySelector('#gec-ok').addEventListener('click', async () => {
-      const nombre = m.querySelector('#gec-nombre').value.trim();
-      if (!nombre) { Toast.error('Nombre requerido.'); return; }
-      await BBT.Estancias.editCampo(id, nombre);
-      Modal.close(m);
-      Toast.success('Campo actualizado.');
-      this.render();
+      const okBtn = m.querySelector('#gec-ok');
+      this._disableBtn(okBtn, 'Guardando...');
+      try {
+        const nombre = m.querySelector('#gec-nombre').value.trim();
+        if (!nombre) { Toast.error('Nombre requerido.'); return; }
+        await BBT.Estancias.editCampo(id, nombre);
+        Modal.close(m);
+        Toast.success('Campo actualizado.');
+        this.render();
+      } finally {
+        this._enableBtn(okBtn);
+      }
     });
     m.querySelector('#gec-nombre').addEventListener('keydown', e => { if (e.key === 'Enter') m.querySelector('#gec-ok').click(); });
   },
@@ -316,13 +341,19 @@ const GanaderoView = {
     setTimeout(() => m.querySelector('#gr-nombre').focus(), 50);
     m.querySelector('#gr-cancel').addEventListener('click', () => Modal.close(m), { once: true });
     m.querySelector('#gr-ok').addEventListener('click', async () => {
-      const nombre = m.querySelector('#gr-nombre').value.trim();
-      if (!nombre) { Toast.error('Nombre requerido.'); return; }
-      const res = await BBT.Estancias.addRodeo(estanciaId, nombre, 'rodeo');
-      if (!res.ok) { Toast.error(res.error); return; }
-      Modal.close(m);
-      Toast.success(`Grupo "${nombre}" creado.`);
-      this.render();
+      const okBtn = m.querySelector('#gr-ok');
+      this._disableBtn(okBtn);
+      try {
+        const nombre = m.querySelector('#gr-nombre').value.trim();
+        if (!nombre) { Toast.error('Nombre requerido.'); return; }
+        const res = await BBT.Estancias.addRodeo(estanciaId, nombre, 'rodeo');
+        if (!res.ok) { Toast.error(res.error); return; }
+        Modal.close(m);
+        Toast.success(`Grupo "${nombre}" creado.`);
+        this.render();
+      } finally {
+        this._enableBtn(okBtn);
+      }
     });
     m.querySelector('#gr-nombre').addEventListener('keydown', e => { if (e.key === 'Enter') m.querySelector('#gr-ok').click(); });
   },
@@ -338,12 +369,18 @@ const GanaderoView = {
     setTimeout(() => { const i = m.querySelector('#ger-nombre'); i.focus(); i.select(); }, 50);
     m.querySelector('#ger-cancel').addEventListener('click', () => Modal.close(m), { once: true });
     m.querySelector('#ger-ok').addEventListener('click', async () => {
-      const nombre = m.querySelector('#ger-nombre').value.trim();
-      if (!nombre) { Toast.error('Nombre requerido.'); return; }
-      await BBT.Estancias.editRodeo(estanciaId, rodeoId, nombre);
-      Modal.close(m);
-      Toast.success('Grupo actualizado.');
-      this.render();
+      const okBtn = m.querySelector('#ger-ok');
+      this._disableBtn(okBtn, 'Guardando...');
+      try {
+        const nombre = m.querySelector('#ger-nombre').value.trim();
+        if (!nombre) { Toast.error('Nombre requerido.'); return; }
+        await BBT.Estancias.editRodeo(estanciaId, rodeoId, nombre);
+        Modal.close(m);
+        Toast.success('Grupo actualizado.');
+        this.render();
+      } finally {
+        this._enableBtn(okBtn);
+      }
     });
     m.querySelector('#ger-nombre').addEventListener('keydown', e => { if (e.key === 'Enter') m.querySelector('#ger-ok').click(); });
   },

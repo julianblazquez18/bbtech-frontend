@@ -488,9 +488,16 @@ const CicloView = {
     const inp = m.querySelector('#new-id');
     setTimeout(() => inp.focus(), 50);
     const doAdd = async () => {
-      const res = await BBT.Ciclos.addVaca(this.cicloId, inp.value);
-      if (!res.ok) { m.querySelector('#av-err').classList.remove('hidden'); m.querySelector('#av-err-msg').textContent = res.error; return; }
-      Modal.close(m); Toast.success(`Caravana ${inp.value.trim().toUpperCase()} agregada.`); this._refresh();
+      const okBtn = m.querySelector('#av-ok');
+      const prevText = okBtn.textContent;
+      okBtn.disabled = true; okBtn.textContent = 'Agregando...';
+      try {
+        const res = await BBT.Ciclos.addVaca(this.cicloId, inp.value);
+        if (!res.ok) { m.querySelector('#av-err').classList.remove('hidden'); m.querySelector('#av-err-msg').textContent = res.error; return; }
+        Modal.close(m); Toast.success(`Caravana ${inp.value.trim().toUpperCase()} agregada.`); this._refresh();
+      } finally {
+        okBtn.disabled = false; okBtn.textContent = prevText;
+      }
     };
     m.querySelector('#av-cancel').addEventListener('click', () => Modal.close(m));
     m.querySelector('#av-ok').addEventListener('click', doAdd);
@@ -817,14 +824,20 @@ const CicloView = {
     setTimeout(() => { const i = m.querySelector('#ec-nombre'); i.focus(); i.select(); }, 50);
     m.querySelector('#ec-cancel').addEventListener('click', () => Modal.close(m));
     m.querySelector('#ec-ok').addEventListener('click', async () => {
-      const nombre = m.querySelector('#ec-nombre').value.trim();
-      const fecha  = _leerFecha('ec-fecha');
-      const res = await BBT.Ciclos.editar(this.cicloId, nombre, fecha);
-      if (!res.ok) { Toast.error(res.error || 'Error al guardar.'); return; }
-      Modal.close(m);
-      Toast.success('Safra actualizada.');
-      App.navigateToCiclo(this.cicloId);
-    }, { once: true });
+      const okBtn = m.querySelector('#ec-ok');
+      okBtn.disabled = true; okBtn.textContent = 'Guardando...';
+      try {
+        const nombre = m.querySelector('#ec-nombre').value.trim();
+        const fecha  = _leerFecha('ec-fecha');
+        const res = await BBT.Ciclos.editar(this.cicloId, nombre, fecha);
+        if (!res.ok) { Toast.error(res.error || 'Error al guardar.'); return; }
+        Modal.close(m);
+        Toast.success('Safra actualizada.');
+        App.navigateToCiclo(this.cicloId);
+      } finally {
+        okBtn.disabled = false; okBtn.textContent = 'Guardar';
+      }
+    });
   },
 
   async _deleteCiclo() {
