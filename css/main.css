@@ -882,3 +882,394 @@ h5 { font-size: 1rem; }
   color: var(--text-primary);
 }
 .fullscreen-breadcrumb .bc-sep { color: var(--border-strong); }
+
+/* ── Empleados Admin ────────────────────────────────────── */
+.emp-admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.emp-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+  margin-bottom: -1px;
+}
+.emp-tab:hover { color: var(--text-primary); }
+.emp-tab-active {
+  color: var(--green-600);
+  border-bottom-color: var(--green-600);
+}
+.emp-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background .12s;
+}
+.emp-row:last-child { border-bottom: none; }
+.emp-row:hover { background: var(--surface-bg); }
+.emp-row-inactive { opacity: .6; }
+.emp-row-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--green-600);
+  color: #fff;
+  font-weight: 700;
+  font-size: .8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.emp-row-info { flex: 1; min-width: 0; }
+.emp-row-name {
+  font-weight: 600;
+  font-size: .9rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.emp-row-meta {
+  font-size: .78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.emp-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.emp-badge-inactive {
+  font-size: .68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.emp-tipo-preview {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .emp-row { padding: 10px 14px; gap: 10px; }
+  .emp-row-actions { flex-direction: column; gap: 4px; }
+  .emp-admin-tabs { flex-wrap: wrap; }
+}
+
+/* ── Control Empleados — Vista semanal ─────────────────── */
+.emp-loading {
+  display: flex; align-items: center; justify-content: center;
+  height: 60vh; color: var(--text-muted); font-size: 1rem;
+}
+
+.emp-page {
+  padding: 32px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.emp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.emp-header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.emp-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.emp-nav-semana {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.emp-nav-btn {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex; align-items: center;
+  transition: background .15s, border-color .15s;
+}
+.emp-nav-btn:hover:not(:disabled) {
+  background: var(--green-50);
+  border-color: var(--green-300);
+  color: var(--green-700);
+}
+.emp-nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.emp-nav-label {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.emp-hoy-badge {
+  display: inline-block;
+  background: var(--green-100);
+  color: var(--green-700);
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 2px 8px;
+  border-radius: 100px;
+  margin-right: 8px;
+}
+
+/* Grilla */
+.emp-grilla-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+  margin-bottom: 16px;
+}
+
+.emp-grilla {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.emp-th-nombre {
+  width: 180px;
+  min-width: 140px;
+  padding: 12px 16px;
+  text-align: left;
+  background: var(--surface-bg);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.emp-th-dia {
+  padding: 10px 8px;
+  text-align: center;
+  background: var(--surface-bg);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  min-width: 90px;
+}
+.emp-th-dia:last-child { border-right: none; }
+
+.emp-dia-hoy { background: var(--green-50) !important; }
+
+.emp-th-dia-label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+.emp-th-dia-num {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+  font-family: var(--font-display);
+}
+.emp-th-dia-mes {
+  font-size: .68rem;
+  color: var(--text-muted);
+}
+.emp-dia-hoy .emp-th-dia-num { color: var(--green-700); }
+
+/* Filas */
+.emp-row-tr { transition: background .1s; }
+.emp-row-tr:hover { background: var(--surface-bg); }
+.emp-row-sel { background: var(--green-50) !important; }
+
+.emp-td-nombre {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  background: var(--surface-card);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.emp-row-sel .emp-td-nombre { background: var(--green-50); }
+
+.emp-nombre-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.emp-check { cursor: pointer; width: 15px; height: 15px; accent-color: var(--green-600); }
+
+.emp-nombre-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--green-100);
+  color: var(--green-700);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .72rem;
+  flex-shrink: 0;
+}
+
+.emp-nombre-texto {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Celdas de días */
+.emp-cell {
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  text-align: center;
+  vertical-align: middle;
+}
+.emp-cell:last-child { border-right: none; }
+.emp-cell-hoy { background: var(--green-50); }
+.emp-row-sel .emp-cell-hoy { background: #d1fae5; }
+
+.emp-celda-btn {
+  width: 100%;
+  min-width: 76px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: transform .1s, box-shadow .1s;
+}
+.emp-celda-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.emp-celda-filled { border-width: 1px; }
+.emp-celda-empty {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+.emp-celda-empty:hover { border-color: var(--green-400); color: var(--green-600); }
+
+.emp-celda-icono { font-size: 1rem; line-height: 1; }
+.emp-celda-nombre {
+  font-size: .65rem;
+  font-weight: 600;
+  line-height: 1.2;
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.emp-celda-icono-empty { font-size: .9rem; }
+
+/* Barra bulk */
+.emp-bulk-bar {
+  position: fixed;
+  bottom: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  transition: bottom .3s ease;
+  z-index: 100;
+  max-width: 90vw;
+}
+.emp-bulk-visible { bottom: 24px; }
+
+.emp-bulk-info {
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--green-700);
+  white-space: nowrap;
+}
+
+.emp-bulk-tipo, .emp-bulk-periodo {
+  font-size: .82rem;
+  padding: 6px 10px;
+  min-width: 160px;
+}
+
+.emp-bulk-rango {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .emp-page { padding: 16px; }
+  .emp-header { flex-direction: column; }
+  .emp-header-actions { flex-wrap: wrap; gap: 6px; }
+  .emp-nombre-texto { max-width: 80px; }
+  .emp-th-nombre { width: 120px; min-width: 100px; }
+  .emp-bulk-bar { padding: 10px 14px; gap: 8px; }
+  .emp-bulk-tipo, .emp-bulk-periodo { min-width: 120px; }
+  .emp-bulk-rango { flex-wrap: wrap; }
+}
+
+.emp-tipos-grupo-header {
+  padding: 8px 20px;
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-secondary);
+  background: var(--surface-bg);
+  border-bottom: 1px solid var(--border);
+}

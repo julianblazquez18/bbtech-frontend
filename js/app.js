@@ -187,6 +187,23 @@ const App = {
     DashboardView.render();
   },
 
+  async navigateToEmpleados() {
+    this.currentView    = 'empleados';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#empleados') window.location.hash = 'empleados';
+    this._enterFullscreen();
+    await EmpleadosView.render();
+  },
+
+  async navigateToEmpleadosAdmin() {
+    const fromEmpleados = ['empleados', 'empleados-admin'].includes(this.currentView);
+    this.currentView    = 'empleados-admin';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#empleados-admin') window.location.hash = 'empleados-admin';
+    this._enterFullscreen();
+    await EmpleadosAdmin.render(fromEmpleados);
+  },
+
   async navigateToGanadero(expandRodeoId) {
     this.currentView    = 'ganadero';
     this.currentCicloId = null;
@@ -201,7 +218,9 @@ const App = {
   _navigateFromHash() {
     const hash = window.location.hash.slice(1);
     if (!hash || hash === 'dashboard') { this.navigateToDashboard(); return; }
-    if (hash === 'ganadero')           { this.navigateToGanadero();  return; }
+    if (hash === 'ganadero')           { this.navigateToGanadero();       return; }
+    if (hash === 'empleados')          { this.navigateToEmpleados();      return; }
+    if (hash === 'empleados-admin')    { this.navigateToEmpleadosAdmin(); return; }
     if (hash.startsWith('ciclo/')) {
       const cid = hash.split('/')[1];
       if (BBT.Ciclos.getById(cid)) { this.navigateToCiclo(cid); return; }
@@ -218,6 +237,10 @@ const App = {
         if (this.currentView !== 'dashboard') this.navigateToDashboard();
       } else if (hash === 'ganadero' && this.currentView !== 'ganadero') {
         this.navigateToGanadero();
+      } else if (hash === 'empleados' && this.currentView !== 'empleados') {
+        this.navigateToEmpleados();
+      } else if (hash === 'empleados-admin' && this.currentView !== 'empleados-admin') {
+        this.navigateToEmpleadosAdmin();
       } else if (hash.startsWith('ciclo/')) {
         const cid = hash.split('/')[1];
         if (cid !== this.currentCicloId && BBT.Ciclos.getById(cid)) this.navigateToCiclo(cid);

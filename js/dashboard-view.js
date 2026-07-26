@@ -7,7 +7,7 @@
 const DashboardView = {
   _hashListener: null,
 
-  render() {
+  async render() {
     const main = $('#main-content');
     if (!main) return;
 
@@ -21,6 +21,12 @@ const DashboardView = {
     const rodeos     = BBT.Estancias.getAllRodeos();
     const activos    = rodeos.flatMap(r => BBT.Ciclos.getActivosByGrupo(r.id));
     const totalVacas = activos.reduce((s, c) => s + (Object.keys(c.vacas || {}).length || c._vacaCount || 0), 0);
+
+    let empActivos = 0;
+    try {
+      const emps = await BBT.API.get('/api/empleados');
+      empActivos = emps.filter(e => e.activo).length;
+    } catch (e) {}
 
     main.innerHTML = `
     <div class="dashboard-page">
@@ -71,11 +77,12 @@ const DashboardView = {
           <div class="module-badge">Próximamente</div>
         </div>
 
-        <!-- Empleados — próximamente -->
-        <div class="module-card module-soon">
+        <!-- Empleados — activo -->
+        <div class="module-card module-active" id="mod-empleados">
           <div class="module-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
               <circle cx="9" cy="7" r="4"/>
               <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
@@ -83,13 +90,17 @@ const DashboardView = {
             </svg>
           </div>
           <div class="module-title">Control Empleados</div>
-          <div class="module-badge">Próximamente</div>
+          <div class="module-stats">
+            <span>${empActivos} empleado${empActivos !== 1 ? 's' : ''} activo${empActivos !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="module-cta">Ingresar →</div>
         </div>
 
       </div>
     </div>`;
 
     document.getElementById('mod-ganadero').addEventListener('click', () => App.navigateToGanadero());
+    document.getElementById('mod-empleados').addEventListener('click', () => App.navigateToEmpleados());
 
     document.getElementById('dash-logout').addEventListener('click', async () => {
       const ok = await Modal.confirm('Cerrar sesión', '¿Cerrar la sesión?', 'Cerrar sesión', 'danger');
