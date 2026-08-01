@@ -62,11 +62,12 @@ const DashboardView = {
           <div class="module-cta">Ingresar →</div>
         </div>
 
-        <!-- Agrícola — próximamente -->
-        <div class="module-card module-soon">
+        <!-- Agrícola — activo -->
+        <div class="module-card module-active" id="mod-agro">
           <div class="module-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22V12"/>
               <path d="M12 12C12 7 17 3 17 3C17 3 17 8 12 12"/>
               <path d="M12 12C12 7 7 3 7 3C7 3 7 8 12 12"/>
@@ -74,7 +75,7 @@ const DashboardView = {
             </svg>
           </div>
           <div class="module-title">Control Agrícola</div>
-          <div class="module-badge">Próximamente</div>
+          <div class="module-cta">Ingresar →</div>
         </div>
 
         <!-- Empleados — activo -->
@@ -100,6 +101,7 @@ const DashboardView = {
     </div>`;
 
     document.getElementById('mod-ganadero').addEventListener('click', () => App.navigateToGanadero());
+    document.getElementById('mod-agro').addEventListener('click', () => App.navigateToAgro());
     document.getElementById('mod-empleados').addEventListener('click', () => App.navigateToEmpleados());
 
     document.getElementById('dash-logout').addEventListener('click', async () => {

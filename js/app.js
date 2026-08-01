@@ -187,6 +187,44 @@ const App = {
     DashboardView.render();
   },
 
+  async navigateToAgro() {
+    this.currentView    = 'agro';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#agro') window.location.hash = 'agro';
+    this._enterFullscreen();
+    await AgroView.render();
+  },
+
+  async navigateToAgroAdmin() {
+    const fromAgro = ['agro','agro-admin','agro-est','agro-ciclo']
+      .includes(this.currentView);
+    this.currentView    = 'agro-admin';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#agro-admin') window.location.hash = 'agro-admin';
+    this._enterFullscreen();
+    await AgroAdmin.render(fromAgro);
+  },
+
+  async navigateToAgroEst(estId) {
+    this.currentView    = 'agro-est';
+    this.currentCicloId = null;
+    this._agroEstId     = estId;
+    const hash = `agro-est/${estId}`;
+    if (window.location.hash !== '#' + hash) window.location.hash = hash;
+    this._enterFullscreen();
+    await AgroEstView.render(estId);
+  },
+
+  async navigateToAgroCiclo(cicloId) {
+    this.currentView    = 'agro-ciclo';
+    this.currentCicloId = null;
+    this._agroCicloId   = cicloId;
+    const hash = `agro-ciclo/${cicloId}`;
+    if (window.location.hash !== '#' + hash) window.location.hash = hash;
+    this._enterFullscreen();
+    await AgroCicloView.render(cicloId);
+  },
+
   async navigateToEmpleados() {
     this.currentView    = 'empleados';
     this.currentCicloId = null;
@@ -221,6 +259,16 @@ const App = {
     if (hash === 'ganadero')           { this.navigateToGanadero();       return; }
     if (hash === 'empleados')          { this.navigateToEmpleados();      return; }
     if (hash === 'empleados-admin')    { this.navigateToEmpleadosAdmin(); return; }
+    if (hash === 'agro')              { this.navigateToAgro();           return; }
+    if (hash === 'agro-admin')        { this.navigateToAgroAdmin();      return; }
+    if (hash.startsWith('agro-est/')) {
+      const estId = hash.split('/')[1];
+      if (estId) { this.navigateToAgroEst(estId); return; }
+    }
+    if (hash.startsWith('agro-ciclo/')) {
+      const cicloId = hash.split('/')[1];
+      if (cicloId) { this.navigateToAgroCiclo(cicloId); return; }
+    }
     if (hash.startsWith('ciclo/')) {
       const cid = hash.split('/')[1];
       if (BBT.Ciclos.getById(cid)) { this.navigateToCiclo(cid); return; }
@@ -239,6 +287,18 @@ const App = {
         this.navigateToGanadero();
       } else if (hash === 'empleados' && this.currentView !== 'empleados') {
         this.navigateToEmpleados();
+      } else if (hash === 'agro' && this.currentView !== 'agro') {
+        this.navigateToAgro();
+      } else if (hash === 'agro-admin' && this.currentView !== 'agro-admin') {
+        this.navigateToAgroAdmin();
+      } else if (hash.startsWith('agro-est/') && !hash.startsWith(
+        'agro-est/' + (this._agroEstId||'__'))) {
+        const estId = hash.split('/')[1];
+        if (estId) this.navigateToAgroEst(estId);
+      } else if (hash.startsWith('agro-ciclo/') && !hash.startsWith(
+        'agro-ciclo/' + (this._agroCicloId||'__'))) {
+        const cicloId = hash.split('/')[1];
+        if (cicloId) this.navigateToAgroCiclo(cicloId);
       } else if (hash === 'empleados-admin' && this.currentView !== 'empleados-admin') {
         this.navigateToEmpleadosAdmin();
       } else if (hash.startsWith('ciclo/')) {

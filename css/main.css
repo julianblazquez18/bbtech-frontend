@@ -1273,3 +1273,316 @@ h5 { font-size: 1rem; }
   background: var(--surface-bg);
   border-bottom: 1px solid var(--border);
 }
+
+/* ── Control Agrícola ──────────────────────────────────── */
+
+.agro-page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.agro-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.agro-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.agro-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.agro-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.agro-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.agro-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ── Establecimientos ── */
+.agro-est-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+.agro-est-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: box-shadow .15s, border-color .15s;
+  position: relative;
+}
+.agro-est-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  border-color: var(--green-400);
+}
+.agro-est-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+.agro-est-nombre {
+  font-size: .9rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-primary);
+}
+.agro-est-meta {
+  font-size: .75rem;
+  color: var(--text-muted);
+}
+.agro-est-arrow {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: .85rem;
+  color: var(--text-muted);
+}
+.agro-est-add {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* ── Silos ── */
+.agro-silos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.agro-silo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.agro-silo-total {
+  border-color: var(--green-400);
+  background: var(--green-50, #f0fdf4);
+}
+.agro-silo-titulo {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}
+.agro-silo-stats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.agro-silo-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: .78rem;
+  gap: 8px;
+}
+.agro-silo-stat-label { color: var(--text-secondary); }
+.agro-silo-stat-val   { font-weight: 600; }
+
+/* ── Bolsas ── */
+.agro-bolsas-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.agro-bolsas-est {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.agro-bolsas-est-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface-bg);
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+  font-size: .9rem;
+}
+.agro-bolsas-est-icon { font-size: 1.1rem; }
+.agro-bolsas-est-nombre { color: var(--text-primary); }
+
+.agro-bolsas-lote {
+  padding: 0 0 8px 0;
+}
+.agro-bolsas-lote-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px 6px;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.agro-bolsa-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 24px 8px 36px;
+  border-top: 1px solid var(--border-light, var(--border));
+}
+.agro-bolsa-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.agro-bolsa-nombre {
+  font-weight: 600;
+  font-size: .85rem;
+  color: var(--text-primary);
+}
+.agro-bolsa-cultivo {
+  font-size: .78rem;
+  color: var(--green-700);
+  background: var(--green-50, #f0fdf4);
+  border-radius: 20px;
+  padding: 1px 8px;
+}
+.agro-bolsa-ton {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.agro-bolsa-desde {
+  font-size: .75rem;
+  color: var(--text-muted);
+}
+
+/* ── Camiones ── */
+.agro-mes-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agro-mes-label {
+  font-size: .82rem;
+  color: var(--text-secondary);
+  min-width: 160px;
+  text-align: center;
+}
+.agro-camiones-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.agro-cam-grupo {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.agro-cam-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface-bg);
+  border-bottom: 1px solid var(--border);
+}
+.agro-cam-icon   { font-size: 1.1rem; }
+.agro-cam-nombre { font-weight: 700; font-size: .9rem; flex: 1; }
+.agro-cam-total  { font-size: .82rem; font-weight: 600; color: var(--green-700); }
+
+.agro-cam-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .82rem;
+}
+.agro-cam-table th {
+  padding: 8px 14px;
+  text-align: left;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.agro-cam-table td {
+  padding: 9px 14px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light, var(--border));
+}
+.agro-cam-table tbody tr:last-child td { border-bottom: none; }
+.agro-cam-table tbody tr:hover { background: var(--surface-bg); }
+
+/* ── Responsive ── */
+@media (max-width: 1023px) {
+  .agro-silos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+  .agro-est-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .agro-page { padding: 16px; gap: 24px; }
+  .agro-silos-grid { grid-template-columns: 1fr 1fr; }
+  .agro-est-grid   { grid-template-columns: 1fr 1fr; }
+  .agro-bolsa-row  { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .agro-cam-table  { display: block; overflow-x: auto; }
+  .agro-mes-label  { min-width: 120px; font-size: .75rem; }
+}
+
+/* ── Ciclo agrícola (tabs) ── */
+.agro-tab-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0 16px;
+}
+
+.agro-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-card, var(--surface));
+}
+
+.agro-table-wrap table tfoot td {
+  border-top: 2px solid var(--border);
+  background: var(--surface-bg);
+  color: var(--text-primary);
+}
+
+@media (max-width: 600px) {
+  .agro-table-wrap { font-size: .8rem; }
+}
