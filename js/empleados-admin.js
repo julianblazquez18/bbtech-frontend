@@ -183,7 +183,12 @@ const EmpleadosAdmin = {
         </div>
         <div class="emp-row-info">
           <div class="emp-row-name">${BBT.Security.sanitize(t.nombre)}</div>
-          <div class="emp-row-meta" style="color:${t.color}">${t.color}</div>
+          <div class="emp-row-meta" style="color:${t.color}">
+            ${t.color}
+            ${t.categoria === 'presencia' && t.valor != null
+              ? ` · Vale ${t.valor} día${t.valor !== 1 ? 's' : ''}`
+              : ''}
+          </div>
         </div>
         <div class="emp-row-actions">
           <button class="gtree-btn-icon btn-edit-tipo" data-id="${t.id}">
@@ -234,7 +239,7 @@ const EmpleadosAdmin = {
     });
 
     const btnAdd = document.getElementById('btn-add-emp');
-    if (btnAdd) btnAdd.addEventListener('click', () => this._addEmpleado(), { once: true });
+    if (btnAdd) btnAdd.addEventListener('click', () => this._addEmpleado());
 
     const empList = document.getElementById('emp-list');
     if (empList) {
@@ -254,7 +259,7 @@ const EmpleadosAdmin = {
     }
 
     const btnAddTipo = document.getElementById('btn-add-tipo');
-    if (btnAddTipo) btnAddTipo.addEventListener('click', () => this._addTipo(), { once: true });
+    if (btnAddTipo) btnAddTipo.addEventListener('click', () => this._addTipo());
 
     const tiposList = document.getElementById('tipos-list');
     if (tiposList) {
@@ -460,55 +465,89 @@ const EmpleadosAdmin = {
     return porEmp;
   },
 
-  _exportarPDFLive(asistencias, titulo) {
-    const empresa       = (BBT.Auth._user && BBT.Auth._user.empresaNombre) || 'BBTECH';
-    const CAT_AUS_FIJAS = ['Faltó', 'Enfermedad', 'Vacaciones', 'Licencia'];
+  _generarHTMLPDF(porEmp, tipos, titulo, empresa) {
     const esc = s => String(s || '')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    const porEmp = this._calcularStatsLocal(asistencias);
+    const tiposPresencia = tipos.filter(t => t.categoria === 'presencia');
+    const tiposAusencia  = tipos.filter(t => t.categoria === 'ausencia');
+    const empRows        = Object.values(porEmp);
+
+    const colsPresencia = tiposPresencia.filter(t =>
+      empRows.some(e => (e.conteo[t.nombre] || 0) > 0)
+    );
+    const colsAusencia = tiposAusencia.filter(t =>
+      empRows.some(e => (e.conteo[t.nombre] || 0) > 0)
+    );
 
     let rows = '';
-    Object.values(porEmp).forEach(({ nombre, apellido, rol, conteo }) => {
-      const regular    = conteo['Asistió'] || 0;
-      const extras     = (conteo['Franco trabajado'] || 0) + (conteo['Feriado trabajado'] || 0);
-      const total      = regular + extras;
-      const totalLabel = extras > 0
-        ? `${total} (${extras} extra${extras !== 1 ? 's' : ''})`
-        : `${total}`;
-      const ausCells = CAT_AUS_FIJAS
-        .map(n => `<td style="text-align:center">${conteo[n] || '—'}</td>`)
+    empRows.forEach(({ nombre, apellido, rol, conteo }) => {
+      let totalDias = 0;
+      tiposPresencia.forEach(t => {
+        totalDias += (conteo[t.nombre] || 0) * (parseFloat(t.valor) || 1);
+      });
+      const hasWeighted = tiposPresencia.some(
+        t => (parseFloat(t.valor) || 1) !== 1 && (conteo[t.nombre] || 0) > 0
+      );
+      const totalFmt  = totalDias % 1 === 0 ? totalDias : totalDias.toFixed(1);
+      const totalCell = totalDias > 0
+        ? (hasWeighted ? `${totalFmt} días` : `${totalFmt}`)
+        : '—';
+
+      const presCells = colsPresencia
+        .map(t => `<td style="text-align:center">${conteo[t.nombre] || '—'}</td>`)
         .join('');
+      const ausCells = colsAusencia
+        .map(t => `<td style="text-align:center">${conteo[t.nombre] || '—'}</td>`)
+        .join('');
+
       rows += `
         <tr>
           <td>${esc(nombre)} ${esc(apellido)}</td>
           <td>${esc(rol || '—')}</td>
-          <td style="text-align:center">${regular || '—'}</td>
-          <td style="text-align:center">${extras > 0 ? extras : '—'}</td>
+          ${presCells}
           ${ausCells}
-          <td style="text-align:center;font-weight:700">${totalLabel}</td>
+          <td style="text-align:center;font-weight:700">${esc(totalCell)}</td>
         </tr>`;
     });
 
-    if (!rows) { Toast.error('Sin datos para este período.'); return; }
+    if (!rows) return null;
 
-    const html = `<!DOCTYPE html><html lang="es"><head>
+    const presSpan = colsPresencia.length;
+    const ausSpan  = colsAusencia.length;
+    let groupRow = `<th rowspan="2">Empleado</th><th rowspan="2">Rol</th>`;
+    if (presSpan) groupRow += `<th colspan="${presSpan}"
+      style="text-align:center;background:#dcfce7;color:#166534">✓ Presencias</th>`;
+    if (ausSpan)  groupRow += `<th colspan="${ausSpan}"
+      style="text-align:center;background:#fee2e2;color:#991b1b">✗ Ausencias</th>`;
+    groupRow += `<th rowspan="2" style="text-align:center">Total<br>a pagar</th>`;
+
+    let subRow = '';
+    colsPresencia.forEach(t => {
+      const val = parseFloat(t.valor) || 1;
+      subRow += `<th style="text-align:center;background:#f0fdf4;font-weight:600">${esc(t.nombre)}${val !== 1 ? `<br><span style="font-size:9px;color:#666">×${t.valor}</span>` : ''}</th>`;
+    });
+    colsAusencia.forEach(t => {
+      subRow += `<th style="text-align:center;background:#fff1f2;font-weight:600">${esc(t.nombre)}</th>`;
+    });
+
+    return `<!DOCTYPE html><html lang="es"><head>
       <meta charset="UTF-8">
       <title>Asistencias — ${esc(titulo)}</title>
       <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;padding:24px}
-        h1{font-size:18px;font-weight:700;margin-bottom:4px}
-        .empresa{font-size:13px;color:#555;margin-bottom:16px}
+        body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a1a;padding:20px}
+        h1{font-size:16px;font-weight:700;margin-bottom:3px}
+        .empresa{font-size:12px;color:#555;margin-bottom:14px}
         .header{display:flex;justify-content:space-between;align-items:flex-start;
-          margin-bottom:16px;border-bottom:2px solid #2d6a3f;padding-bottom:12px}
+          margin-bottom:14px;border-bottom:2px solid #2d6a3f;padding-bottom:10px}
         .fecha-gen{font-size:10px;color:#888}
-        table{width:100%;border-collapse:collapse;font-size:11px}
-        th{background:#f4f7f5;font-weight:700;padding:6px 8px;text-align:left;border:1px solid #ddd}
-        td{padding:5px 8px;border:1px solid #eee;vertical-align:middle}
+        table{width:100%;border-collapse:collapse;font-size:10px}
+        th{font-weight:700;padding:5px 6px;text-align:left;border:1px solid #ccc;background:#f4f7f5}
+        td{padding:4px 6px;border:1px solid #eee;vertical-align:middle}
         tr:nth-child(even) td{background:#fafafa}
-        .footer{margin-top:24px;font-size:10px;color:#aaa;text-align:center;
-          border-top:1px solid #eee;padding-top:8px}
+        .footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;
+          border-top:1px solid #eee;padding-top:6px}
         @media print{body{padding:0}}
       </style>
     </head><body>
@@ -522,26 +561,23 @@ const EmpleadosAdmin = {
       </div>
       <table>
         <thead>
-          <tr>
-            <th>Empleado</th>
-            <th>Rol</th>
-            <th style="text-align:center">Trabajo<br>Regular</th>
-            <th style="text-align:center">Trabajo<br>Extra</th>
-            <th style="text-align:center">Faltó</th>
-            <th style="text-align:center">Enfermedad</th>
-            <th style="text-align:center">Vacaciones</th>
-            <th style="text-align:center">Licencia</th>
-            <th style="text-align:center">Total<br>presente</th>
-          </tr>
+          <tr>${groupRow}</tr>
+          <tr>${subRow}</tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="footer">${esc(empresa)} — BBTECH Systems</div>
+      <div class="footer">${esc(empresa)} — BBTECH Systems · Control de Empleados</div>
     </body></html>`;
+  },
 
+  _exportarPDFLive(asistencias, titulo) {
+    const empresa = (BBT.Auth._user && BBT.Auth._user.empresaNombre) || 'BBTECH';
+    const porEmp  = this._calcularStatsLocal(asistencias);
+    const html    = this._generarHTMLPDF(porEmp, this._tipos, titulo, empresa);
+    if (!html) { Toast.error('Sin datos para este período.'); return; }
     const win = window.open('', '_blank');
     if (!win) {
-      Toast.error('El navegador bloqueó la ventana emergente. Habilitá los popups para esta página.');
+      Toast.error('Habilitá los popups para descargar el PDF.');
       return;
     }
     win.document.write(html);
@@ -853,11 +889,26 @@ const EmpleadosAdmin = {
               <option value="otros">◈ Otros (Franco, Feriado, etc.)</option>
             </select>
           </div>
+          <div class="form-group" id="at-valor-wrap" style="display:none">
+            <label class="form-label">Valor (equivale a cuántos días cuenta)</label>
+            <input class="input" type="number" id="at-valor"
+              min="0.1" max="10" step="0.5" value="1" placeholder="Ej: 1, 0.5, 2">
+            <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">
+              Asistió normal = 1 · Medio día = 0.5 · Franco/Feriado = 2
+            </div>
+          </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="at-cancel">Cancelar</button>
                <button class="btn btn-primary" id="at-ok">Agregar</button>`
     });
-    setTimeout(() => m.querySelector('#at-nombre').focus(), 50);
+    setTimeout(() => {
+      m.querySelector('#at-nombre').focus();
+      const catSel  = m.querySelector('#at-categoria');
+      const valWrap = m.querySelector('#at-valor-wrap');
+      const toggle  = () => { valWrap.style.display = catSel.value === 'presencia' ? '' : 'none'; };
+      catSel.addEventListener('change', toggle);
+      toggle();
+    }, 50);
     m.querySelector('#at-cancel').addEventListener('click', () => Modal.close(m), { once: true });
     m.querySelector('#at-ok').addEventListener('click', async () => {
       const btn = m.querySelector('#at-ok');
@@ -868,12 +919,17 @@ const EmpleadosAdmin = {
         btn.disabled = false; btn.textContent = 'Agregar'; return;
       }
       try {
+        const catVal = m.querySelector('#at-categoria').value;
+        const valor  = catVal === 'presencia'
+          ? parseFloat(m.querySelector('#at-valor').value) || 1
+          : 1;
         await BBT.API.post('/api/empleados/tipos', {
           nombre,
           icono:     m.querySelector('#at-icono').value.trim() || '•',
           color:     m.querySelector('#at-color').value,
           orden:     this._tipos.length,
-          categoria: m.querySelector('#at-categoria').value,
+          categoria: catVal,
+          valor,
         });
         Modal.close(m);
         Toast.success('Tipo agregado.');
@@ -914,20 +970,44 @@ const EmpleadosAdmin = {
               <option value="otros"     ${t.categoria === 'otros'     ? 'selected' : ''}>◈ Otros (Franco, Feriado, etc.)</option>
             </select>
           </div>
+          <div class="form-group" id="et-valor-wrap"
+            style="display:${t.categoria === 'presencia' ? '' : 'none'}">
+            <label class="form-label">Valor (equivale a cuántos días cuenta)</label>
+            <input class="input" type="number" id="et-valor"
+              min="0.1" max="10" step="0.5"
+              value="${t.valor || 1}" placeholder="Ej: 1, 0.5, 2">
+            <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">
+              Asistió normal = 1 · Medio día = 0.5 · Franco/Feriado = 2
+            </div>
+          </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="et-cancel">Cancelar</button>
                <button class="btn btn-primary" id="et-ok">Guardar</button>`
     });
+    setTimeout(() => {
+      const catSel  = m.querySelector('#et-categoria');
+      const valWrap = m.querySelector('#et-valor-wrap');
+      if (catSel && valWrap) {
+        catSel.addEventListener('change', () => {
+          valWrap.style.display = catSel.value === 'presencia' ? '' : 'none';
+        });
+      }
+    }, 50);
     m.querySelector('#et-cancel').addEventListener('click', () => Modal.close(m), { once: true });
     m.querySelector('#et-ok').addEventListener('click', async () => {
       const btn = m.querySelector('#et-ok');
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {
+        const catVal = m.querySelector('#et-categoria').value;
+        const valor  = catVal === 'presencia'
+          ? parseFloat(m.querySelector('#et-valor').value) || 1
+          : 1;
         await BBT.API.put('/api/empleados/tipos/' + id, {
           nombre:    m.querySelector('#et-nombre').value.trim(),
           icono:     m.querySelector('#et-icono').value.trim(),
           color:     m.querySelector('#et-color').value,
-          categoria: m.querySelector('#et-categoria').value,
+          categoria: catVal,
+          valor,
         });
         Modal.close(m);
         Toast.success('Tipo actualizado.');

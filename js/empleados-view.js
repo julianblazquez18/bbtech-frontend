@@ -668,62 +668,100 @@ const EmpleadosView = {
     }
 
     const empresa = (BBT.Auth._user && BBT.Auth._user.empresaNombre) || 'BBTECH';
+    const esc = s => String(s || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     const porEmp = {};
     this._empleados.forEach(e => {
-      porEmp[e.id] = { emp: e, registros: [], conteo: {} };
+      porEmp[e.id] = { nombre: e.nombre, apellido: e.apellido, rol: e.rol || '', conteo: {} };
     });
     data.forEach(a => {
       if (porEmp[a.empleado_id]) {
-        porEmp[a.empleado_id].registros.push(a);
         const n = a.tipo_nombre;
         porEmp[a.empleado_id].conteo[n] = (porEmp[a.empleado_id].conteo[n] || 0) + 1;
       }
     });
 
-    const CAT_AUS_FIJAS = ['Faltó', 'Enfermedad', 'Vacaciones', 'Licencia'];
+    const tiposPresencia = this._tipos.filter(t => t.categoria === 'presencia');
+    const tiposAusencia  = this._tipos.filter(t => t.categoria === 'ausencia');
+    const empRows        = Object.values(porEmp);
 
-    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const colsPresencia = tiposPresencia.filter(t =>
+      empRows.some(e => (e.conteo[t.nombre] || 0) > 0)
+    );
+    const colsAusencia = tiposAusencia.filter(t =>
+      empRows.some(e => (e.conteo[t.nombre] || 0) > 0)
+    );
 
-    let resumenRows = '';
-    Object.values(porEmp).forEach(({ emp, conteo }) => {
-      const regular    = conteo['Asistió'] || 0;
-      const extras     = (conteo['Franco trabajado'] || 0) + (conteo['Feriado trabajado'] || 0);
-      const total      = regular + extras;
-      const totalLabel = extras > 0
-        ? `${total} (${extras} extra${extras !== 1 ? 's' : ''})`
-        : `${total}`;
-      const ausCells = CAT_AUS_FIJAS
-        .map(n => `<td style="text-align:center">${conteo[n] || '—'}</td>`)
+    let rows = '';
+    empRows.forEach(({ nombre, apellido, rol, conteo }) => {
+      let totalDias = 0;
+      tiposPresencia.forEach(t => {
+        totalDias += (conteo[t.nombre] || 0) * (parseFloat(t.valor) || 1);
+      });
+      const hasWeighted = tiposPresencia.some(
+        t => (parseFloat(t.valor) || 1) !== 1 && (conteo[t.nombre] || 0) > 0
+      );
+      const totalFmt  = totalDias % 1 === 0 ? totalDias : totalDias.toFixed(1);
+      const totalCell = totalDias > 0
+        ? (hasWeighted ? `${totalFmt} días` : `${totalFmt}`)
+        : '—';
+
+      const presCells = colsPresencia
+        .map(t => `<td style="text-align:center">${conteo[t.nombre] || '—'}</td>`)
         .join('');
-      resumenRows += `
+      const ausCells = colsAusencia
+        .map(t => `<td style="text-align:center">${conteo[t.nombre] || '—'}</td>`)
+        .join('');
+
+      rows += `
         <tr>
-          <td>${esc(emp.nombre)} ${esc(emp.apellido)}</td>
-          <td>${esc(emp.rol || '—')}</td>
-          <td style="text-align:center">${regular || '—'}</td>
-          <td style="text-align:center">${extras > 0 ? extras : '—'}</td>
+          <td>${esc(nombre)} ${esc(apellido)}</td>
+          <td>${esc(rol || '—')}</td>
+          ${presCells}
           ${ausCells}
-          <td style="text-align:center;font-weight:700">${totalLabel}</td>
+          <td style="text-align:center;font-weight:700">${esc(totalCell)}</td>
         </tr>`;
     });
+
+    const presSpan = colsPresencia.length;
+    const ausSpan  = colsAusencia.length;
+    let groupRow = `<th rowspan="2">Empleado</th><th rowspan="2">Rol</th>`;
+    if (presSpan) groupRow += `<th colspan="${presSpan}"
+      style="text-align:center;background:#dcfce7;color:#166534">✓ Presencias</th>`;
+    if (ausSpan)  groupRow += `<th colspan="${ausSpan}"
+      style="text-align:center;background:#fee2e2;color:#991b1b">✗ Ausencias</th>`;
+    groupRow += `<th rowspan="2" style="text-align:center">Total<br>a pagar</th>`;
+
+    let subRow = '';
+    colsPresencia.forEach(t => {
+      const val = parseFloat(t.valor) || 1;
+      subRow += `<th style="text-align:center;background:#f0fdf4;font-weight:600">${esc(t.nombre)}${val !== 1 ? `<br><span style="font-size:9px;color:#666">×${t.valor}</span>` : ''}</th>`;
+    });
+    colsAusencia.forEach(t => {
+      subRow += `<th style="text-align:center;background:#fff1f2;font-weight:600">${esc(t.nombre)}</th>`;
+    });
+
+    if (!rows) { Toast.error('Sin datos para este período.'); return; }
 
     const html = `<!DOCTYPE html><html lang="es"><head>
       <meta charset="UTF-8">
       <title>Asistencias — ${esc(titulo)}</title>
       <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; padding: 24px; }
-        h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-        h2 { font-size: 13px; font-weight: 700; margin: 20px 0 8px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-        .empresa { font-size: 13px; color: #555; margin-bottom: 16px; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 2px solid #2d6a3f; padding-bottom: 12px; }
-        .fecha-gen { font-size: 10px; color: #888; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11px; }
-        th { background: #f4f7f5; font-weight: 700; padding: 6px 8px; text-align: left; border: 1px solid #ddd; }
-        td { padding: 5px 8px; border: 1px solid #eee; vertical-align: middle; }
-        tr:nth-child(even) td { background: #fafafa; }
-        .footer { margin-top: 24px; font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 8px; }
-        @media print { body { padding: 0; } }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a1a;padding:20px}
+        h1{font-size:16px;font-weight:700;margin-bottom:3px}
+        .empresa{font-size:12px;color:#555;margin-bottom:14px}
+        .header{display:flex;justify-content:space-between;align-items:flex-start;
+          margin-bottom:14px;border-bottom:2px solid #2d6a3f;padding-bottom:10px}
+        .fecha-gen{font-size:10px;color:#888}
+        table{width:100%;border-collapse:collapse;font-size:10px}
+        th{font-weight:700;padding:5px 6px;text-align:left;border:1px solid #ccc;background:#f4f7f5}
+        td{padding:4px 6px;border:1px solid #eee;vertical-align:middle}
+        tr:nth-child(even) td{background:#fafafa}
+        .footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;
+          border-top:1px solid #eee;padding-top:6px}
+        @media print{body{padding:0}}
       </style>
     </head><body>
       <div class="header">
@@ -731,33 +769,26 @@ const EmpleadosView = {
           <h1>Control de Asistencias</h1>
           <div class="empresa">${esc(empresa)} · ${esc(titulo)}</div>
         </div>
-        <div class="fecha-gen">Generado el ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+        <div class="fecha-gen">Generado el ${new Date().toLocaleDateString('es-AR',
+          { day: '2-digit', month: 'long', year: 'numeric' })}</div>
       </div>
-
-      <h2>Resumen por empleado</h2>
       <table>
         <thead>
-          <tr>
-            <th>Empleado</th>
-            <th>Rol</th>
-            <th style="text-align:center">Trabajo<br>Regular</th>
-            <th style="text-align:center">Trabajo<br>Extra</th>
-            <th style="text-align:center">Faltó</th>
-            <th style="text-align:center">Enfermedad</th>
-            <th style="text-align:center">Vacaciones</th>
-            <th style="text-align:center">Licencia</th>
-            <th style="text-align:center">Total<br>presente</th>
-          </tr>
+          <tr>${groupRow}</tr>
+          <tr>${subRow}</tr>
         </thead>
-        <tbody>${resumenRows}</tbody>
+        <tbody>${rows}</tbody>
       </table>
-
       <div class="footer">${esc(empresa)} — BBTECH Systems · Control de Empleados</div>
     </body></html>`;
 
     const win = window.open('', '_blank');
+    if (!win) {
+      Toast.error('Habilitá los popups para descargar el PDF.');
+      return;
+    }
     win.document.write(html);
     win.document.close();
-    setTimeout(() => win.print(), 400);
+    setTimeout(() => { try { win.print(); } catch (e) {} }, 500);
   },
 };
