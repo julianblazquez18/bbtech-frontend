@@ -699,13 +699,8 @@ const EmpleadosView = {
       tiposPresencia.forEach(t => {
         totalDias += (conteo[t.nombre] || 0) * (parseFloat(t.valor) || 1);
       });
-      const hasWeighted = tiposPresencia.some(
-        t => (parseFloat(t.valor) || 1) !== 1 && (conteo[t.nombre] || 0) > 0
-      );
       const totalFmt  = totalDias % 1 === 0 ? totalDias : totalDias.toFixed(1);
-      const totalCell = totalDias > 0
-        ? (hasWeighted ? `${totalFmt} días` : `${totalFmt}`)
-        : '—';
+      const totalCell = totalDias > 0 ? `${totalFmt} días` : '—';
 
       const presCells = colsPresencia
         .map(t => `<td style="text-align:center">${conteo[t.nombre] || '—'}</td>`)
