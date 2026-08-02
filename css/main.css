@@ -1294,8 +1294,9 @@ h5 { font-size: 1rem; }
 }
 .agro-header-left {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 .agro-header-actions {
   display: flex;
@@ -1585,4 +1586,55 @@ h5 { font-size: 1rem; }
 
 @media (max-width: 600px) {
   .agro-table-wrap { font-size: .8rem; }
+}
+
+/* ── Agro: resumen silos + notas ── */
+.agro-silo-resumen {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: .82rem;
+  color: var(--text-secondary);
+  padding: 8px 4px 4px;
+}
+.agro-silo-sep {
+  color: var(--border);
+  font-size: 1rem;
+}
+
+.agro-notas-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 0 0;
+}
+.agro-notas-label {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-secondary);
+}
+.agro-notas-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: .85rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.agro-notas-textarea:focus {
+  outline: none;
+  border-color: var(--green-400);
+}
+.agro-notas-textarea[readonly] {
+  background: var(--surface-bg);
+  color: var(--text-secondary);
+  cursor: default;
 }

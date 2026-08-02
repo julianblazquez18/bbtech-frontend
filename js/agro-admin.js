@@ -5,6 +5,8 @@ const AgroAdmin = {
   _silos:     [],
   _camiones:  [],
   _entidades: [],
+  _cultivos:  [],
+  _tipos:     [],
   _fromAgro:  false,
 
   async render(fromAgro) {
@@ -14,14 +16,18 @@ const AgroAdmin = {
     App._enterFullscreen();
 
     try {
-      const [silos, camiones, entidades] = await Promise.all([
+      const [silos, camiones, entidades, cultivos, tipos] = await Promise.all([
         BBT.API.get('/api/agro/silos/resumen'),
         BBT.API.get('/api/agro/camiones'),
         BBT.API.get('/api/agro/entidades'),
+        BBT.API.get('/api/agro/cultivos').catch(() => []),
+        BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
       ]);
       this._silos     = silos;
       this._camiones  = camiones;
       this._entidades = entidades;
+      this._cultivos  = cultivos;
+      this._tipos     = tipos;
     } catch (err) {
       Toast.error('Error cargando datos.');
       return;
@@ -52,6 +58,12 @@ const AgroAdmin = {
           </button>
           <button class="emp-tab" data-tab="entidades">
             🏢 Destinos externos
+          </button>
+          <button class="emp-tab" data-tab="cultivos">
+            🌱 Cultivos
+          </button>
+          <button class="emp-tab" data-tab="tipos">
+            📋 Tipos
           </button>
         </div>
 
@@ -102,6 +114,46 @@ const AgroAdmin = {
             </div>
             <div class="card-body" style="padding:0" id="entidades-list">
               ${this._renderEntidadesList()}
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Cultivos -->
+        <div id="tab-cultivos" class="emp-tab-content" style="display:none">
+          <div class="card">
+            <div class="card-header">
+              <h4 style="font-family:var(--font-display);font-weight:700">
+                🌱 Cultivos
+              </h4>
+              <button class="btn btn-primary btn-sm" id="btn-add-cultivo">
+                ＋ Agregar
+              </button>
+            </div>
+            <div class="card-body" style="padding:0" id="cultivos-list">
+              ${this._renderSimpleList(
+                this._cultivos.map(c => ({...c, _tipo:'cultivo'})),
+                'Sin cultivos configurados'
+              )}
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Tipos -->
+        <div id="tab-tipos" class="emp-tab-content" style="display:none">
+          <div class="card">
+            <div class="card-header">
+              <h4 style="font-family:var(--font-display);font-weight:700">
+                📋 Tipos (Primera, Segunda, etc.)
+              </h4>
+              <button class="btn btn-primary btn-sm" id="btn-add-tipo-cult">
+                ＋ Agregar
+              </button>
+            </div>
+            <div class="card-body" style="padding:0" id="tipos-list">
+              ${this._renderSimpleList(
+                this._tipos.map(t => ({...t, _tipo:'tipo'})),
+                'Sin tipos configurados'
+              )}
             </div>
           </div>
         </div>
@@ -298,6 +350,30 @@ const AgroAdmin = {
           await this._editEntidad(btn.dataset.id);
         if (btn.classList.contains('btn-del-entidad'))
           await this._delEntidad(btn.dataset.id);
+      });
+
+    // ── Cultivos ───────────────────────────────────────
+    document.getElementById('btn-add-cultivo')
+      ?.addEventListener('click', () => this._addSimple('cultivo'), { once: true });
+
+    document.getElementById('cultivos-list')
+      ?.addEventListener('click', async e => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        if (btn.classList.contains('btn-del-item'))
+          await this._delSimple('cultivo', btn.dataset.id, btn.dataset.nombre);
+      });
+
+    // ── Tipos ──────────────────────────────────────────
+    document.getElementById('btn-add-tipo-cult')
+      ?.addEventListener('click', () => this._addSimple('tipo'), { once: true });
+
+    document.getElementById('tipos-list')
+      ?.addEventListener('click', async e => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        if (btn.classList.contains('btn-del-item'))
+          await this._delSimple('tipo', btn.dataset.id, btn.dataset.nombre);
       });
   },
 
@@ -577,5 +653,84 @@ const AgroAdmin = {
       Toast.success('Destino eliminado.');
       await this.render(this._fromAgro);
     } catch (err) { Toast.error(err.message || 'Error.'); }
+  },
+
+  // ── Cultivos / Tipos (listas simples) ──────────────
+
+  _renderSimpleList(items, emptyMsg) {
+    if (!items.length) return `<div class="empty-state" style="padding:32px">
+      <div class="empty-title">${BBT.Security.sanitize(emptyMsg)}</div>
+    </div>`;
+    return `<ul style="list-style:none;padding:0;margin:0">
+      ${items.map(item => `
+        <li style="display:flex;align-items:center;justify-content:space-between;
+          padding:10px 16px;border-bottom:1px solid var(--border-color)">
+          <span>${BBT.Security.sanitize(item.nombre)}</span>
+          <button class="gtree-btn-icon gtree-btn-danger btn-del-item"
+            data-id="${item.id}"
+            data-nombre="${BBT.Security.sanitize(item.nombre)}"
+            data-tipo="${item._tipo||''}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+          </button>
+        </li>`).join('')}
+    </ul>`;
+  },
+
+  async _addSimple(tipo) {
+    const label  = tipo === 'cultivo' ? 'cultivo' : 'tipo de cultivo';
+    const labelC = tipo === 'cultivo' ? 'Cultivo' : 'Tipo';
+    const url    = tipo === 'cultivo' ? '/api/agro/cultivos' : '/api/agro/tipos-cultivo';
+    const m = Modal.show({
+      title: `Agregar ${label}`,
+      body: `<div class="form-group">
+        <label class="form-label">Nombre *</label>
+        <input class="input" id="ass-nombre" maxlength="50"
+          placeholder="${tipo === 'cultivo'
+            ? 'Ej: Soja, Maíz, Trigo...'
+            : 'Ej: Primera, Segunda...'}">
+      </div>`,
+      footer: `<button class="btn btn-secondary" id="ass-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="ass-ok">Agregar</button>`
+    });
+    setTimeout(() => m.querySelector('#ass-nombre').focus(), 50);
+    m.querySelector('#ass-cancel').addEventListener('click',
+      () => Modal.close(m), { once: true });
+    m.querySelector('#ass-ok').addEventListener('click', async () => {
+      const btn    = m.querySelector('#ass-ok');
+      const nombre = m.querySelector('#ass-nombre').value.trim();
+      if (!nombre) { Toast.error('Nombre requerido.'); return; }
+      btn.disabled = true; btn.textContent = 'Agregando...';
+      try {
+        await BBT.API.post(url, { nombre });
+        Modal.close(m);
+        Toast.success(`${labelC} "${nombre}" agregado.`);
+        await this.render(this._fromAgro);
+      } catch (err) {
+        Toast.error(err.message || 'Error.');
+        btn.disabled = false; btn.textContent = 'Agregar';
+      }
+    }, { once: true });
+  },
+
+  async _delSimple(tipo, id, nombre) {
+    const label = tipo === 'cultivo' ? 'cultivo' : 'tipo';
+    const url   = tipo === 'cultivo'
+      ? `/api/agro/cultivos/${id}`
+      : `/api/agro/tipos-cultivo/${id}`;
+    const ok = await Modal.confirm(
+      `Eliminar ${label}`,
+      `¿Eliminar "${BBT.Security.sanitize(nombre)}"?`,
+      'Sí, eliminar', 'danger'
+    );
+    if (!ok) return;
+    try {
+      await BBT.API.del(url);
+      Toast.success(`${label} eliminado.`);
+      await this.render(this._fromAgro);
+    } catch (err) { Toast.error(err.message || 'Error al eliminar.'); }
   },
 };

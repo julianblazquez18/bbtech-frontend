@@ -174,7 +174,15 @@ const AgroView = {
     const totalLib = Math.max(0, totalCap - totalOcu);
     const pctOcu   = totalCap > 0 ? Math.round((totalOcu / totalCap) * 100) : 0;
 
-    let html = '<div class="agro-silos-grid">';
+    let html = `
+      <div class="agro-silo-resumen">
+        <span>Capacidad total: <strong>${totalCap.toLocaleString('es-AR')} kg</strong></span>
+        <span class="agro-silo-sep">|</span>
+        <span style="color:var(--green-600)">Ocupado: <strong>${totalOcu.toLocaleString('es-AR')} kg (${pctOcu}%)</strong></span>
+        <span class="agro-silo-sep">|</span>
+        <span style="color:var(--text-muted)">Libre: <strong>${totalLib.toLocaleString('es-AR')} kg</strong></span>
+      </div>
+      <div class="agro-silos-grid">`;
 
     html += `
       <div class="agro-silo-card agro-silo-total">
@@ -183,26 +191,21 @@ const AgroView = {
         <div class="agro-silo-stats">
           <div class="agro-silo-stat">
             <span class="agro-silo-stat-label">Capacidad total</span>
-            <span class="agro-silo-stat-val">${totalCap.toLocaleString('es-AR')} t</span>
+            <span class="agro-silo-stat-val">${totalCap.toLocaleString('es-AR')} kg</span>
           </div>
           <div class="agro-silo-stat">
             <span class="agro-silo-stat-label" style="color:var(--green-600)">Ocupado</span>
             <span class="agro-silo-stat-val" style="color:var(--green-600)">
-              ${totalOcu.toLocaleString('es-AR')} t (${pctOcu}%)
+              ${totalOcu.toLocaleString('es-AR')} kg (${pctOcu}%)
             </span>
           </div>
           <div class="agro-silo-stat">
             <span class="agro-silo-stat-label" style="color:var(--text-muted)">Libre</span>
             <span class="agro-silo-stat-val" style="color:var(--text-muted)">
-              ${totalLib.toLocaleString('es-AR')} t
+              ${totalLib.toLocaleString('es-AR')} kg
             </span>
           </div>
         </div>
-        <button class="btn btn-secondary btn-sm agro-silo-mover"
-          data-silo-id="__all__" data-ton="${totalOcu}" data-cultivo="Mixto"
-          data-silo-nombre="Todos los silos">
-          ↗ Mover todo
-        </button>
       </div>`;
 
     this._silos.forEach(s => {
@@ -222,13 +225,13 @@ const AgroView = {
             <div class="agro-silo-stat">
               <span class="agro-silo-stat-label" style="color:var(--green-600)">Ocupado</span>
               <span class="agro-silo-stat-val" style="color:var(--green-600)">
-                ${ton.toLocaleString('es-AR')} t (${pct}%)
+                ${ton.toLocaleString('es-AR')} kg (${pct}%)
               </span>
             </div>
             <div class="agro-silo-stat">
               <span class="agro-silo-stat-label" style="color:var(--text-muted)">Libre</span>
               <span class="agro-silo-stat-val" style="color:var(--text-muted)">
-                ${libre.toLocaleString('es-AR')} t
+                ${libre.toLocaleString('es-AR')} kg
               </span>
             </div>
           </div>
@@ -326,10 +329,7 @@ const AgroView = {
         lote.bolsas.forEach(b => {
           const ton   = parseFloat(b.toneladas_actuales || 0);
           const total = parseFloat(b.toneladas_totales || 0);
-          const desde = b.fecha_inicio
-            ? new Date(b.fecha_inicio + 'T12:00:00')
-                .toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-            : '—';
+          const desde = this._fmtFecha(b.fecha_inicio);
           html += `
             <div class="agro-bolsa-row">
               <div class="agro-bolsa-info">
@@ -338,9 +338,9 @@ const AgroView = {
                   ${esc(b.ciclo_cultivo || b.cultivo || '—')}
                 </span>
                 <span class="agro-bolsa-ton">
-                  ${ton.toLocaleString('es-AR')} t
+                  ${ton.toLocaleString('es-AR')} kg
                   <span style="color:var(--text-muted);font-size:.75rem">
-                    / ${total.toLocaleString('es-AR')} t entrada
+                    / ${total.toLocaleString('es-AR')} kg entrada
                   </span>
                 </span>
                 <span class="agro-bolsa-desde">Desde ${desde}</span>
@@ -360,6 +360,14 @@ const AgroView = {
     });
     html += '</div>';
     return html;
+  },
+
+  _fmtFecha(d) {
+    if (!d) return '—';
+    const s = String(d).slice(0,10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '—';
+    const [y,m,day] = s.split('-');
+    return `${day}/${m}/${y}`;
   },
 
   _renderCamiones() {
@@ -386,7 +394,7 @@ const AgroView = {
           <div class="agro-cam-header">
             <span class="agro-cam-icon">🚛</span>
             <span class="agro-cam-nombre">${esc(cam.nombre)}</span>
-            <span class="agro-cam-total">${totalTon.toLocaleString('es-AR')} t total</span>
+            <span class="agro-cam-total">${totalTon.toLocaleString('es-AR')} kg total</span>
           </div>
           <table class="agro-cam-table">
             <thead>
@@ -395,16 +403,14 @@ const AgroView = {
                 <th>Origen</th>
                 <th>Cultivo</th>
                 <th>Variedad</th>
-                <th style="text-align:right">Toneladas</th>
+                <th style="text-align:right">Kilos</th>
                 <th>Destino</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>`;
       cam.movs.forEach(m => {
-        const fecha = m.fecha
-          ? new Date(m.fecha + 'T12:00:00')
-              .toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-          : '—';
+        const fecha = this._fmtFecha(m.fecha);
         const origen = m.silo_nombre
           ? `Silo: ${esc(m.silo_nombre)}`
           : m.bolsa_nombre
@@ -417,9 +423,22 @@ const AgroView = {
             <td>${esc(m.cultivo || '—')}</td>
             <td>${esc(m.variedad || '—')}</td>
             <td style="text-align:right;font-weight:600">
-              ${parseFloat(m.toneladas || 0).toLocaleString('es-AR')} t
+              ${parseFloat(m.toneladas || 0).toLocaleString('es-AR')} kg
             </td>
             <td>${esc(m.entidad_nombre || '—')}</td>
+            <td>
+              <button class="gtree-btn-icon btn-edit-mov"
+                data-mov-id="${m.id}"
+                data-camion-id="${m.camion_id}"
+                data-entidad-id="${m.entidad_externa_id||''}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            </td>
           </tr>`;
       });
       html += '</tbody></table></div>';
@@ -456,6 +475,13 @@ const AgroView = {
       });
     });
 
+    document.querySelectorAll('.btn-edit-mov').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        this._modalEditarMovimiento(btn.dataset);
+      });
+    });
+
     document.getElementById('agro-mes-prev')?.addEventListener('click', async () => {
       this._mesOffset--;
       await this._loadMovimientos();
@@ -487,6 +513,12 @@ const AgroView = {
       const tmp = document.createElement('div');
       tmp.innerHTML = this._renderCamiones();
       secCam.replaceWith(tmp.firstElementChild);
+      document.querySelectorAll('.btn-edit-mov').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          this._modalEditarMovimiento(btn.dataset);
+        });
+      });
     }
   },
 
@@ -546,11 +578,11 @@ const AgroView = {
         <div class="flex flex-col gap-4">
           <div style="background:var(--surface-bg);padding:10px 14px;border-radius:8px;
             font-size:.85rem;color:var(--text-secondary)">
-            Disponible: <strong>${tonDisp.toLocaleString('es-AR')} t</strong>
+            Disponible: <strong>${tonDisp.toLocaleString('es-AR')} kg</strong>
             ${cultivo ? ` · ${BBT.Security.sanitize(cultivo)}` : ''}
           </div>
           <div class="form-group">
-            <label class="form-label">Toneladas a mover *</label>
+            <label class="form-label">Kilos a mover *</label>
             <input class="input" type="number" id="mv-ton"
               min="0.1" max="${tonDisp}" step="0.1" value="${tonDisp}">
           </div>
@@ -583,7 +615,7 @@ const AgroView = {
       const entidadId = m.querySelector('#mv-entidad').value;
       const fecha     = m.querySelector('#mv-fecha').value;
       if (!toneladas || toneladas > tonDisp) {
-        Toast.error(`Ingresá una cantidad válida (máx ${tonDisp} t).`); return;
+        Toast.error(`Ingresá una cantidad válida (máx ${tonDisp} kg).`); return;
       }
       if (!entidadId) { Toast.error('Seleccioná un destino externo.'); return; }
       btn.disabled = true; btn.textContent = 'Moviendo...';
@@ -625,11 +657,11 @@ const AgroView = {
         <div class="flex flex-col gap-4">
           <div style="background:var(--surface-bg);padding:10px 14px;border-radius:8px;
             font-size:.85rem;color:var(--text-secondary)">
-            Disponible: <strong>${tonDisp.toLocaleString('es-AR')} t</strong>
+            Disponible: <strong>${tonDisp.toLocaleString('es-AR')} kg</strong>
             ${cultivo ? ` · ${BBT.Security.sanitize(cultivo)}` : ''}
           </div>
           <div class="form-group">
-            <label class="form-label">Toneladas a mover *</label>
+            <label class="form-label">Kilos a mover *</label>
             <input class="input" type="number" id="mb-ton"
               min="0.1" max="${tonDisp}" step="0.1" value="${tonDisp}">
           </div>
@@ -662,7 +694,7 @@ const AgroView = {
       const entidadId = m.querySelector('#mb-entidad').value;
       const fecha     = m.querySelector('#mb-fecha').value;
       if (!toneladas || toneladas > tonDisp) {
-        Toast.error(`Máximo ${tonDisp} t.`); return;
+        Toast.error(`Máximo ${tonDisp} kg.`); return;
       }
       if (!entidadId) { Toast.error('Seleccioná un destino externo.'); return; }
       btn.disabled = true; btn.textContent = 'Moviendo...';
@@ -675,6 +707,68 @@ const AgroView = {
       } catch (err) {
         Toast.error(err.message || 'Error al mover.');
         btn.disabled = false; btn.textContent = 'Confirmar movimiento';
+      }
+    }, { once: true });
+  },
+
+  async _modalEditarMovimiento(data) {
+    const esc = s => BBT.Security.sanitize(String(s || ''));
+    let entidades = [];
+    try { entidades = await BBT.API.get('/api/agro/entidades'); } catch {}
+
+    const camOpts = this._camiones.map(c =>
+      `<option value="${c.id}">${esc(c.nombre)}</option>`
+    ).join('');
+    const extOpts = entidades.map(e =>
+      `<option value="${e.id}">${esc(e.nombre)}</option>`
+    ).join('');
+
+    const m = Modal.show({
+      title: 'Editar movimiento',
+      body: `
+        <div class="flex flex-col gap-4">
+          <div class="form-group">
+            <label class="form-label">Camión</label>
+            <select class="select" id="amov-camion">
+              ${camOpts || '<option value="">Sin camiones</option>'}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Destino externo</label>
+            <select class="select" id="amov-entidad">
+              <option value="">— Sin destino —</option>
+              ${extOpts}
+            </select>
+          </div>
+        </div>`,
+      footer: `<button class="btn btn-secondary" id="amov-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="amov-ok">Actualizar</button>`
+    });
+
+    if (data.camionId) m.querySelector('#amov-camion').value = data.camionId;
+    if (data.entidadId) m.querySelector('#amov-entidad').value = data.entidadId;
+
+    m.querySelector('#amov-cancel').addEventListener('click',
+      () => Modal.close(m), { once: true });
+
+    m.querySelector('#amov-ok').addEventListener('click', async () => {
+      const btn = m.querySelector('#amov-ok');
+      const camionId  = m.querySelector('#amov-camion').value;
+      const entidadId = m.querySelector('#amov-entidad').value;
+      if (!camionId) { Toast.error('Seleccioná un camión.'); return; }
+      btn.disabled = true; btn.textContent = 'Actualizando...';
+      try {
+        await BBT.API.put(`/api/agro/movimientos-camion/${data.movId}`, {
+          camion_id: camionId,
+          entidad_externa_id: entidadId || null,
+        });
+        Modal.close(m);
+        Toast.success('Movimiento actualizado.');
+        await this._loadMovimientos();
+        this._refreshCamionesDOM();
+      } catch (err) {
+        Toast.error(err.message || 'Error al actualizar.');
+        btn.disabled = false; btn.textContent = 'Actualizar';
       }
     }, { once: true });
   },
