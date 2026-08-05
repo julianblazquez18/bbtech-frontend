@@ -13,7 +13,8 @@ const AgroCicloView = {
   _camiones:  [],
   _entidades: [],
   _cultivos:  [],
-  _tiposCult: [],
+  _tiposCult:    [],
+  _asignaciones: [],
   _tabActivo: 'siembra',
 
   async render(cicloId) {
@@ -26,7 +27,7 @@ const AgroCicloView = {
 
     try {
       const [registros, cosechas, silos, bolsas, camiones, entidades, ests,
-             cultivos, tipos] =
+             cultivos, tipos, asignaciones] =
         await Promise.all([
           BBT.API.get(`/api/agro/ciclos/${cicloId}/registros`),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/cosechas`),
@@ -37,15 +38,17 @@ const AgroCicloView = {
           BBT.API.get('/api/agro/establecimientos'),
           BBT.API.get('/api/agro/cultivos').catch(() => []),
           BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
+          BBT.API.get(`/api/agro/ciclos/${cicloId}/asignaciones`).catch(() => []),
         ]);
-      this._registros = registros;
-      this._cosechas  = cosechas;
-      this._silos     = silos;
-      this._bolsas    = bolsas;
-      this._camiones  = camiones;
-      this._entidades = entidades;
-      this._cultivos  = cultivos;
-      this._tiposCult = tipos;
+      this._registros    = registros;
+      this._cosechas     = cosechas;
+      this._silos        = silos;
+      this._bolsas       = bolsas;
+      this._camiones     = camiones;
+      this._entidades    = entidades;
+      this._cultivos     = cultivos;
+      this._tiposCult    = tipos;
+      this._asignaciones = asignaciones;
 
       // Buscar el ciclo recorriendo establecimientos → lotes → ciclos
       this._ciclo = null;
@@ -302,50 +305,47 @@ const AgroCicloView = {
     }
 
     if (tab === 'cosecha') {
-      const rows  = this._cosechas;
-      const totHa = rows.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
-      const totKg = rows.reduce((s, r) => s + parseFloat(r.toneladas||0), 0);
-      const fmtDestino = r => {
-        if (r.destino_tipo === 'silo')
-          return `Silo: ${esc(r.silo_nombre||'—')}`;
-        if (r.destino_tipo === 'bolsa')
-          return `Bolsa: ${esc(r.bolsa_nombre||'—')}`;
-        if (r.destino_tipo === 'camion')
-          return `Camión: ${esc(r.camion_nombre||'—')} → ${esc(r.entidad_nombre||'—')}`;
+      const rows      = this._cosechas;
+      const asigs     = this._asignaciones;
+      const totHa     = rows.reduce((s, r)  => s + parseFloat(r.hectareas||0), 0);
+      const totCosKg  = rows.reduce((s, r)  => s + parseFloat(r.toneladas||0), 0);
+      const totAsigKg = asigs.reduce((s, a) => s + parseFloat(a.kilos||0),     0);
+      const disponible = totCosKg - totAsigKg;
+
+      const fmtAsigDestino = a => {
+        if (a.destino_tipo === 'silo')
+          return `Silo: ${esc(a.silo_nombre||'—')}`;
+        if (a.destino_tipo === 'bolsa')
+          return `Bolsa: ${esc(a.bolsa_nombre||'—')}`;
+        if (a.destino_tipo === 'camion')
+          return `Camión: ${esc(a.camion_nombre||'—')} → ${esc(a.entidad_nombre||'—')}`;
         return '—';
       };
-      return `
-        <div class="agro-tab-header">${addBtn}</div>
-        ${rows.length ? `
+
+      const cosechaTable = rows.length ? `
         <div class="agro-table-wrap">
           <table class="agro-cam-table">
             <thead><tr>
               <th>Fecha</th>
               <th style="text-align:right">Hectáreas</th>
               <th style="text-align:right">Kilos</th>
-              <th>Destino</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
               ${rows.map(r => `<tr>
                 <td>${fmt(r.fecha)}</td>
                 <td style="text-align:right">${fmtNum(r.hectareas)}</td>
-                <td style="text-align:right;font-weight:600">
-                  ${fmtKg(r.toneladas)}
-                </td>
-                <td>${fmtDestino(r)}</td>
+                <td style="text-align:right;font-weight:600">${fmtKg(r.toneladas)}</td>
                 ${!cerrado ? `<td>
                   <div style="display:flex;gap:4px">
-                    <button class="gtree-btn-icon btn-edit-cosecha"
-                      data-id="${r.id}">
+                    <button class="gtree-btn-icon btn-edit-cosecha" data-id="${r.id}">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                       </svg>
                     </button>
-                    <button class="gtree-btn-icon gtree-btn-danger btn-del-cosecha"
-                      data-id="${r.id}">
+                    <button class="gtree-btn-icon gtree-btn-danger btn-del-cosecha" data-id="${r.id}">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round">
                         <polyline points="3 6 5 6 21 6"/>
@@ -359,15 +359,77 @@ const AgroCicloView = {
             <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
               <td>Total</td>
               <td style="text-align:right">${fmtNum(totHa)} ha</td>
-              <td style="text-align:right">${fmtKg(totKg)}</td>
-              <td></td>
+              <td style="text-align:right">${fmtKg(totCosKg)}</td>
               ${!cerrado ? '<td></td>' : ''}
             </tr></tfoot>
           </table>
         </div>` : `<div class="empty-state" style="padding:40px">
           <div class="empty-icon">🌾</div>
           <div class="empty-title">Sin cosechas registradas</div>
-        </div>`}`;
+        </div>`;
+
+      const asigTable = asigs.length ? `
+        <div class="agro-table-wrap" style="margin-top:8px">
+          <table class="agro-cam-table">
+            <thead><tr>
+              <th>Fecha</th>
+              <th style="text-align:right">Kilos</th>
+              <th>Destino</th>
+              ${!cerrado ? '<th></th>' : ''}
+            </tr></thead>
+            <tbody>
+              ${asigs.map(a => `<tr>
+                <td>${fmt(a.fecha)}</td>
+                <td style="text-align:right;font-weight:600">${fmtKg(a.kilos)}</td>
+                <td>${fmtAsigDestino(a)}</td>
+                ${!cerrado ? `<td>
+                  <button class="gtree-btn-icon gtree-btn-danger btn-del-asig" data-id="${a.id}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                  </button>
+                </td>` : ''}
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : `<p style="color:var(--text-muted);font-size:.85rem;padding:12px 0 4px">
+          Sin asignaciones registradas.
+        </p>`;
+
+      return `
+        <div class="agro-tab-header">${addBtn}</div>
+        ${cosechaTable}
+        <div style="margin-top:20px;display:flex;justify-content:space-between;
+          align-items:center;flex-wrap:wrap;gap:8px">
+          <h4 style="font-size:.88rem;font-weight:600;color:var(--text-secondary)">
+            Asignaciones de destino
+          </h4>
+          ${!cerrado && disponible > 0 ? `
+          <button class="btn btn-primary btn-sm btn-asignar-total"
+            data-kg="${disponible}">
+            Asignar ${fmtKg(disponible)} →
+          </button>` : ''}
+        </div>
+        ${asigTable}
+        <div style="margin-top:16px;background:var(--surface-bg);border-radius:8px;
+          padding:12px 16px;font-size:.85rem;display:grid;
+          grid-template-columns:repeat(3,1fr);gap:8px">
+          <div>
+            <div style="color:var(--text-muted);font-size:.75rem">Total cosechado</div>
+            <div style="font-weight:700">${fmtKg(totCosKg)}</div>
+          </div>
+          <div>
+            <div style="color:var(--text-muted);font-size:.75rem">Asignado</div>
+            <div style="font-weight:700">${fmtKg(totAsigKg)}</div>
+          </div>
+          <div>
+            <div style="color:var(--text-muted);font-size:.75rem">Disponible</div>
+            <div style="font-weight:700;color:${disponible > 0
+              ? 'var(--orange-500,#f97316)' : 'var(--green-600)'}">${fmtKg(disponible)}</div>
+          </div>
+        </div>`;
     }
 
     return '';
@@ -500,6 +562,28 @@ const AgroCicloView = {
         } catch (err) { Toast.error(err.message || 'Error.'); }
       }, { once: true });
     });
+
+    document.querySelectorAll('.btn-asignar-total').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._modalAsignarDestino(parseFloat(btn.dataset.kg||0));
+      });
+    });
+
+    document.querySelectorAll('.btn-del-asig').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ok = await Modal.confirm(
+          'Eliminar asignación',
+          '¿Eliminar esta asignación de destino? No se puede deshacer.',
+          'Eliminar', 'danger'
+        );
+        if (!ok) return;
+        try {
+          await BBT.API.del(`/api/agro/asignaciones/${btn.dataset.id}`);
+          Toast.success('Asignación eliminada.');
+          await this.render(this._cicloId);
+        } catch (err) { Toast.error(err.message || 'Error.'); }
+      }, { once: true });
+    });
   },
 
   // ── Modales ─────────────────────────────────────────
@@ -562,7 +646,9 @@ const AgroCicloView = {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-group">
-              <label class="form-label">Hectáreas</label>
+              <label class="form-label">Hectáreas${this._lote?.hectareas
+                ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
+                : ''}</label>
               <input class="input" type="number" id="ms-ha"
                 min="0" step="0.1" placeholder="0" value="${haVal}">
             </div>
@@ -659,7 +745,9 @@ const AgroCicloView = {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-group">
-              <label class="form-label">Hectáreas</label>
+              <label class="form-label">Hectáreas${this._lote?.hectareas
+                ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
+                : ''}</label>
               <input class="input" type="number" id="mfp-ha"
                 min="0" step="0.1" placeholder="0" value="${haVal}">
             </div>
@@ -758,7 +846,9 @@ const AgroCicloView = {
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div class="form-group">
-                <label class="form-label">Hectáreas</label>
+                <label class="form-label">Hectáreas${this._lote?.hectareas
+                  ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
+                  : ''}</label>
                 <input class="input" type="number" id="mc-ha"
                   min="0" step="0.1" placeholder="0" value="${haVal}">
               </div>
@@ -880,7 +970,9 @@ const AgroCicloView = {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-group">
-              <label class="form-label">Hectáreas</label>
+              <label class="form-label">Hectáreas${this._lote?.hectareas
+                ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
+                : ''}</label>
               <input class="input" type="number" id="mc-ha"
                 min="0" step="0.1" placeholder="0">
             </div>
@@ -890,74 +982,14 @@ const AgroCicloView = {
                 min="0" step="1" placeholder="0">
             </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Destino *</label>
-            <select class="select" id="mc-destino-tipo">
-              <option value="">— Seleccionar destino —</option>
-              ${siloOpts ? '<option value="silo">→ Silo</option>' : ''}
-              ${bolsaOpts ? '<option value="bolsa">→ Silo Bolsa existente</option>' : ''}
-              <option value="bolsa_nueva">→ Nueva Silo Bolsa</option>
-              ${camOpts ? '<option value="camion">→ Camión (destino externo)</option>' : ''}
-            </select>
+          <div style="background:var(--green-50);border:1px solid var(--green-200);
+            border-radius:8px;padding:10px 14px;font-size:.82rem;color:var(--green-700)">
+            💡 El destino se asigna después desde la tabla de cosechas.
           </div>
-
-          <!-- Silo -->
-          <div id="mc-silo-wrap" class="form-group" style="display:none">
-            <label class="form-label">Silo</label>
-            <select class="select" id="mc-silo">
-              ${siloOpts || '<option value="">Sin silos disponibles</option>'}
-            </select>
-          </div>
-
-          <!-- Bolsa existente -->
-          <div id="mc-bolsa-wrap" class="form-group" style="display:none">
-            <label class="form-label">Silo Bolsa</label>
-            <select class="select" id="mc-bolsa">
-              ${bolsaOpts || '<option value="">Sin bolsas disponibles</option>'}
-            </select>
-          </div>
-
-          <!-- Nueva bolsa -->
-          <div id="mc-bolsa-nueva-wrap" class="form-group" style="display:none">
-            <label class="form-label">Nombre de la nueva bolsa</label>
-            <input class="input" id="mc-bolsa-nombre" maxlength="50"
-              placeholder="Ej: Bolsa 1, Bolsa Norte...">
-          </div>
-
-          <!-- Camión -->
-          <div id="mc-camion-wrap" style="display:none">
-            <div class="form-group">
-              <label class="form-label">Camión</label>
-              <select class="select" id="mc-camion">
-                ${camOpts || '<option value="">Sin camiones</option>'}
-              </select>
-            </div>
-            <div class="form-group" style="margin-top:12px">
-              <label class="form-label">Destino externo *</label>
-              <select class="select" id="mc-entidad">
-                <option value="">— Seleccionar —</option>
-                ${extOpts}
-              </select>
-            </div>
-          </div>
-
         </div>`,
       footer: `<button class="btn btn-secondary" id="mc-cancel">Cancelar</button>
                <button class="btn btn-primary" id="mc-ok">Guardar cosecha</button>`
     });
-
-    // Toggle visibilidad de campos de destino
-    setTimeout(() => {
-      const selDest = m.querySelector('#mc-destino-tipo');
-      const toggle  = () => {
-        const v = selDest.value;
-        m.querySelector('#mc-silo-wrap').style.display        = v === 'silo'        ? '' : 'none';
-        m.querySelector('#mc-bolsa-wrap').style.display       = v === 'bolsa'       ? '' : 'none';
-        m.querySelector('#mc-bolsa-nueva-wrap').style.display = v === 'bolsa_nueva' ? '' : 'none';
-        m.querySelector('#mc-camion-wrap').style.display      = v === 'camion'      ? '' : 'none';
-      };
-      selDest.addEventListener('change', toggle);
-    }, 50);
 
     m.querySelector('#mc-cancel').addEventListener('click',
       () => Modal.close(m), { once: true });
@@ -965,58 +997,163 @@ const AgroCicloView = {
     m.querySelector('#mc-ok').addEventListener('click', async () => {
       const btn       = m.querySelector('#mc-ok');
       const fecha     = m.querySelector('#mc-fecha').value;
-      const toneladas = m.querySelector('#mc-kilos').value;
+      const kilos     = m.querySelector('#mc-kilos').value;
       const hectareas = m.querySelector('#mc-ha').value;
-      const destTipo  = m.querySelector('#mc-destino-tipo').value;
-
-      if (!fecha || !toneladas || !destTipo) {
-        Toast.error('Fecha, kilos y destino son requeridos.'); return;
+      if (!fecha || !kilos) {
+        Toast.error('Fecha y kilos son requeridos.'); return;
       }
-
       btn.disabled = true; btn.textContent = 'Guardando...';
-
-      const resetBtn = () => {
-        btn.disabled = false; btn.textContent = 'Guardar cosecha';
-      };
-
       try {
-        let body = { fecha, toneladas, hectareas: hectareas || null };
-
-        if (destTipo === 'silo') {
-          const siloId = m.querySelector('#mc-silo').value;
-          if (!siloId) { Toast.error('Seleccioná un silo.'); resetBtn(); return; }
-          body = { ...body, destino_tipo: 'silo', destino_silo_id: siloId };
-
-        } else if (destTipo === 'bolsa') {
-          const bolsaId = m.querySelector('#mc-bolsa').value;
-          if (!bolsaId) { Toast.error('Seleccioná una bolsa.'); resetBtn(); return; }
-          body = { ...body, destino_tipo: 'bolsa', destino_bolsa_id: bolsaId };
-
-        } else if (destTipo === 'bolsa_nueva') {
-          const nombre = m.querySelector('#mc-bolsa-nombre').value.trim()
-            || 'Bolsa nueva';
-          const bolsaRes = await BBT.API.post(
-            `/api/agro/ciclos/${this._cicloId}/bolsas`,
-            { nombre }
-          );
-          body = { ...body, destino_tipo: 'bolsa', destino_bolsa_id: bolsaRes.id };
-
-        } else if (destTipo === 'camion') {
-          const camionId  = m.querySelector('#mc-camion').value;
-          const entidadId = m.querySelector('#mc-entidad').value;
-          if (!camionId)  { Toast.error('Seleccioná un camión.'); resetBtn(); return; }
-          if (!entidadId) { Toast.error('Seleccioná un destino externo.'); resetBtn(); return; }
-          body = { ...body, destino_tipo: 'camion',
-            destino_camion_id: camionId, entidad_externa_id: entidadId };
-        }
-
-        await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/cosechas`, body);
+        await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/cosechas`,
+          { fecha, toneladas: kilos, hectareas: hectareas || null });
         Modal.close(m);
         Toast.success('Cosecha registrada.');
         await this.render(this._cicloId);
       } catch (err) {
         Toast.error(err.message || 'Error al guardar.');
-        resetBtn();
+        btn.disabled = false; btn.textContent = 'Guardar cosecha';
+      }
+    }, { once: true });
+  },
+
+  // ── Asignar destino ─────────────────────────────────
+
+  async _modalAsignarDestino(kgDisponibles) {
+    const esc = s => BBT.Security.sanitize(String(s||''));
+    const silosOk = this._silos.filter(s =>
+      !s.cultivo_actual || s.cultivo_actual === (this._ciclo?.cultivo||'')
+    );
+    const bolsasOk = this._bolsas.filter(b => !b.cerrada);
+    const siloOpts = silosOk.map(s =>
+      `<option value="${s.id}">${esc(s.nombre)} — ${parseFloat(s.toneladas_actuales||0).toLocaleString('es-AR')} kg ocup.</option>`
+    ).join('');
+    const bolsaOpts = bolsasOk.map(b =>
+      `<option value="${b.id}">${esc(b.nombre)}</option>`
+    ).join('');
+    const camOpts = this._camiones.map(c =>
+      `<option value="${c.id}">${esc(c.nombre)}</option>`
+    ).join('');
+    const extOpts = this._entidades.map(e =>
+      `<option value="${e.id}">${esc(e.nombre)}</option>`
+    ).join('');
+
+    const m = Modal.show({
+      title: 'Asignar destino de cosecha',
+      body: `
+        <div class="flex flex-col gap-4">
+          <div style="background:var(--surface-bg);padding:10px 14px;
+            border-radius:8px;font-size:.85rem;color:var(--text-secondary)">
+            Disponible para asignar:
+            <strong>${kgDisponibles.toLocaleString('es-AR')} kg</strong>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kilos a asignar *</label>
+            <input class="input" type="number" id="ad-kilos"
+              min="1" max="${kgDisponibles}" step="1"
+              value="${kgDisponibles}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Destino *</label>
+            <select class="select" id="ad-tipo">
+              <option value="">— Seleccionar —</option>
+              ${siloOpts ? '<option value="silo">🏗 Silo</option>' : ''}
+              ${bolsaOpts ? '<option value="bolsa">🌾 Silo Bolsa existente</option>' : ''}
+              <option value="bolsa_nueva">🌾 Nueva Silo Bolsa</option>
+              ${camOpts ? '<option value="camion">🚛 Camión</option>' : ''}
+              <option value="siembra">🌱 Para Siembra</option>
+              <option value="externo">📦 Externo</option>
+            </select>
+          </div>
+          <div id="ad-silo-wrap" class="form-group" style="display:none">
+            <label class="form-label">Silo</label>
+            <select class="select" id="ad-silo">
+              ${siloOpts||'<option>Sin silos disponibles</option>'}
+            </select>
+          </div>
+          <div id="ad-bolsa-wrap" class="form-group" style="display:none">
+            <label class="form-label">Silo Bolsa</label>
+            <select class="select" id="ad-bolsa">
+              ${bolsaOpts||'<option>Sin bolsas disponibles</option>'}
+            </select>
+          </div>
+          <div id="ad-bolsa-nueva-wrap" class="form-group" style="display:none">
+            <label class="form-label">Nombre de la nueva bolsa</label>
+            <input class="input" id="ad-bolsa-nombre" maxlength="50"
+              placeholder="Ej: Bolsa 1...">
+          </div>
+          <div id="ad-camion-wrap" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Camión</label>
+              <select class="select" id="ad-camion">${camOpts}</select>
+            </div>
+            <div class="form-group" style="margin-top:12px">
+              <label class="form-label">Destino externo *</label>
+              <select class="select" id="ad-entidad">
+                <option value="">— Seleccionar —</option>
+                ${extOpts}
+              </select>
+            </div>
+          </div>
+        </div>`,
+      footer: `<button class="btn btn-secondary" id="ad-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="ad-ok">Asignar</button>`
+    });
+
+    setTimeout(() => {
+      const sel = m.querySelector('#ad-tipo');
+      if (!sel) return;
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        m.querySelector('#ad-silo-wrap').style.display        = v === 'silo'        ? '' : 'none';
+        m.querySelector('#ad-bolsa-wrap').style.display       = v === 'bolsa'       ? '' : 'none';
+        m.querySelector('#ad-bolsa-nueva-wrap').style.display = v === 'bolsa_nueva' ? '' : 'none';
+        m.querySelector('#ad-camion-wrap').style.display      = v === 'camion'      ? '' : 'none';
+      });
+    }, 50);
+
+    m.querySelector('#ad-cancel').addEventListener('click',
+      () => Modal.close(m), { once: true });
+
+    m.querySelector('#ad-ok').addEventListener('click', async () => {
+      const btn   = m.querySelector('#ad-ok');
+      const kilos = parseFloat(m.querySelector('#ad-kilos').value||0);
+      const tipo  = m.querySelector('#ad-tipo').value;
+      if (!kilos || kilos <= 0 || kilos > kgDisponibles) {
+        Toast.error(`Kilos inválidos (máx ${kgDisponibles}).`); return;
+      }
+      if (!tipo) { Toast.error('Seleccioná un destino.'); return; }
+      btn.disabled = true; btn.textContent = 'Asignando...';
+      try {
+        const body = {
+          kilos,
+          destino_tipo: tipo === 'bolsa_nueva' ? 'bolsa' : tipo,
+        };
+        if (tipo === 'silo') {
+          body.destino_silo_id = m.querySelector('#ad-silo').value;
+        } else if (tipo === 'bolsa') {
+          body.destino_bolsa_id = m.querySelector('#ad-bolsa').value;
+        } else if (tipo === 'bolsa_nueva') {
+          const nombre = m.querySelector('#ad-bolsa-nombre').value.trim() || 'Bolsa nueva';
+          const bolsaRes = await BBT.API.post('/api/agro/bolsas',
+            { lote_id: this._lote?.id, nombre });
+          body.destino_bolsa_id = bolsaRes.id;
+        } else if (tipo === 'camion') {
+          body.destino_camion_id  = m.querySelector('#ad-camion').value;
+          body.entidad_externa_id = m.querySelector('#ad-entidad').value;
+          if (!body.entidad_externa_id) {
+            Toast.error('Seleccioná un destino externo.');
+            btn.disabled = false; btn.textContent = 'Asignar'; return;
+          }
+        } else if (tipo === 'siembra' || tipo === 'externo') {
+          body.destino_tipo = tipo;
+        }
+        await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/asignaciones`, body);
+        Modal.close(m);
+        Toast.success('Destino asignado.');
+        await this.render(this._cicloId);
+      } catch (err) {
+        Toast.error(err.message || 'Error al asignar.');
+        btn.disabled = false; btn.textContent = 'Asignar';
       }
     }, { once: true });
   },

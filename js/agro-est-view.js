@@ -60,6 +60,10 @@ const AgroEstView = {
           <h1 class="ganadero-title">${esc(this._est?.nombre || '—')}</h1>
         </div>
         <div class="ganadero-header-actions">
+          <button class="btn btn-danger btn-sm" id="aest-del-est"
+            style="margin-right:8px">
+            🗑 Eliminar establecimiento
+          </button>
           <button class="btn btn-secondary btn-sm" id="aest-btn-admin">
             ⚙ Administración
           </button>
@@ -108,7 +112,7 @@ const AgroEstView = {
               </svg>
             </button>
             <span class="gtree-campo-icon">🌱</span>
-            <span class="gtree-campo-name">${esc(lote.nombre)}</span>
+            <span class="gtree-campo-name" style="cursor:pointer">${esc(lote.nombre)}</span>
             ${lote.hectareas
               ? `<span style="font-size:.72rem;color:var(--text-muted);
                   font-weight:400;margin-left:4px">
@@ -120,6 +124,20 @@ const AgroEstView = {
             <button class="gtree-btn-sm btn-add-ciclo"
               data-lote="${lote.id}" data-nombre="${esc(lote.nombre)}">
               ＋ Ciclo
+            </button>
+            <button class="gtree-btn-icon btn-lote-up"
+              data-id="${lote.id}" title="Subir">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <polyline points="18 15 12 9 6 15"/>
+              </svg>
+            </button>
+            <button class="gtree-btn-icon btn-lote-down"
+              data-id="${lote.id}" title="Bajar">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
             </button>
             <button class="gtree-btn-icon btn-edit-lote"
               data-id="${lote.id}" title="Editar lote">
@@ -205,8 +223,13 @@ const AgroEstView = {
     if (!tree) return;
 
     tree.addEventListener('click', async e => {
-      // Toggle colapsar/expandir lote
-      const toggle = e.target.closest('.gtree-toggle');
+      // Toggle colapsar/expandir lote (botón chevron O nombre del lote)
+      const toggleBtn  = e.target.closest('.gtree-toggle');
+      const nombreLote = e.target.closest('.gtree-campo-name');
+      const toggle     = toggleBtn || (nombreLote
+        ? nombreLote.closest('.gtree-campo-header')
+            ?.querySelector('.gtree-toggle')
+        : null);
       if (toggle) {
         const loteId  = toggle.dataset.lote;
         const safras  = toggle.closest('.gtree-campo')
@@ -243,7 +266,34 @@ const AgroEstView = {
         await this._delLote(btn.dataset.id);
         return;
       }
+      // Reordenar lote
+      if (btn.classList.contains('btn-lote-up')) {
+        await this._reordenarLote(btn.dataset.id, -1);
+        return;
+      }
+      if (btn.classList.contains('btn-lote-down')) {
+        await this._reordenarLote(btn.dataset.id, 1);
+        return;
+      }
     });
+
+    // Eliminar establecimiento
+    document.getElementById('aest-del-est')
+      ?.addEventListener('click', async () => {
+        const ok = await Modal.confirm(
+          'Eliminar establecimiento',
+          `¿Eliminar "${BBT.Security.sanitize(this._est?.nombre||'')}"? Se eliminarán todos sus lotes y ciclos. Esta acción no se puede deshacer.`,
+          'Sí, eliminar', 'danger'
+        );
+        if (!ok) return;
+        try {
+          await BBT.API.del(`/api/agro/establecimientos/${this._estId}`);
+          Toast.success('Establecimiento eliminado.');
+          App.navigateToAgro();
+        } catch (err) {
+          Toast.error(err.message || 'Error al eliminar.');
+        }
+      }, { once: true });
   },
 
   // ── CRUD Lote ───────────────────────────────────────
@@ -399,6 +449,26 @@ const AgroEstView = {
     }, { once: true });
     m.querySelector('#ac-nombre').addEventListener('keydown',
       e => { if (e.key === 'Enter') m.querySelector('#ac-ok').click(); });
+  },
+
+  async _reordenarLote(id, direccion) {
+    const idx  = this._lotes.findIndex(l => l.id === id);
+    if (idx === -1) return;
+    const swap = idx + direccion;
+    if (swap < 0 || swap >= this._lotes.length) return;
+    const nuevoOrden = [
+      { id: this._lotes[idx].id,  orden: this._lotes[swap].orden },
+      { id: this._lotes[swap].id, orden: this._lotes[idx].orden  },
+    ];
+    try {
+      await BBT.API.put(
+        `/api/agro/establecimientos/${this._estId}/lotes/orden`,
+        { orden: nuevoOrden }
+      );
+      await this.render(this._estId);
+    } catch (err) {
+      Toast.error('Error al reordenar.');
+    }
   },
 
 };

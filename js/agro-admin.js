@@ -59,11 +59,8 @@ const AgroAdmin = {
           <button class="emp-tab" data-tab="entidades">
             🏢 Destinos externos
           </button>
-          <button class="emp-tab" data-tab="cultivos">
-            🌱 Cultivos
-          </button>
-          <button class="emp-tab" data-tab="tipos">
-            📋 Tipos
+          <button class="emp-tab" data-tab="catalogo">
+            📚 Catálogo
           </button>
         </div>
 
@@ -118,9 +115,9 @@ const AgroAdmin = {
           </div>
         </div>
 
-        <!-- Tab Cultivos -->
-        <div id="tab-cultivos" class="emp-tab-content" style="display:none">
-          <div class="card">
+        <!-- Tab Catálogo -->
+        <div id="tab-catalogo" class="emp-tab-content" style="display:none">
+          <div class="card" style="margin-bottom:16px">
             <div class="card-header">
               <h4 style="font-family:var(--font-display);font-weight:700">
                 🌱 Cultivos
@@ -130,16 +127,9 @@ const AgroAdmin = {
               </button>
             </div>
             <div class="card-body" style="padding:0" id="cultivos-list">
-              ${this._renderSimpleList(
-                this._cultivos.map(c => ({...c, _tipo:'cultivo'})),
-                'Sin cultivos configurados'
-              )}
+              Cargando...
             </div>
           </div>
-        </div>
-
-        <!-- Tab Tipos -->
-        <div id="tab-tipos" class="emp-tab-content" style="display:none">
           <div class="card">
             <div class="card-header">
               <h4 style="font-family:var(--font-display);font-weight:700">
@@ -150,10 +140,7 @@ const AgroAdmin = {
               </button>
             </div>
             <div class="card-body" style="padding:0" id="tipos-list">
-              ${this._renderSimpleList(
-                this._tipos.map(t => ({...t, _tipo:'tipo'})),
-                'Sin tipos configurados'
-              )}
+              Cargando...
             </div>
           </div>
         </div>
@@ -186,14 +173,30 @@ const AgroAdmin = {
           <div class="emp-row-info">
             <div class="emp-row-name">${esc(s.nombre)}</div>
             <div class="emp-row-meta">
-              Capacidad: ${cap.toLocaleString('es-AR')} t
-              · Ocupado: ${ton.toLocaleString('es-AR')} t (${pct}%)
+              Capacidad: ${cap.toLocaleString('es-AR')} kg
+              · Ocupado: ${ton.toLocaleString('es-AR')} kg (${pct}%)
               ${s.cultivo_actual
                 ? ` · <strong>${esc(s.cultivo_actual)}</strong>`
                 : ' · Vacío'}
             </div>
           </div>
           <div class="emp-row-actions">
+            <button class="gtree-btn-icon btn-silo-up" data-id="${s.id}" title="Subir">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <polyline points="18 15 12 9 6 15"/>
+              </svg>
+            </button>
+            <button class="gtree-btn-icon btn-silo-down" data-id="${s.id}" title="Bajar">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <button class="btn btn-secondary btn-sm btn-ajustar-silo"
+              data-id="${s.id}" style="font-size:.72rem">
+              ⚖ Ajustar
+            </button>
             <button class="gtree-btn-icon btn-edit-silo" data-id="${s.id}">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -309,6 +312,19 @@ const AgroAdmin = {
           .forEach(c => c.style.display = 'none');
         btn.classList.add('emp-tab-active');
         document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+        if (btn.dataset.tab === 'catalogo') {
+          document.getElementById('cultivos-list').innerHTML =
+            this._renderSimpleList(
+              this._cultivos.map(c => ({...c, _tipo:'cultivo'})),
+              'Sin cultivos configurados'
+            );
+          document.getElementById('tipos-list').innerHTML =
+            this._renderSimpleList(
+              this._tipos.map(t => ({...t, _tipo:'tipo'})),
+              'Sin tipos configurados'
+            );
+          this._bindCatalogoEvents();
+        }
       });
     });
 
@@ -320,6 +336,12 @@ const AgroAdmin = {
       ?.addEventListener('click', async e => {
         const btn = e.target.closest('button');
         if (!btn) return;
+        if (btn.classList.contains('btn-ajustar-silo'))
+          { await this._ajustarSilo(btn.dataset.id); return; }
+        if (btn.classList.contains('btn-silo-up'))
+          { await this._reordenarSilo(btn.dataset.id, -1); return; }
+        if (btn.classList.contains('btn-silo-down'))
+          { await this._reordenarSilo(btn.dataset.id, 1); return; }
         if (btn.classList.contains('btn-edit-silo'))
           await this._editSilo(btn.dataset.id);
       });
@@ -352,29 +374,6 @@ const AgroAdmin = {
           await this._delEntidad(btn.dataset.id);
       });
 
-    // ── Cultivos ───────────────────────────────────────
-    document.getElementById('btn-add-cultivo')
-      ?.addEventListener('click', () => this._addSimple('cultivo'), { once: true });
-
-    document.getElementById('cultivos-list')
-      ?.addEventListener('click', async e => {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-        if (btn.classList.contains('btn-del-item'))
-          await this._delSimple('cultivo', btn.dataset.id, btn.dataset.nombre);
-      });
-
-    // ── Tipos ──────────────────────────────────────────
-    document.getElementById('btn-add-tipo-cult')
-      ?.addEventListener('click', () => this._addSimple('tipo'), { once: true });
-
-    document.getElementById('tipos-list')
-      ?.addEventListener('click', async e => {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-        if (btn.classList.contains('btn-del-item'))
-          await this._delSimple('tipo', btn.dataset.id, btn.dataset.nombre);
-      });
   },
 
   // ── CRUD Silos ──────────────────────────────────────
@@ -732,5 +731,120 @@ const AgroAdmin = {
       Toast.success(`${label} eliminado.`);
       await this.render(this._fromAgro);
     } catch (err) { Toast.error(err.message || 'Error al eliminar.'); }
+  },
+
+  _bindCatalogoEvents() {
+    document.getElementById('btn-add-cultivo')
+      ?.addEventListener('click', () => this._addSimple('cultivo'), { once: true });
+    document.getElementById('btn-add-tipo-cult')
+      ?.addEventListener('click', () => this._addSimple('tipo'), { once: true });
+    ['cultivos-list', 'tipos-list'].forEach(listId => {
+      document.getElementById(listId)?.addEventListener('click', async e => {
+        const btn = e.target.closest('.btn-del-item');
+        if (!btn) return;
+        const tipo = btn.dataset.tipo;
+        const url  = tipo === 'cultivo'
+          ? `/api/agro/cultivos/${btn.dataset.id}`
+          : `/api/agro/tipos-cultivo/${btn.dataset.id}`;
+        const ok = await Modal.confirm('Eliminar', '¿Eliminar?', 'Eliminar', 'danger');
+        if (!ok) return;
+        try {
+          await BBT.API.del(url);
+          Toast.success('Eliminado.');
+          await this.render(this._fromAgro);
+        } catch (err) { Toast.error(err.message || 'Error.'); }
+      });
+    });
+  },
+
+  async _ajustarSilo(id) {
+    const s = this._silos.find(x => x.id === id);
+    if (!s) return;
+    let cultivos = [];
+    try { cultivos = await BBT.API.get('/api/agro/cultivos'); } catch {}
+    const esc = v => BBT.Security.sanitize(String(v||''));
+    const cultOpts = cultivos.map(c =>
+      `<option value="${esc(c.nombre)}"${s.cultivo_actual===c.nombre?' selected':''}>
+        ${esc(c.nombre)}
+      </option>`
+    ).join('');
+
+    const m = Modal.show({
+      title: `Ajustar silo — ${esc(s.nombre)}`,
+      body: `
+        <div class="flex flex-col gap-4">
+          <div style="background:var(--surface-bg);padding:10px 14px;
+            border-radius:8px;font-size:.82rem;color:var(--text-secondary)">
+            Cultivo actual: <strong>${esc(s.cultivo_actual||'Vacío')}</strong>
+            · Kilos actuales: <strong>${parseFloat(s.toneladas_actuales||0)
+              .toLocaleString('es-AR')} kg</strong>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cambiar cultivo</label>
+            <select class="select" id="aj-cultivo">
+              <option value="">— Sin cambio —</option>
+              <option value="__vaciar__">🗑 Vaciar cultivo (dejar vacío)</option>
+              ${cultOpts}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ajuste de kilos</label>
+            <input class="input" type="number" id="aj-kilos"
+              step="1" placeholder="Ej: +500 para agregar, -200 para restar">
+            <span style="font-size:.72rem;color:var(--text-muted);
+              margin-top:3px;display:block">
+              Positivo = agregar kilos · Negativo = restar kilos
+            </span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Motivo del ajuste</label>
+            <input class="input" id="aj-obs" maxlength="100"
+              placeholder="Ej: Corrección de inventario...">
+          </div>
+        </div>`,
+      footer: `<button class="btn btn-secondary" id="aj-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="aj-ok">Aplicar ajuste</button>`
+    });
+    m.querySelector('#aj-cancel').addEventListener('click',
+      () => Modal.close(m), { once: true });
+    m.querySelector('#aj-ok').addEventListener('click', async () => {
+      const btn        = m.querySelector('#aj-ok');
+      const cultivoSel = m.querySelector('#aj-cultivo').value;
+      const kilosAj    = parseFloat(m.querySelector('#aj-kilos').value||0);
+      const obs        = m.querySelector('#aj-obs').value.trim();
+      if (!cultivoSel && !kilosAj) {
+        Toast.error('Ingresá un cambio de cultivo o un ajuste de kilos.'); return;
+      }
+      btn.disabled = true; btn.textContent = 'Aplicando...';
+      try {
+        await BBT.API.post(`/api/agro/silos/${id}/ajustar`, {
+          cultivo_nuevo: cultivoSel === '__vaciar__' ? null
+            : cultivoSel || s.cultivo_actual,
+          kilos_ajuste: kilosAj || 0,
+          obs,
+        });
+        Modal.close(m);
+        Toast.success('Ajuste aplicado.');
+        await this.render(this._fromAgro);
+      } catch (err) {
+        Toast.error(err.message || 'Error.');
+        btn.disabled = false; btn.textContent = 'Aplicar ajuste';
+      }
+    }, { once: true });
+  },
+
+  async _reordenarSilo(id, direccion) {
+    const idx  = this._silos.findIndex(s => s.id === id);
+    if (idx === -1) return;
+    const swap = idx + direccion;
+    if (swap < 0 || swap >= this._silos.length) return;
+    const nuevoOrden = [
+      { id: this._silos[idx].id,  orden: this._silos[swap].orden },
+      { id: this._silos[swap].id, orden: this._silos[idx].orden  },
+    ];
+    try {
+      await BBT.API.put('/api/agro/silos/orden', { orden: nuevoOrden });
+      await this.render(this._fromAgro);
+    } catch (err) { Toast.error('Error al reordenar.'); }
   },
 };

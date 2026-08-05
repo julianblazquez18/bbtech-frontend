@@ -1638,3 +1638,31 @@ h5 { font-size: 1rem; }
   color: var(--text-secondary);
   cursor: default;
 }
+
+/* ── Silo Bolsa Row (layout actualizado) ───────────────────── */
+.agro-bolsa-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.agro-bolsa-titulo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.agro-bolsa-datos-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: .8rem;
+}
+.agro-bolsa-kg-actual {
+  font-weight: 700;
+  font-size: .88rem;
+  color: var(--text-primary);
+}
+.agro-bolsa-sep { color: var(--border-strong); }

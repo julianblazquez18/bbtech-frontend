@@ -91,6 +91,9 @@ const AgroView = {
         <section class="agro-section">
           <div class="agro-section-header">
             <h2 class="agro-section-title">Silo Bolsas</h2>
+            <button class="btn btn-secondary btn-sm" id="agro-add-bolsa">
+              ＋ Nueva bolsa
+            </button>
           </div>
           ${this._renderBolsas()}
         </section>
@@ -332,18 +335,21 @@ const AgroView = {
           const desde = this._fmtFecha(b.fecha_inicio);
           html += `
             <div class="agro-bolsa-row">
-              <div class="agro-bolsa-info">
-                <span class="agro-bolsa-nombre">${esc(b.nombre)}</span>
-                <span class="agro-bolsa-cultivo">
-                  ${esc(b.ciclo_cultivo || b.cultivo || '—')}
-                </span>
-                <span class="agro-bolsa-ton">
-                  ${ton.toLocaleString('es-AR')} kg
+              <div class="agro-bolsa-main">
+                <div class="agro-bolsa-titulo-row">
+                  <span class="agro-bolsa-nombre">${esc(b.nombre)}</span>
+                  ${b.cultivo ? `<span class="agro-bolsa-cultivo">
+                    ${esc(b.cultivo)}${b.tipo ? ' · ' + esc(b.tipo) : ''}
+                  </span>` : ''}
+                </div>
+                <div class="agro-bolsa-datos-row">
+                  <span class="agro-bolsa-kg-actual">${ton.toLocaleString('es-AR')} kg</span>
                   <span style="color:var(--text-muted);font-size:.75rem">
-                    / ${total.toLocaleString('es-AR')} kg entrada
+                    de ${total.toLocaleString('es-AR')} kg ingresados
                   </span>
-                </span>
-                <span class="agro-bolsa-desde">Desde ${desde}</span>
+                  <span class="agro-bolsa-sep">·</span>
+                  <span class="agro-bolsa-desde">desde ${desde}</span>
+                </div>
               </div>
               <button class="btn btn-secondary btn-sm agro-bolsa-mover"
                 data-bolsa-id="${b.id}"
@@ -402,7 +408,7 @@ const AgroView = {
                 <th>Fecha</th>
                 <th>Origen</th>
                 <th>Cultivo</th>
-                <th>Variedad</th>
+                <th>Tipo</th>
                 <th style="text-align:right">Kilos</th>
                 <th>Destino</th>
                 <th></th>
@@ -414,7 +420,7 @@ const AgroView = {
         const origen = m.silo_nombre
           ? `Silo: ${esc(m.silo_nombre)}`
           : m.bolsa_nombre
-          ? `Bolsa: ${esc(m.bolsa_nombre)}`
+          ? `Bolsa: ${esc(m.bolsa_nombre)}${m.lote_nombre ? ' — ' + esc(m.lote_nombre) : ''}${m.establecimiento_nombre ? ' — ' + esc(m.establecimiento_nombre) : ''}`
           : 'Cosecha directa';
         html += `
           <tr>
@@ -460,6 +466,9 @@ const AgroView = {
 
     const btnAddEst = document.getElementById('agro-add-est');
     if (btnAddEst) btnAddEst.addEventListener('click', () => this._addEstablecimiento());
+
+    document.getElementById('agro-add-bolsa')
+      ?.addEventListener('click', () => this._modalNuevaBolsa());
 
     document.querySelectorAll('.agro-silo-mover').forEach(btn => {
       btn.addEventListener('click', e => {
@@ -555,31 +564,35 @@ const AgroView = {
 
   async _modalMoverSilo(data) {
     const { siloId, siloNombre, ton, cultivo } = data;
+    const esc     = s => BBT.Security.sanitize(String(s||''));
     const tonDisp = parseFloat(ton || 0);
     if (tonDisp <= 0) { Toast.error('El silo está vacío.'); return; }
-    if (!this._camiones.length) {
-      Toast.error('No hay camiones configurados. Agregá uno desde Administración.');
-      return;
-    }
 
-    let entidades = [];
+    let entidades = [], bolsasDisp = [];
     try { entidades = await BBT.API.get('/api/agro/entidades'); } catch {}
+    try {
+      const todasBolsas = await BBT.API.get('/api/agro/bolsas/por-establecimiento');
+      bolsasDisp = todasBolsas.filter(b =>
+        !b.cerrada && (!b.cultivo || !cultivo || b.cultivo === cultivo)
+      );
+    } catch {}
 
-    const camOpts = this._camiones.map(c =>
-      `<option value="${c.id}">${BBT.Security.sanitize(c.nombre)}</option>`
-    ).join('');
-    const extOpts = entidades.map(e =>
-      `<option value="${e.id}">${BBT.Security.sanitize(e.nombre)}</option>`
+    const camOpts   = this._camiones.map(c =>
+      `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+    const extOpts   = entidades.map(e =>
+      `<option value="${e.id}">${esc(e.nombre)}</option>`).join('');
+    const bolsaOpts = bolsasDisp.map(b =>
+      `<option value="${b.id}">${esc(b.nombre)} — ${esc(b.establecimiento_nombre)} › ${esc(b.lote_nombre)}</option>`
     ).join('');
 
     const m = Modal.show({
-      title: `Mover — ${BBT.Security.sanitize(siloNombre || 'Silo')}`,
+      title: `Mover — ${esc(siloNombre || 'Silo')}`,
       body: `
         <div class="flex flex-col gap-4">
-          <div style="background:var(--surface-bg);padding:10px 14px;border-radius:8px;
-            font-size:.85rem;color:var(--text-secondary)">
+          <div style="background:var(--surface-bg);padding:10px 14px;
+            border-radius:8px;font-size:.85rem;color:var(--text-secondary)">
             Disponible: <strong>${tonDisp.toLocaleString('es-AR')} kg</strong>
-            ${cultivo ? ` · ${BBT.Security.sanitize(cultivo)}` : ''}
+            ${cultivo ? ` · ${esc(cultivo)}` : ''}
           </div>
           <div class="form-group">
             <label class="form-label">Kilos a mover *</label>
@@ -587,78 +600,114 @@ const AgroView = {
               min="0.1" max="${tonDisp}" step="0.1" value="${tonDisp}">
           </div>
           <div class="form-group">
-            <label class="form-label">Camión *</label>
-            <select class="select" id="mv-camion">${camOpts}</select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Destino externo *</label>
-            <select class="select" id="mv-entidad">
+            <label class="form-label">Destino *</label>
+            <select class="select" id="mv-dest-tipo">
               <option value="">— Seleccionar —</option>
-              ${extOpts}
+              ${camOpts ? '<option value="camion">🚛 Camión</option>' : ''}
+              ${bolsaOpts ? '<option value="bolsa">🌾 Silo Bolsa</option>' : ''}
+              <option value="siembra">🌱 Para Siembra</option>
+              <option value="externo">📦 Externo</option>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label">Fecha</label>
-            <input class="input" type="date" id="mv-fecha"
-              value="${new Date().toISOString().slice(0, 10)}">
+          <div id="mv-camion-wrap" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Camión</label>
+              <select class="select" id="mv-camion">${camOpts}</select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Destino externo</label>
+              <select class="select" id="mv-entidad">
+                <option value="">— Seleccionar —</option>
+                ${extOpts}
+              </select>
+            </div>
+          </div>
+          <div id="mv-bolsa-wrap" class="form-group" style="display:none">
+            <label class="form-label">Silo Bolsa destino</label>
+            <select class="select" id="mv-bolsa">
+              ${bolsaOpts||'<option>Sin bolsas disponibles</option>'}
+            </select>
           </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="mv-cancel">Cancelar</button>
-               <button class="btn btn-primary" id="mv-ok">Confirmar movimiento</button>`
+               <button class="btn btn-primary" id="mv-ok">Confirmar</button>`
     });
+
+    setTimeout(() => {
+      const sel = m.querySelector('#mv-dest-tipo');
+      if (!sel) return;
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        m.querySelector('#mv-camion-wrap').style.display = v==='camion' ? '' : 'none';
+        m.querySelector('#mv-bolsa-wrap').style.display  = v==='bolsa'  ? '' : 'none';
+      });
+    }, 50);
+
     m.querySelector('#mv-cancel').addEventListener('click',
-      () => Modal.close(m), { once: true });
+      () => Modal.close(m), {once:true});
     m.querySelector('#mv-ok').addEventListener('click', async () => {
       const btn       = m.querySelector('#mv-ok');
       const toneladas = parseFloat(m.querySelector('#mv-ton').value);
-      const camionId  = m.querySelector('#mv-camion').value;
-      const entidadId = m.querySelector('#mv-entidad').value;
-      const fecha     = m.querySelector('#mv-fecha').value;
+      const destTipo  = m.querySelector('#mv-dest-tipo').value;
       if (!toneladas || toneladas > tonDisp) {
-        Toast.error(`Ingresá una cantidad válida (máx ${tonDisp} kg).`); return;
+        Toast.error(`Máx ${tonDisp} kg.`); return;
       }
-      if (!entidadId) { Toast.error('Seleccioná un destino externo.'); return; }
+      if (!destTipo) { Toast.error('Seleccioná un destino.'); return; }
       btn.disabled = true; btn.textContent = 'Moviendo...';
       try {
-        await BBT.API.post(`/api/agro/silos/${siloId}/mover`,
-          { camion_id: camionId, fecha, toneladas, entidad_externa_id: entidadId });
+        const body = { toneladas, destino_categoria: destTipo,
+          fecha: new Date().toISOString().slice(0,10) };
+        if (destTipo === 'camion') {
+          body.camion_id          = m.querySelector('#mv-camion').value;
+          body.entidad_externa_id = m.querySelector('#mv-entidad').value || null;
+        } else if (destTipo === 'bolsa') {
+          body.destino_bolsa_id = m.querySelector('#mv-bolsa').value;
+          if (!body.destino_bolsa_id) {
+            Toast.error('Seleccioná una bolsa.');
+            btn.disabled=false; btn.textContent='Confirmar'; return;
+          }
+        }
+        await BBT.API.post(`/api/agro/silos/${siloId}/mover`, body);
         Modal.close(m);
         Toast.success('Movimiento registrado.');
         await this.render();
       } catch (err) {
-        Toast.error(err.message || 'Error al mover.');
-        btn.disabled = false; btn.textContent = 'Confirmar movimiento';
+        Toast.error(err.message || 'Error.');
+        btn.disabled=false; btn.textContent='Confirmar';
       }
-    }, { once: true });
+    }, {once:true});
   },
 
   async _modalMoverBolsa(data) {
     const { bolsaId, bolsaNombre, ton, cultivo } = data;
+    const esc     = s => BBT.Security.sanitize(String(s||''));
     const tonDisp = parseFloat(ton || 0);
     if (tonDisp <= 0) { Toast.error('La bolsa está vacía.'); return; }
-    if (!this._camiones.length) {
-      Toast.error('No hay camiones configurados.');
-      return;
-    }
 
-    let entidades = [];
+    let entidades = [], silosDisp = [];
     try { entidades = await BBT.API.get('/api/agro/entidades'); } catch {}
+    try {
+      silosDisp = this._silos.filter(s =>
+        !s.cultivo_actual || !cultivo || s.cultivo_actual === cultivo
+      );
+    } catch {}
 
-    const camOpts = this._camiones.map(c =>
-      `<option value="${c.id}">${BBT.Security.sanitize(c.nombre)}</option>`
-    ).join('');
-    const extOpts = entidades.map(e =>
-      `<option value="${e.id}">${BBT.Security.sanitize(e.nombre)}</option>`
+    const camOpts  = this._camiones.map(c =>
+      `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+    const extOpts  = entidades.map(e =>
+      `<option value="${e.id}">${esc(e.nombre)}</option>`).join('');
+    const siloOpts = silosDisp.map(s =>
+      `<option value="${s.id}">${esc(s.nombre)} — ${parseFloat(s.toneladas_actuales||0).toLocaleString('es-AR')} kg ocup.</option>`
     ).join('');
 
     const m = Modal.show({
-      title: `Mover bolsa — ${BBT.Security.sanitize(bolsaNombre || 'Bolsa')}`,
+      title: `Mover bolsa — ${esc(bolsaNombre || 'Bolsa')}`,
       body: `
         <div class="flex flex-col gap-4">
-          <div style="background:var(--surface-bg);padding:10px 14px;border-radius:8px;
-            font-size:.85rem;color:var(--text-secondary)">
+          <div style="background:var(--surface-bg);padding:10px 14px;
+            border-radius:8px;font-size:.85rem;color:var(--text-secondary)">
             Disponible: <strong>${tonDisp.toLocaleString('es-AR')} kg</strong>
-            ${cultivo ? ` · ${BBT.Security.sanitize(cultivo)}` : ''}
+            ${cultivo ? ` · ${esc(cultivo)}` : ''}
           </div>
           <div class="form-group">
             <label class="form-label">Kilos a mover *</label>
@@ -666,47 +715,201 @@ const AgroView = {
               min="0.1" max="${tonDisp}" step="0.1" value="${tonDisp}">
           </div>
           <div class="form-group">
-            <label class="form-label">Camión *</label>
-            <select class="select" id="mb-camion">${camOpts}</select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Destino externo *</label>
-            <select class="select" id="mb-entidad">
+            <label class="form-label">Destino *</label>
+            <select class="select" id="mb-dest-tipo">
               <option value="">— Seleccionar —</option>
-              ${extOpts}
+              ${camOpts ? '<option value="camion">🚛 Camión</option>' : ''}
+              ${siloOpts ? '<option value="silo">🏗 Silo</option>' : ''}
+              <option value="siembra">🌱 Para Siembra</option>
+              <option value="externo">📦 Externo</option>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label">Fecha</label>
-            <input class="input" type="date" id="mb-fecha"
-              value="${new Date().toISOString().slice(0, 10)}">
+          <div id="mb-camion-wrap" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Camión</label>
+              <select class="select" id="mb-camion">${camOpts}</select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Destino externo</label>
+              <select class="select" id="mb-entidad">
+                <option value="">— Seleccionar —</option>
+                ${extOpts}
+              </select>
+            </div>
+          </div>
+          <div id="mb-silo-wrap" class="form-group" style="display:none">
+            <label class="form-label">Silo destino</label>
+            <select class="select" id="mb-silo">
+              ${siloOpts||'<option>Sin silos compatibles</option>'}
+            </select>
           </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="mb-cancel">Cancelar</button>
-               <button class="btn btn-primary" id="mb-ok">Confirmar movimiento</button>`
+               <button class="btn btn-primary" id="mb-ok">Confirmar</button>`
     });
+
+    setTimeout(() => {
+      const sel = m.querySelector('#mb-dest-tipo');
+      if (!sel) return;
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        m.querySelector('#mb-camion-wrap').style.display = v==='camion' ? '' : 'none';
+        m.querySelector('#mb-silo-wrap').style.display   = v==='silo'   ? '' : 'none';
+      });
+    }, 50);
+
     m.querySelector('#mb-cancel').addEventListener('click',
-      () => Modal.close(m), { once: true });
+      () => Modal.close(m), {once:true});
     m.querySelector('#mb-ok').addEventListener('click', async () => {
       const btn       = m.querySelector('#mb-ok');
       const toneladas = parseFloat(m.querySelector('#mb-ton').value);
-      const camionId  = m.querySelector('#mb-camion').value;
-      const entidadId = m.querySelector('#mb-entidad').value;
-      const fecha     = m.querySelector('#mb-fecha').value;
+      const destTipo  = m.querySelector('#mb-dest-tipo').value;
       if (!toneladas || toneladas > tonDisp) {
-        Toast.error(`Máximo ${tonDisp} kg.`); return;
+        Toast.error(`Máx ${tonDisp} kg.`); return;
       }
-      if (!entidadId) { Toast.error('Seleccioná un destino externo.'); return; }
+      if (!destTipo) { Toast.error('Seleccioná un destino.'); return; }
       btn.disabled = true; btn.textContent = 'Moviendo...';
       try {
-        await BBT.API.post(`/api/agro/bolsas/${bolsaId}/mover`,
-          { camion_id: camionId, fecha, toneladas, entidad_externa_id: entidadId });
+        const body = { toneladas, destino_categoria: destTipo,
+          fecha: new Date().toISOString().slice(0,10) };
+        if (destTipo === 'camion') {
+          body.camion_id          = m.querySelector('#mb-camion').value;
+          body.entidad_externa_id = m.querySelector('#mb-entidad').value || null;
+        } else if (destTipo === 'silo') {
+          body.destino_silo_id = m.querySelector('#mb-silo').value;
+          if (!body.destino_silo_id) {
+            Toast.error('Seleccioná un silo.');
+            btn.disabled=false; btn.textContent='Confirmar'; return;
+          }
+        }
+        await BBT.API.post(`/api/agro/bolsas/${bolsaId}/mover`, body);
         Modal.close(m);
         Toast.success('Movimiento registrado.');
         await this.render();
       } catch (err) {
-        Toast.error(err.message || 'Error al mover.');
-        btn.disabled = false; btn.textContent = 'Confirmar movimiento';
+        Toast.error(err.message || 'Error.');
+        btn.disabled=false; btn.textContent='Confirmar';
+      }
+    }, {once:true});
+  },
+
+  async _modalNuevaBolsa() {
+    const esc = s => BBT.Security.sanitize(String(s||''));
+    let lotesData = [];
+    let cultivos  = [];
+    let tiposCult = [];
+    try {
+      for (const est of this._establecimientos) {
+        const lotes = await BBT.API.get(
+          `/api/agro/establecimientos/${est.id}/lotes`
+        );
+        lotes.forEach(l => {
+          lotesData.push({
+            id: l.id,
+            label: `${esc(est.nombre)} › ${esc(l.nombre)}`
+          });
+        });
+      }
+    } catch {}
+    try { cultivos  = await BBT.API.get('/api/agro/cultivos'); }    catch {}
+    try { tiposCult = await BBT.API.get('/api/agro/tipos-cultivo'); } catch {}
+
+    if (!lotesData.length) {
+      Toast.error('No hay lotes configurados. Agregá uno desde Administración.');
+      return;
+    }
+
+    const loteOpts = lotesData.map(l =>
+      `<option value="${l.id}">${l.label}</option>`
+    ).join('');
+    const cultivoOpts = cultivos.map(c =>
+      `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`
+    ).join('');
+    const tipoOpts = tiposCult.map(t =>
+      `<option value="${esc(t.nombre)}">${esc(t.nombre)}</option>`
+    ).join('');
+
+    const m = Modal.show({
+      title: 'Nueva silo bolsa',
+      body: `
+        <div class="flex flex-col gap-4">
+          <div class="form-group">
+            <label class="form-label">Lote *</label>
+            <select class="select" id="nb-lote">
+              <option value="">— Seleccionar —</option>
+              ${loteOpts}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre de la bolsa *</label>
+            <input class="input" id="nb-nombre" maxlength="60"
+              placeholder="Ej: Bolsa 1, Bolsa Norte...">
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:0">
+          <div style="font-size:.78rem;color:var(--text-muted);font-weight:600;
+            text-transform:uppercase;letter-spacing:.04em">
+            Contenido inicial (opcional)
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Cultivo</label>
+              <select class="select" id="nb-cultivo">
+                <option value="">— Sin especificar —</option>
+                ${cultivoOpts}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kilos iniciales</label>
+              <input class="input" type="number" id="nb-kilos"
+                min="0" step="1" placeholder="0">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Tipo</label>
+              <select class="select" id="nb-tipo">
+                <option value="">— Sin especificar —</option>
+                ${tipoOpts}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Variedad</label>
+              <input class="input" id="nb-variedad" maxlength="80"
+                placeholder="Ej: SRM 5900...">
+            </div>
+          </div>
+        </div>`,
+      footer: `<button class="btn btn-secondary" id="nb-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="nb-ok">Crear</button>`
+    });
+    setTimeout(() => m.querySelector('#nb-nombre')?.focus(), 50);
+    m.querySelector('#nb-cancel').addEventListener('click',
+      () => Modal.close(m), { once: true });
+    m.querySelector('#nb-ok').addEventListener('click', async () => {
+      const btn     = m.querySelector('#nb-ok');
+      const loteId  = m.querySelector('#nb-lote').value;
+      const nombre  = m.querySelector('#nb-nombre').value.trim();
+      if (!loteId || !nombre) {
+        Toast.error('Lote y nombre son requeridos.'); return;
+      }
+      btn.disabled = true; btn.textContent = 'Creando...';
+      try {
+        const body = { lote_id: loteId, nombre };
+        const cultivo  = m.querySelector('#nb-cultivo').value;
+        const kilos    = m.querySelector('#nb-kilos').value;
+        const tipo     = m.querySelector('#nb-tipo').value;
+        const variedad = m.querySelector('#nb-variedad').value.trim();
+        if (cultivo)  body.cultivo  = cultivo;
+        if (kilos)    body.kilos    = kilos;
+        if (tipo)     body.tipo     = tipo;
+        if (variedad) body.variedad = variedad;
+        await BBT.API.post('/api/agro/bolsas', body);
+        Modal.close(m);
+        Toast.success(`Bolsa "${nombre}" creada.`);
+        await this.render();
+      } catch (err) {
+        Toast.error(err.message || 'Error.');
+        btn.disabled = false; btn.textContent = 'Crear';
       }
     }, { once: true });
   },
