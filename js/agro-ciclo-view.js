@@ -603,7 +603,9 @@ const AgroCicloView = {
 
     const tipoOpts = this._tiposCult.length
       ? this._tiposCult.map(t => {
-          const sel = isEdit && t.nombre === reg.variedad;
+          const sel = isEdit
+            ? (t.nombre||'').trim() === (reg.variedad||'').trim()
+            : (t.nombre||'').trim() === (this._ciclo?.tipo||'').trim();
           return `<option value="${esc(t.nombre)}"${sel?' selected':''}>${esc(t.nombre)}</option>`;
         }).join('')
       : '<option value="">Sin tipos configurados</option>';
@@ -670,6 +672,12 @@ const AgroCicloView = {
                  ${isEdit ? 'Actualizar siembra' : 'Guardar siembra'}
                </button>`
     });
+    setTimeout(() => {
+      if (tieneSiembra && this._ciclo?.tipo) {
+        const tipSel = m.querySelector('#ms-tipo');
+        if (tipSel) tipSel.value = this._ciclo.tipo;
+      }
+    }, 30);
     m.querySelector('#ms-cancel').addEventListener('click',
       () => Modal.close(m), { once: true });
     m.querySelector('#ms-ok').addEventListener('click', async () => {

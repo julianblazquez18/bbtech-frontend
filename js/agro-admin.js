@@ -161,7 +161,7 @@ const AgroAdmin = {
     }
     return this._silos.map(s => {
       const ton = parseFloat(s.toneladas_actuales||0);
-      const cap = parseFloat(s.capacidad_ton||0);
+      const cap = parseFloat(s.capacidad_efectiva || s.capacidad_ton || 0);
       const pct = cap > 0 ? Math.round((ton/cap)*100) : 0;
       return `
         <div class="emp-row">
@@ -330,7 +330,7 @@ const AgroAdmin = {
 
     // ── Silos ──────────────────────────────────────────
     document.getElementById('btn-add-silo')
-      ?.addEventListener('click', () => this._addSilo(), { once: true });
+      ?.addEventListener('click', () => this._addSilo());
 
     document.getElementById('silos-list')
       ?.addEventListener('click', async e => {
@@ -348,7 +348,7 @@ const AgroAdmin = {
 
     // ── Camiones ───────────────────────────────────────
     document.getElementById('btn-add-camion')
-      ?.addEventListener('click', () => this._addCamion(), { once: true });
+      ?.addEventListener('click', () => this._addCamion());
 
     document.getElementById('camiones-list')
       ?.addEventListener('click', async e => {
@@ -362,7 +362,7 @@ const AgroAdmin = {
 
     // ── Entidades ──────────────────────────────────────
     document.getElementById('btn-add-entidad')
-      ?.addEventListener('click', () => this._addEntidad(), { once: true });
+      ?.addEventListener('click', () => this._addEntidad());
 
     document.getElementById('entidades-list')
       ?.addEventListener('click', async e => {
@@ -379,6 +379,21 @@ const AgroAdmin = {
   // ── CRUD Silos ──────────────────────────────────────
 
   async _addSilo() {
+    let cultivos = [];
+    try { cultivos = await BBT.API.get('/api/agro/cultivos'); } catch {}
+    const esc = s => BBT.Security.sanitize(String(s||''));
+
+    const capsHtml = cultivos.length ? cultivos.map(c => `
+      <div style="display:grid;grid-template-columns:140px 1fr;
+        gap:8px;align-items:center;margin-bottom:8px">
+        <label style="font-size:.85rem;font-weight:600;
+          color:var(--text-secondary)">${esc(c.nombre)}</label>
+        <input class="input silo-cap-input" type="number"
+          data-cultivo="${esc(c.nombre)}" min="0" step="100"
+          placeholder="0 kg" style="padding:6px 10px">
+      </div>`).join('')
+    : '<span style="color:var(--text-muted);font-size:.82rem">Sin cultivos en catálogo.</span>';
+
     const m = Modal.show({
       title: 'Nuevo silo',
       body: `
@@ -389,27 +404,31 @@ const AgroAdmin = {
               placeholder="Ej: Silo 1, Silo Norte...">
           </div>
           <div class="form-group">
-            <label class="form-label">Capacidad (toneladas) *</label>
-            <input class="input" type="number" id="as-cap"
-              min="0" step="1" placeholder="Ej: 1000">
+            <label class="form-label">Capacidad por cultivo (kg)</label>
+            <div style="background:var(--surface-bg);border-radius:8px;
+              padding:12px 14px;border:1px solid var(--border)">
+              ${capsHtml}
+            </div>
           </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="as-cancel">Cancelar</button>
                <button class="btn btn-primary" id="as-ok">Crear</button>`
     });
-    setTimeout(() => m.querySelector('#as-nombre').focus(), 50);
+    setTimeout(() => m.querySelector('#as-nombre')?.focus(), 50);
     m.querySelector('#as-cancel').addEventListener('click',
       () => Modal.close(m), { once: true });
     m.querySelector('#as-ok').addEventListener('click', async () => {
       const btn    = m.querySelector('#as-ok');
       const nombre = m.querySelector('#as-nombre').value.trim();
-      const cap    = m.querySelector('#as-cap').value;
-      if (!nombre || !cap) {
-        Toast.error('Nombre y capacidad son requeridos.'); return;
-      }
+      if (!nombre) { Toast.error('Nombre requerido.'); return; }
       btn.disabled = true; btn.textContent = 'Creando...';
+      const capacidades = [];
+      m.querySelectorAll('.silo-cap-input').forEach(inp => {
+        const kg = parseFloat(inp.value || 0);
+        if (kg > 0) capacidades.push({ cultivo: inp.dataset.cultivo, capacidad_kg: kg });
+      });
       try {
-        await BBT.API.post('/api/agro/silos', { nombre, capacidad_ton: cap });
+        await BBT.API.post('/api/agro/silos', { nombre, capacidades });
         Modal.close(m);
         Toast.success(`Silo "${nombre}" creado.`);
         await this.render(this._fromAgro);
@@ -423,19 +442,42 @@ const AgroAdmin = {
   async _editSilo(id) {
     const s = this._silos.find(x => x.id === id);
     if (!s) return;
+    let cultivos = [];
+    try { cultivos = await BBT.API.get('/api/agro/cultivos'); } catch {}
+    const esc  = v => BBT.Security.sanitize(String(v||''));
+    const caps = s.capacidades || [];
+    const getKg = nombre => {
+      const f = caps.find(c => c.cultivo === nombre);
+      return f ? f.capacidad_kg : '';
+    };
+
+    const capsHtml = cultivos.length ? cultivos.map(c => `
+      <div style="display:grid;grid-template-columns:140px 1fr;
+        gap:8px;align-items:center;margin-bottom:8px">
+        <label style="font-size:.85rem;font-weight:600;
+          color:var(--text-secondary)">${esc(c.nombre)}</label>
+        <input class="input silo-cap-input" type="number"
+          data-cultivo="${esc(c.nombre)}" min="0" step="100"
+          value="${getKg(c.nombre)}" placeholder="0 kg"
+          style="padding:6px 10px">
+      </div>`).join('')
+    : '<span style="color:var(--text-muted)">Sin cultivos en catálogo.</span>';
+
     const m = Modal.show({
-      title: 'Editar silo',
+      title: `Editar silo — ${esc(s.nombre)}`,
       body: `
         <div class="flex flex-col gap-4">
           <div class="form-group">
             <label class="form-label">Nombre *</label>
             <input class="input" id="es-nombre" maxlength="60"
-              value="${BBT.Security.sanitize(s.nombre)}">
+              value="${esc(s.nombre)}">
           </div>
           <div class="form-group">
-            <label class="form-label">Capacidad (toneladas) *</label>
-            <input class="input" type="number" id="es-cap"
-              min="0" step="1" value="${s.capacidad_ton||0}">
+            <label class="form-label">Capacidad por cultivo (kg)</label>
+            <div style="background:var(--surface-bg);border-radius:8px;
+              padding:12px 14px;border:1px solid var(--border)">
+              ${capsHtml}
+            </div>
           </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="es-cancel">Cancelar</button>
@@ -446,12 +488,17 @@ const AgroAdmin = {
     m.querySelector('#es-ok').addEventListener('click', async () => {
       const btn    = m.querySelector('#es-ok');
       const nombre = m.querySelector('#es-nombre').value.trim();
-      const cap    = m.querySelector('#es-cap').value;
       if (!nombre) { Toast.error('Nombre requerido.'); return; }
       btn.disabled = true; btn.textContent = 'Guardando...';
+      const capacidades = [];
+      m.querySelectorAll('.silo-cap-input').forEach(inp => {
+        capacidades.push({
+          cultivo:      inp.dataset.cultivo,
+          capacidad_kg: parseFloat(inp.value || 0),
+        });
+      });
       try {
-        await BBT.API.put(`/api/agro/silos/${id}`,
-          { nombre, capacidad_ton: cap });
+        await BBT.API.put(`/api/agro/silos/${id}`, { nombre, capacidades });
         Modal.close(m);
         Toast.success('Silo actualizado.');
         await this.render(this._fromAgro);
@@ -735,9 +782,9 @@ const AgroAdmin = {
 
   _bindCatalogoEvents() {
     document.getElementById('btn-add-cultivo')
-      ?.addEventListener('click', () => this._addSimple('cultivo'), { once: true });
+      ?.addEventListener('click', () => this._addSimple('cultivo'));
     document.getElementById('btn-add-tipo-cult')
-      ?.addEventListener('click', () => this._addSimple('tipo'), { once: true });
+      ?.addEventListener('click', () => this._addSimple('tipo'));
     ['cultivos-list', 'tipos-list'].forEach(listId => {
       document.getElementById(listId)?.addEventListener('click', async e => {
         const btn = e.target.closest('.btn-del-item');

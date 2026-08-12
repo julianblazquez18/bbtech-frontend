@@ -28,6 +28,12 @@ const DashboardView = {
       empActivos = emps.filter(e => e.activo).length;
     } catch (e) {}
 
+    let agroEsts = 0;
+    try {
+      const ests = await BBT.API.get('/api/agro/establecimientos');
+      agroEsts = ests.length;
+    } catch (e) {}
+
     main.innerHTML = `
     <div class="dashboard-page">
 
@@ -75,6 +81,9 @@ const DashboardView = {
             </svg>
           </div>
           <div class="module-title">Control Agrícola</div>
+          <div class="module-stats">
+            <span>${agroEsts} establecimiento${agroEsts !== 1 ? 's' : ''}</span>
+          </div>
           <div class="module-cta">Ingresar →</div>
         </div>
 
