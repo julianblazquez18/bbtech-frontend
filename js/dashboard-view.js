@@ -20,7 +20,10 @@ const DashboardView = {
     const estancias  = BBT.Estancias.getAll();
     const rodeos     = BBT.Estancias.getAllRodeos();
     const activos    = rodeos.flatMap(r => BBT.Ciclos.getActivosByGrupo(r.id));
-    const totalVacas = activos.reduce((s, c) => s + (Object.keys(c.vacas || {}).length || c._vacaCount || 0), 0);
+    const idsUnicos = new Set();
+    activos.forEach(c => { Object.keys(c.vacas || {}).forEach(id => idsUnicos.add(id)); });
+    const totalVacas = idsUnicos.size ||
+      rodeos.reduce((s, r) => s + (r.vacaCountUnico || 0), 0);
 
     let empActivos = 0;
     try {

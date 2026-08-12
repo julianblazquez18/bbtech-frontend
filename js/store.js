@@ -185,11 +185,12 @@ const Estancias = {
       nombre: e.nombre,
       icon:   e.icon || '🌾',
       rodeos: (e.rodeos || []).map(r => ({
-        id:             r.id,
-        nombre:         r.nombre,
-        tipo:           r.tipo || 'rodeo',
-        estanciaId:     e.id,
-        estanciaNombre: e.nombre,
+        id:              r.id,
+        nombre:          r.nombre,
+        tipo:            r.tipo || 'rodeo',
+        estanciaId:      e.id,
+        estanciaNombre:  e.nombre,
+        vacaCountUnico:  parseInt(r.vaca_count_unico) || 0,
       }))
     }));
     return this._estancias;

@@ -258,20 +258,20 @@ const CicloView = {
             <div class="stat-sub">animales entorados</div>
           </div>
           <div style="flex:1">
-            <div class="stat-label">Actual</div>
-            <div class="stat-value">${stats.total - stats.descartadas}</div>
+            <div class="stat-label" style="color:var(--green-600)">Actual</div>
+            <div class="stat-value" style="color:var(--green-600)">${stats.total - stats.descartadas}</div>
           </div>
         </div>
       </div>
       <div class="stat-card highlight-green">
         <div style="display:flex;gap:var(--space-4);flex:1">
           <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
-            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Preñadas</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em">Preñadas</div>
             <div class="stat-value">${stats.preniadas}</div>
             <div class="stat-sub">${stats.pctPrenez}% del total</div>
           </div>
           <div style="flex:1">
-            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--status-muerte)">Vacías</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;color:var(--status-muerte)">Vacías</div>
             <div class="stat-value" style="color:var(--status-muerte)">${stats.vacias}</div>
             <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctVacias}% del total</div>
           </div>
@@ -280,7 +280,7 @@ const CicloView = {
       <div class="stat-card highlight-green">
         <div style="display:flex;gap:var(--space-4);flex:1">
           <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
-            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Parieron</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em">Parieron</div>
             <div class="stat-value">${stats.parieron}</div>
             <div class="stat-sub">${stats.pctParto}% de preñadas</div>
             <div style="margin-top:5px;font-size:.62rem;color:var(--text-muted);line-height:1.7">
@@ -290,7 +290,7 @@ const CicloView = {
             </div>
           </div>
           <div style="flex:1">
-            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--status-muerte)">Aborto</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;color:var(--status-muerte)">Aborto</div>
             <div class="stat-value" style="color:var(--status-muerte)">${stats.abortaron}</div>
             <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctAborto}% de preñadas</div>
           </div>
@@ -299,12 +299,12 @@ const CicloView = {
       <div class="stat-card highlight-green">
         <div style="display:flex;gap:var(--space-4);flex:1">
           <div style="flex:1;border-right:1px solid rgba(0,0,0,.07);padding-right:var(--space-4)">
-            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Destetaron</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em">Destetaron</div>
             <div class="stat-value">${stats.destetaron}</div>
             <div class="stat-sub">${stats.pctDestete}% de paridas</div>
           </div>
           <div style="flex:1">
-            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--status-muerte)">Muerte ternero</div>
+            <div class="stat-label" style="font-size:.62rem;letter-spacing:.02em;color:var(--status-muerte)">Muerte ternero</div>
             <div class="stat-value" style="color:var(--status-muerte)">${stats.muerteTernero}</div>
             <div class="stat-sub" style="color:var(--status-muerte)">${stats.pctMuerteTernero}% de paridas</div>
           </div>

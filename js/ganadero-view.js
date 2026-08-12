@@ -141,9 +141,11 @@ const GanaderoView = {
 
   _renderRodeo(estanciaId, rodeo) {
     const ciclos     = BBT.Ciclos.getByGrupo(rodeo.id);
-    const totalVacas = ciclos
+    const todasLasVacas = new Set();
+    ciclos
       .filter(c => c.estado !== 'cerrado')
-      .reduce((s, c) => s + (Object.keys(c.vacas || {}).length || c._vacaCount || 0), 0);
+      .forEach(c => { Object.keys(c.vacas || {}).forEach(id => todasLasVacas.add(id)); });
+    const totalVacas = todasLasVacas.size || rodeo.vacaCountUnico || 0;
     const isExpanded = this._expanded[rodeo.id] === true; // default: colapsado
 
     let html = `
@@ -158,7 +160,11 @@ const GanaderoView = {
               </svg>
             </button>
             <span class="gtree-rodeo-dot"></span>
-            <span class="gtree-rodeo-name">${BBT.Security.sanitize(rodeo.nombre)}</span>
+            <span class="gtree-rodeo-name"
+              style="cursor:pointer"
+              data-toggle-rodeo="${rodeo.id}">
+              ${BBT.Security.sanitize(rodeo.nombre)}
+            </span>
             <span class="gtree-rodeo-count">${totalVacas} anim.</span>
           </div>
           <div class="gtree-rodeo-actions">
@@ -223,6 +229,18 @@ const GanaderoView = {
     if (this._clickHandler) main.removeEventListener('click', this._clickHandler);
     this._clickHandler = async e => {
       // Toggle de rodeo: usar closest directo para evitar que el SVG intercepte
+      const nombreRodeo = e.target.closest('[data-toggle-rodeo]');
+      if (nombreRodeo) {
+        const rodeoId  = nombreRodeo.dataset.toggleRodeo;
+        const safrasEl = nombreRodeo.closest('.gtree-rodeo').querySelector('.gtree-safras');
+        const isOpen   = safrasEl.style.display !== 'none';
+        safrasEl.style.display = isOpen ? 'none' : 'block';
+        const svg = nombreRodeo.closest('.gtree-rodeo').querySelector('.gtree-toggle svg');
+        if (svg) svg.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+        this._expanded[rodeoId] = !isOpen;
+        return;
+      }
+
       const toggleBtn = e.target.closest('.gtree-toggle');
       if (toggleBtn) {
         const rodeoId  = toggleBtn.dataset.rodeo;
