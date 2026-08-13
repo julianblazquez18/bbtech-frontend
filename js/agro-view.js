@@ -260,33 +260,42 @@ const AgroView = {
     const pct = Math.min(100, Math.max(0, pctOcupado));
 
     if (pct === 0) {
-      return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      return `<svg width="${size}" height="${size}"
+        viewBox="0 0 ${size} ${size}">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
           stroke="var(--border)" stroke-width="12"/>
         <text x="${cx}" y="${cy}" text-anchor="middle" dy="5"
-          font-size="13" font-weight="700" fill="var(--text-muted)">0%</text>
+          font-size="13" font-weight="700"
+          fill="var(--text-muted)">0%</text>
       </svg>`;
     }
+
     if (pct === 100) {
-      return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      return `<svg width="${size}" height="${size}"
+        viewBox="0 0 ${size} ${size}">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
           stroke="var(--green-500)" stroke-width="12"/>
-        <text x="${cx}" y="${cy}" text-anchor="middle" dy="5"
-          font-size="13" font-weight="700" fill="var(--green-700)">${pct}%</text>
+        <text x="${cx}" y="${cy - 4}" text-anchor="middle"
+          font-size="14" font-weight="800"
+          fill="var(--green-700)">100%</text>
+        <text x="${cx}" y="${cy + 12}" text-anchor="middle"
+          font-size="9" fill="var(--text-muted)">lleno</text>
       </svg>`;
     }
 
     const circ = 2 * Math.PI * r;
     const dash = (pct / 100) * circ;
 
-    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    return `<svg width="${size}" height="${size}"
+      viewBox="0 0 ${size} ${size}">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
-        stroke="var(--surface-sunken)" stroke-width="12"/>
+        stroke="var(--surface-sunken,#e5e7eb)" stroke-width="12"/>
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
         stroke="var(--green-500)" stroke-width="12"
         stroke-dasharray="${dash} ${circ}"
-        stroke-dashoffset="${circ * 0.25}"
-        stroke-linecap="round"/>
+        stroke-dashoffset="0"
+        stroke-linecap="round"
+        transform="rotate(-90 ${cx} ${cy})"/>
       <text x="${cx}" y="${cy - 4}" text-anchor="middle"
         font-size="14" font-weight="800"
         fill="var(--green-700)">${pct}%</text>

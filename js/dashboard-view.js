@@ -20,10 +20,19 @@ const DashboardView = {
     const estancias  = BBT.Estancias.getAll();
     const rodeos     = BBT.Estancias.getAllRodeos();
     const activos    = rodeos.flatMap(r => BBT.Ciclos.getActivosByGrupo(r.id));
-    const idsUnicos = new Set();
-    activos.forEach(c => { Object.keys(c.vacas || {}).forEach(id => idsUnicos.add(id)); });
-    const totalVacas = idsUnicos.size ||
-      rodeos.reduce((s, r) => s + (r.vacaCountUnico || 0), 0);
+    let totalVacas = 0;
+    try {
+      const tvRes = await BBT.API.get('/api/estancias/total-animales');
+      totalVacas = tvRes.total || 0;
+    } catch (e) {
+      const caravanasUnicas = new Set();
+      activos.forEach(c => {
+        Object.values(c.vacas || {}).forEach(vaca => {
+          if (vaca && !vaca.rechazo && vaca.caravana) caravanasUnicas.add(vaca.caravana);
+        });
+      });
+      totalVacas = caravanasUnicas.size || rodeos.reduce((s, r) => s + (r.vacaCountUnico || 0), 0);
+    }
 
     let empActivos = 0;
     try {

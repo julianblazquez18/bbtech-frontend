@@ -141,11 +141,19 @@ const GanaderoView = {
 
   _renderRodeo(estanciaId, rodeo) {
     const ciclos     = BBT.Ciclos.getByGrupo(rodeo.id);
-    const todasLasVacas = new Set();
+    const caravanasRodeo = new Set();
     ciclos
       .filter(c => c.estado !== 'cerrado')
-      .forEach(c => { Object.keys(c.vacas || {}).forEach(id => todasLasVacas.add(id)); });
-    const totalVacas = todasLasVacas.size || rodeo.vacaCountUnico || 0;
+      .forEach(c => {
+        Object.values(c.vacas || {}).forEach(vaca => {
+          if (vaca && !vaca.descarte && vaca.caravana) {
+            caravanasRodeo.add(vaca.caravana);
+          }
+        });
+      });
+    const totalVacas = caravanasRodeo.size > 0
+      ? caravanasRodeo.size
+      : rodeo.vacaCountUnico || 0;
     const isExpanded = this._expanded[rodeo.id] === true; // default: colapsado
 
     let html = `
@@ -191,7 +199,7 @@ const GanaderoView = {
     if (ciclos.length) {
       ciclos.forEach(ciclo => {
         const isClosed = ciclo.estado === 'cerrado';
-        const vacCount = Object.keys(ciclo.vacas || {}).length || ciclo._vacaCount || 0;
+        const vacCount = Object.values(ciclo.vacas || {}).filter(v => !v.rechazo).length || ciclo._vacaCount || 0;
         html += `
           <div class="gtree-safra${isClosed ? ' gtree-safra-closed' : ''}" data-ciclo-id="${ciclo.id}">
             <div class="gtree-safra-left">

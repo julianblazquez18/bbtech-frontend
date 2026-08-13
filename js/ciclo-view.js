@@ -367,7 +367,8 @@ const CicloView = {
     const allRodeos = BBT.Estancias.getAllRodeos();
     const getNombreGrupo = gid => { const r = allRodeos.find(r => r.id === gid); return r ? r.nombre : gid; };
 
-    if (count) count.textContent = `${vacas.length} ${vacas.length === 1 ? 'animal' : 'animales'}`;
+    const totalActivos = vacas.filter(v => !v.rechazo).length;
+    if (count) count.textContent = `${totalActivos} ${totalActivos === 1 ? 'animal' : 'animales'}`;
     if (!vacas.length) {
       tbody.innerHTML = '';
       if (empty) empty.style.display = 'block';
