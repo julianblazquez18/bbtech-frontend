@@ -1724,3 +1724,40 @@ h5 { font-size: 1rem; }
     font-size: 1.1rem;
   }
 }
+
+/* ── Drag & Drop lotes ─────────────────────────────── */
+.drag-handle-desktop {
+  display: none;
+  cursor: grab;
+  padding: 4px 6px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: background .1s;
+}
+.drag-handle-desktop:hover {
+  background: var(--surface-bg);
+  color: var(--text-secondary);
+}
+.drag-handle-desktop:active { cursor: grabbing; }
+
+@media (min-width: 768px) {
+  .drag-handle-desktop { display: flex; align-items: center; }
+}
+
+.drag-ghost {
+  opacity: .4;
+  background: var(--green-50) !important;
+  border: 2px dashed var(--green-400) !important;
+  border-radius: 8px;
+}
+
+.drag-dragging {
+  opacity: .9;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  border-radius: 8px;
+}
+
+@media (max-width: 767px) {
+  .drag-handle-desktop { display: none !important; }
+}

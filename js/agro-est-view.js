@@ -7,6 +7,7 @@ const AgroEstView = {
   _lotes:     [],
   _ciclos:    {},   // loteId → array de ciclos
   _expanded:  {},   // loteId → bool
+  _sortable:  null,
 
   async render(estId) {
     const main = $('#main-content');
@@ -91,6 +92,7 @@ const AgroEstView = {
     html += `</div></div>`;
     main.innerHTML = html;
     this._bindEvents();
+    this._initSortable();
   },
 
   _renderLote(lote) {
@@ -99,11 +101,23 @@ const AgroEstView = {
     const isExp    = this._expanded[lote.id] === true;
 
     return `
-      <div class="gtree-campo" data-lote-id="${lote.id}">
+      <div class="gtree-campo" data-lote-id="${lote.id}"
+        data-orden="${lote.orden || 0}">
 
         <!-- Header del lote -->
         <div class="gtree-campo-header">
           <div class="gtree-campo-left">
+            <span class="drag-handle drag-handle-desktop"
+              title="Arrastrar para reordenar">
+              <svg width="12" height="16" viewBox="0 0 12 16" fill="none">
+                <circle cx="4" cy="3" r="1.5" fill="var(--text-muted)"/>
+                <circle cx="4" cy="8" r="1.5" fill="var(--text-muted)"/>
+                <circle cx="4" cy="13" r="1.5" fill="var(--text-muted)"/>
+                <circle cx="8" cy="3" r="1.5" fill="var(--text-muted)"/>
+                <circle cx="8" cy="8" r="1.5" fill="var(--text-muted)"/>
+                <circle cx="8" cy="13" r="1.5" fill="var(--text-muted)"/>
+              </svg>
+            </span>
             <button class="gtree-toggle" data-lote="${lote.id}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
@@ -449,6 +463,51 @@ const AgroEstView = {
     }, { once: true });
     m.querySelector('#ac-nombre').addEventListener('keydown',
       e => { if (e.key === 'Enter') m.querySelector('#ac-ok').click(); });
+  },
+
+  _initSortable() {
+    if (window.innerWidth < 768) return;
+    if (typeof Sortable === 'undefined') return;
+
+    if (this._sortable) {
+      this._sortable.destroy();
+      this._sortable = null;
+    }
+
+    const tree = document.getElementById('aest-tree');
+    if (!tree) return;
+
+    this._sortable = Sortable.create(tree, {
+      handle:     '.drag-handle-desktop',
+      animation:  150,
+      ghostClass: 'drag-ghost',
+      dragClass:  'drag-dragging',
+      draggable:  '.gtree-campo',
+      onEnd: async (evt) => {
+        if (evt.oldIndex === evt.newIndex) return;
+
+        const items = tree.querySelectorAll('.gtree-campo[data-lote-id]');
+        const nuevoOrden = Array.from(items).map((el, idx) => ({
+          id:    el.dataset.loteId,
+          orden: idx + 1,
+        }));
+
+        try {
+          await BBT.API.put(
+            `/api/agro/establecimientos/${this._estId}/lotes/orden`,
+            { orden: nuevoOrden }
+          );
+          nuevoOrden.forEach(({ id, orden }) => {
+            const lote = this._lotes.find(l => l.id === id);
+            if (lote) lote.orden = orden;
+          });
+          Toast.success('Orden guardado.');
+        } catch (err) {
+          Toast.error('Error al guardar el orden.');
+          await this.render(this._estId);
+        }
+      },
+    });
   },
 
   async _reordenarLote(id, direccion) {
