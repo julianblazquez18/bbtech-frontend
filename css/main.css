@@ -1761,3 +1761,52 @@ h5 { font-size: 1rem; }
 @media (max-width: 767px) {
   .drag-handle-desktop { display: none !important; }
 }
+
+/* ── Buscador caravana ganadero ─────────────────────── */
+.ganadero-buscador { margin: 0 0 20px 0; position: relative; }
+.ganadero-buscador-inner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; transition: border-color .15s;
+}
+.ganadero-buscador-inner:focus-within {
+  border-color: var(--green-400);
+  box-shadow: 0 0 0 3px var(--green-100);
+}
+.ganadero-buscador-input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-size: .9rem; color: var(--text-primary);
+}
+.ganadero-buscador-input::placeholder { color: var(--text-muted); }
+.ganadero-buscador-clear {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: .85rem; padding: 2px 6px; border-radius: 4px;
+}
+.ganadero-buscador-clear:hover { background: var(--surface-bg); color: var(--text-primary); }
+#ganadero-buscar-resultados {
+  margin-top: 6px; background: var(--surface-card);
+  border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.08);
+}
+.ganadero-buscar-empty { padding: 16px 20px; color: var(--text-muted); font-size: .85rem; }
+.ganadero-buscar-resultado {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.ganadero-buscar-resultado:last-child { border-bottom: none; }
+.ganadero-buscar-caravana {
+  font-weight: 700; font-size: .95rem; color: var(--text-primary); margin-bottom: 6px;
+}
+.ganadero-buscar-ubicaciones { display: flex; flex-direction: column; gap: 4px; }
+.ganadero-buscar-ubicacion {
+  display: flex; align-items: center; gap: 6px; padding: 7px 12px;
+  background: var(--surface-bg); border: 1px solid var(--border); border-radius: 7px;
+  cursor: pointer; font-size: .82rem; color: var(--text-secondary); text-align: left;
+  transition: background .12s, border-color .12s; width: 100%;
+}
+.ganadero-buscar-ubicacion:hover {
+  background: var(--green-50); border-color: var(--green-300); color: var(--text-primary);
+}
+.ganadero-buscar-ir {
+  margin-left: auto; color: var(--green-600); font-weight: 600; font-size: .78rem;
+}
+@media (max-width: 600px) { .ganadero-buscador { margin-bottom: 14px; } }

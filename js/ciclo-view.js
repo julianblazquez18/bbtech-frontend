@@ -116,7 +116,10 @@ const CicloView = {
               </div>
               <div class="form-group">
                 <label class="form-label">Observaciones</label>
-                <textarea class="input textarea" id="ciclo-obs" rows="2" placeholder="Notas generales...">${BBT.Security.sanitize(ciclo.obs || '')}</textarea>
+                <textarea class="input textarea" id="ciclo-obs"
+                  rows="2" style="resize:none;overflow:hidden;min-height:60px"
+                  placeholder="Notas generales..."
+                  >${BBT.Security.sanitize(ciclo.obs || '')}</textarea>
               </div>
             </div>
           </div>
@@ -433,7 +436,14 @@ const CicloView = {
     const loteEl = $('#ciclo-lote');
     if (loteEl) loteEl.addEventListener('change', () => { BBT.Ciclos.setLote(this.cicloId, loteEl.value); Toast.success('Lote actualizado.'); });
     const obsEl = $('#ciclo-obs');
-    if (obsEl) obsEl.addEventListener('input', debounce(() => BBT.Ciclos.setObs(this.cicloId, obsEl.value), 600));
+    if (obsEl) {
+      const autoExpand = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+      setTimeout(() => autoExpand(obsEl), 50);
+      obsEl.addEventListener('input', () => {
+        autoExpand(obsEl);
+        debounce(() => BBT.Ciclos.setObs(this.cicloId, obsEl.value), 600)();
+      });
+    }
 
     const si = $('#search-input'); if (si) si.addEventListener('input', debounce(() => this._renderTable(), 200));
     const fi = $('#filter-etapa'); if (fi) fi.addEventListener('change', () => this._renderTable());

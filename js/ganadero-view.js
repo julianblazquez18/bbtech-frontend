@@ -71,6 +71,23 @@ const GanaderoView = {
           <div class="empty-desc">Usá el botón "＋ Campo" para agregar el primer campo.</div>
         </div>`;
     } else {
+      html += `
+        <div class="ganadero-buscador" id="ganadero-buscador-wrap">
+          <div class="ganadero-buscador-inner">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              style="color:var(--text-muted);flex-shrink:0">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input class="ganadero-buscador-input" id="ganadero-buscar-caravana"
+              type="text" maxlength="30"
+              placeholder="Buscar por ID de caravana (mín. 5 caracteres)...">
+            <button class="ganadero-buscador-clear" id="ganadero-buscar-clear"
+              style="display:none" title="Limpiar">✕</button>
+          </div>
+          <div id="ganadero-buscar-resultados" style="display:none"></div>
+        </div>`;
       html += '<div class="ganadero-tree">';
       estancias.forEach(est => { html += this._renderCampo(est); });
       html += '</div>';
@@ -273,6 +290,89 @@ const GanaderoView = {
       if (btn.classList.contains('btn-delete-rodeo')) { await this._deleteRodeo(btn.dataset.estancia, btn.dataset.id); return; }
     };
     main.addEventListener('click', this._clickHandler);
+
+    // Buscador de caravana
+    const inputBuscar = document.getElementById('ganadero-buscar-caravana');
+    const clearBtn    = document.getElementById('ganadero-buscar-clear');
+    const resultados  = document.getElementById('ganadero-buscar-resultados');
+
+    if (inputBuscar) {
+      inputBuscar.addEventListener('input', () => {
+        const val = inputBuscar.value.trim();
+        clearBtn.style.display = val ? '' : 'none';
+        if (val.length < 5) {
+          resultados.style.display = 'none';
+          resultados.innerHTML = '';
+          return;
+        }
+        this._buscarCaravana(val, resultados).catch(() => {});
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        inputBuscar.value = '';
+        clearBtn.style.display = 'none';
+        resultados.style.display = 'none';
+        resultados.innerHTML = '';
+      });
+    }
+  },
+
+  /* ── Buscador caravana ────────────────────────────────── */
+
+  async _buscarCaravana(q, container) {
+    const esc = s => BBT.Security.sanitize(String(s||''));
+    container.style.display = '';
+    container.innerHTML = '<div class="ganadero-buscar-empty">Buscando...</div>';
+
+    try {
+      const resultados = await BBT.API.get(
+        `/api/vacas/buscar?q=${encodeURIComponent(q)}`
+      );
+
+      if (!resultados.length) {
+        container.innerHTML = `<div class="ganadero-buscar-empty">
+          Sin resultados para "${esc(q)}"
+        </div>`;
+        return;
+      }
+
+      // Agrupar por vacaId (puede estar en más de un ciclo si fue traspasada)
+      const porCaravana = {};
+      resultados.forEach(r => {
+        const cid = r.vacaId;
+        if (!porCaravana[cid]) porCaravana[cid] = [];
+        porCaravana[cid].push(r);
+      });
+
+      let html = '';
+      Object.entries(porCaravana).forEach(([caravana, ocurrencias]) => {
+        html += `<div class="ganadero-buscar-resultado">
+          <div class="ganadero-buscar-caravana">🐄 ${esc(caravana)}</div>
+          <div class="ganadero-buscar-ubicaciones">
+            ${ocurrencias.map(o => `
+              <button class="ganadero-buscar-ubicacion btn-ir-safra"
+                data-ciclo="${o.ciclo_id}">
+                ${esc(o.campo_nombre)} › ${esc(o.rodeo_nombre)} ›
+                <strong>${esc(o.ciclo_nombre)}</strong>
+                <span class="ganadero-buscar-ir">Ir →</span>
+              </button>`).join('')}
+          </div>
+        </div>`;
+      });
+
+      container.innerHTML = html;
+
+      container.querySelectorAll('.btn-ir-safra').forEach(btn => {
+        btn.addEventListener('click', () => App.navigateToCiclo(btn.dataset.ciclo));
+      });
+
+    } catch (err) {
+      container.innerHTML = `<div class="ganadero-buscar-empty">
+        Error al buscar. Intentá de nuevo.
+      </div>`;
+    }
   },
 
   /* ── Button helpers ───────────────────────────────────── */
