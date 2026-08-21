@@ -46,6 +46,12 @@ const DashboardView = {
       agroEsts = ests.length;
     } catch (e) {}
 
+    let servEsts = 0;
+    try {
+      const sests = await BBT.API.get('/api/serv/establecimientos');
+      servEsts = sests.length;
+    } catch (e) {}
+
     main.innerHTML = `
     <div class="dashboard-page">
 
@@ -99,6 +105,25 @@ const DashboardView = {
           <div class="module-cta">Ingresar →</div>
         </div>
 
+        <!-- Servicios — activo -->
+        <div class="module-card module-active" id="mod-serv">
+          <div class="module-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 11v6"/>
+              <path d="M20 14h6"/>
+            </svg>
+          </div>
+          <div class="module-title">Control Servicios</div>
+          <div class="module-stats">
+            <span>${servEsts} establecimiento${servEsts !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="module-cta">Ingresar →</div>
+        </div>
+
         <!-- Empleados — activo -->
         <div class="module-card module-active" id="mod-empleados">
           <div class="module-icon">
@@ -123,6 +148,7 @@ const DashboardView = {
 
     document.getElementById('mod-ganadero').addEventListener('click', () => App.navigateToGanadero());
     document.getElementById('mod-agro').addEventListener('click', () => App.navigateToAgro());
+    document.getElementById('mod-serv').addEventListener('click', () => App.navigateToServ());
     document.getElementById('mod-empleados').addEventListener('click', () => App.navigateToEmpleados());
 
     document.getElementById('dash-logout').addEventListener('click', async () => {

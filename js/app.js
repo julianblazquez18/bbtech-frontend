@@ -187,6 +187,34 @@ const App = {
     DashboardView.render();
   },
 
+  async navigateToServ() {
+    this.currentView    = 'serv';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#serv') window.location.hash = 'serv';
+    this._enterFullscreen();
+    await ServView.render();
+  },
+
+  async navigateToServEst(estId) {
+    this.currentView    = 'serv-est';
+    this.currentCicloId = null;
+    this._servEstId     = estId;
+    const hash = `serv-est/${estId}`;
+    if (window.location.hash !== '#' + hash) window.location.hash = hash;
+    this._enterFullscreen();
+    await ServEstView.render(estId);
+  },
+
+  async navigateToServCiclo(cicloId) {
+    this.currentView    = 'serv-ciclo';
+    this.currentCicloId = null;
+    this._servCicloId   = cicloId;
+    const hash = `serv-ciclo/${cicloId}`;
+    if (window.location.hash !== '#' + hash) window.location.hash = hash;
+    this._enterFullscreen();
+    await ServCicloView.render(cicloId);
+  },
+
   async navigateToAgro() {
     this.currentView    = 'agro';
     this.currentCicloId = null;
@@ -269,6 +297,15 @@ const App = {
       const cicloId = hash.split('/')[1];
       if (cicloId) { this.navigateToAgroCiclo(cicloId); return; }
     }
+    if (hash === 'serv')              { this.navigateToServ();           return; }
+    if (hash.startsWith('serv-est/')) {
+      const estId = hash.split('/')[1];
+      if (estId) { this.navigateToServEst(estId); return; }
+    }
+    if (hash.startsWith('serv-ciclo/')) {
+      const cicloId = hash.split('/')[1];
+      if (cicloId) { this.navigateToServCiclo(cicloId); return; }
+    }
     if (hash.startsWith('ciclo/')) {
       const cid = hash.split('/')[1];
       if (BBT.Ciclos.getById(cid)) { this.navigateToCiclo(cid); return; }
@@ -299,6 +336,16 @@ const App = {
         'agro-ciclo/' + (this._agroCicloId||'__'))) {
         const cicloId = hash.split('/')[1];
         if (cicloId) this.navigateToAgroCiclo(cicloId);
+      } else if (hash === 'serv' && this.currentView !== 'serv') {
+        this.navigateToServ();
+      } else if (hash.startsWith('serv-est/') && !hash.startsWith(
+        'serv-est/' + (this._servEstId||'__'))) {
+        const estId = hash.split('/')[1];
+        if (estId) this.navigateToServEst(estId);
+      } else if (hash.startsWith('serv-ciclo/') && !hash.startsWith(
+        'serv-ciclo/' + (this._servCicloId||'__'))) {
+        const cicloId = hash.split('/')[1];
+        if (cicloId) this.navigateToServCiclo(cicloId);
       } else if (hash === 'empleados-admin' && this.currentView !== 'empleados-admin') {
         this.navigateToEmpleadosAdmin();
       } else if (hash.startsWith('ciclo/')) {
