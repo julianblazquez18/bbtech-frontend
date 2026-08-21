@@ -14,7 +14,10 @@ const AgroCicloView = {
   _entidades: [],
   _cultivos:  [],
   _tiposCult:    [],
-  _asignaciones: [],
+  _asignaciones:    [],
+  _productosFert:   [],
+  _productosPulv:   [],
+  _pulverizaciones: [],
   _tabActivo: 'siembra',
 
   async render(cicloId) {
@@ -27,7 +30,7 @@ const AgroCicloView = {
 
     try {
       const [registros, cosechas, silos, bolsas, camiones, entidades, ests,
-             cultivos, tipos, asignaciones] =
+             cultivos, tipos, asignaciones, productosFert, productosPulv, pulverizaciones] =
         await Promise.all([
           BBT.API.get(`/api/agro/ciclos/${cicloId}/registros`),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/cosechas`),
@@ -39,16 +42,22 @@ const AgroCicloView = {
           BBT.API.get('/api/agro/cultivos').catch(() => []),
           BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/asignaciones`).catch(() => []),
+          BBT.API.get('/api/agro/productos-fert').catch(() => []),
+          BBT.API.get('/api/agro/productos-pulv').catch(() => []),
+          BBT.API.get(`/api/agro/ciclos/${cicloId}/pulverizaciones`).catch(() => []),
         ]);
-      this._registros    = registros;
-      this._cosechas     = cosechas;
-      this._silos        = silos;
-      this._bolsas       = bolsas;
-      this._camiones     = camiones;
-      this._entidades    = entidades;
-      this._cultivos     = cultivos;
-      this._tiposCult    = tipos;
-      this._asignaciones = asignaciones;
+      this._registros       = registros;
+      this._cosechas        = cosechas;
+      this._silos           = silos;
+      this._bolsas          = bolsas;
+      this._camiones        = camiones;
+      this._entidades       = entidades;
+      this._cultivos        = cultivos;
+      this._tiposCult       = tipos;
+      this._asignaciones    = asignaciones;
+      this._productosFert   = productosFert;
+      this._productosPulv   = productosPulv;
+      this._pulverizaciones = pulverizaciones;
 
       // Buscar el ciclo recorriendo establecimientos → lotes → ciclos
       this._ciclo = null;
@@ -242,12 +251,10 @@ const AgroCicloView = {
         </div>`}`;
     }
 
-    if (tab === 'fertilizacion' || tab === 'pulverizacion') {
-      const rows   = this._registros.filter(r => r.tipo === tab);
-      const totHa  = rows.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
-      const totKg  = rows.reduce((s, r) => s + parseFloat(r.cantidad_kg||0), 0);
-      const label  = tab === 'fertilizacion' ? 'Fertilización' : 'Pulverización';
-      const isPulv = tab === 'pulverizacion';
+    if (tab === 'fertilizacion') {
+      const rows  = this._registros.filter(r => r.tipo === 'fertilizacion');
+      const totHa = rows.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
+      const totKg = rows.reduce((s, r) => s + parseFloat(r.cantidad_kg||0), 0);
       return `
         <div class="agro-tab-header">${addBtn}</div>
         ${rows.length ? `
@@ -256,7 +263,7 @@ const AgroCicloView = {
             <thead><tr>
               <th>Fecha</th><th>Producto</th>
               <th style="text-align:right">Hectáreas</th>
-              <th style="text-align:right">Cantidad ${isPulv ? '(litros)' : '(kg)'}</th>
+              <th style="text-align:right">Cantidad (kg)</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
@@ -264,13 +271,11 @@ const AgroCicloView = {
                 <td>${fmt(r.fecha)}</td>
                 <td>${esc(r.producto||'—')}</td>
                 <td style="text-align:right">${fmtNum(r.hectareas)}</td>
-                <td style="text-align:right">
-                  ${fmtNum(r.cantidad_kg)}${isPulv ? ' L' : ' kg'}
-                </td>
+                <td style="text-align:right">${fmtNum(r.cantidad_kg)} kg</td>
                 ${!cerrado ? `<td>
                   <div style="display:flex;gap:4px">
                     <button class="gtree-btn-icon btn-edit-reg"
-                      data-id="${r.id}" data-tipo="${tab}">
+                      data-id="${r.id}" data-tipo="fertilizacion">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -292,15 +297,101 @@ const AgroCicloView = {
             <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
               <td colspan="2">Total</td>
               <td style="text-align:right">${fmtNum(totHa)} ha</td>
-              <td style="text-align:right">
-                ${fmtNum(totKg)}${isPulv ? ' L' : ' kg'}
-              </td>
+              <td style="text-align:right">${fmtNum(totKg)} kg</td>
               ${!cerrado ? '<td></td>' : ''}
             </tr></tfoot>
           </table>
         </div>` : `<div class="empty-state" style="padding:40px">
           <div class="empty-icon">🧪</div>
-          <div class="empty-title">Sin registros de ${label.toLowerCase()}</div>
+          <div class="empty-title">Sin fertilizaciones registradas</div>
+        </div>`}`;
+    }
+
+    if (tab === 'pulverizacion') {
+      const grupos   = this._pulverizaciones || [];
+      const totHa    = grupos.reduce((s, g) => s + parseFloat(g.hectareas||0), 0);
+      const totPulvL = grupos.reduce((s, g) =>
+        s + (g.productos||[]).reduce((sp, p) => sp + parseFloat(p.litros||0), 0), 0);
+      const esc2     = s => BBT.Security.sanitize(String(s||''));
+      return `
+        <div class="agro-tab-header">${addBtn}</div>
+        ${grupos.length ? `
+        <div class="agro-table-wrap">
+          <table class="agro-cam-table">
+            <thead><tr>
+              <th>Fecha</th>
+              <th style="text-align:right">Hectáreas</th>
+              <th>Producto</th>
+              <th style="text-align:right">Litros</th>
+              ${!cerrado ? '<th></th>' : ''}
+            </tr></thead>
+            <tbody>
+              ${grupos.map(g => {
+                const prods = g.productos || [];
+                if (!prods.length) {
+                  return `<tr>
+                    <td>${fmt(g.fecha)}</td>
+                    <td style="text-align:right">${fmtNum(g.hectareas)} ha</td>
+                    <td>—</td><td>—</td>
+                    ${!cerrado ? `<td>
+                      <div style="display:flex;gap:4px">
+                        <button class="gtree-btn-icon btn-edit-pulv" data-grupo-id="${g.id}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button class="gtree-btn-icon gtree-btn-danger btn-del-pulv" data-grupo-id="${g.id}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>` : ''}
+                  </tr>`;
+                }
+                return prods.map((p, idx) => `<tr>
+                  ${idx === 0
+                    ? `<td rowspan="${prods.length}">${fmt(g.fecha)}</td>
+                       <td rowspan="${prods.length}" style="text-align:right">${fmtNum(g.hectareas)} ha</td>`
+                    : ''}
+                  <td>${esc2(p.producto||'—')}</td>
+                  <td style="text-align:right">${fmtNum(p.litros)} L</td>
+                  ${!cerrado && idx === 0 ? `<td rowspan="${prods.length}" style="vertical-align:middle">
+                    <div style="display:flex;gap:4px">
+                      <button class="gtree-btn-icon btn-edit-pulv" data-grupo-id="${g.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button class="gtree-btn-icon gtree-btn-danger btn-del-pulv" data-grupo-id="${g.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>` : ''}
+                </tr>`).join('');
+              }).join('')}
+            </tbody>
+            <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
+              <td>Total</td>
+              <td style="text-align:right">${fmtNum(totHa)} ha</td>
+              <td></td>
+              <td style="text-align:right">${fmtNum(totPulvL)} L</td>
+              ${!cerrado ? '<td></td>' : ''}
+            </tr></tfoot>
+          </table>
+        </div>` : `<div class="empty-state" style="padding:40px">
+          <div class="empty-icon">💧</div>
+          <div class="empty-title">Sin pulverizaciones registradas</div>
         </div>`}`;
     }
 
@@ -477,7 +568,7 @@ const AgroCicloView = {
           } catch (err) {
             Toast.error(err.message || 'Error al eliminar.');
           }
-        }, { once: true });
+        });
 
       document.getElementById('aciclo-save-notas')
         ?.addEventListener('click', async () => {
@@ -504,11 +595,11 @@ const AgroCicloView = {
 
     document.getElementById('aciclo-add-reg')
       ?.addEventListener('click', () => {
-        if (this._tabActivo === 'siembra')         this._modalSiembra();
+        if (this._tabActivo === 'siembra')            this._modalSiembra();
         else if (this._tabActivo === 'fertilizacion') this._modalFertPulv('fertilizacion');
         else if (this._tabActivo === 'pulverizacion') this._modalFertPulv('pulverizacion');
         else if (this._tabActivo === 'cosecha')       this._modalCosecha();
-      }, { once: true });
+      });
 
     document.querySelectorAll('.btn-edit-reg').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -518,9 +609,30 @@ const AgroCicloView = {
           this._modalSiembra(reg);
         else if (btn.dataset.tipo === 'fertilizacion')
           this._modalFertPulv('fertilizacion', reg);
-        else if (btn.dataset.tipo === 'pulverizacion')
-          this._modalFertPulv('pulverizacion', reg);
       });
+    });
+
+    document.querySelectorAll('.btn-edit-pulv').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const grupo = (this._pulverizaciones||[]).find(g => g.id === btn.dataset.grupoId);
+        if (grupo) this._modalPulverizacion(grupo);
+      });
+    });
+
+    document.querySelectorAll('.btn-del-pulv').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ok = await Modal.confirm(
+          'Eliminar pulverización',
+          '¿Eliminar este registro de pulverización? No se puede deshacer.',
+          'Eliminar', 'danger'
+        );
+        if (!ok) return;
+        try {
+          await BBT.API.del(`/api/agro/pulverizaciones/${btn.dataset.grupoId}`);
+          Toast.success('Pulverización eliminada.');
+          await this.render(this._cicloId);
+        } catch (err) { Toast.error(err.message || 'Error.'); }
+      }, { once: true });
     });
 
     document.querySelectorAll('.btn-edit-cosecha').forEach(btn => {
@@ -729,55 +841,63 @@ const AgroCicloView = {
   },
 
   _modalFertPulv(tipo, reg = null) {
-    const isEdit = reg !== null;
-    const label  = tipo === 'fertilizacion' ? 'Fertilización' : 'Pulverización';
-    const esc    = s => BBT.Security.sanitize(String(s||''));
-    const fechaVal   = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
-    const prodVal    = isEdit ? esc(reg.producto||'') : '';
-    const haVal      = isEdit ? (reg.hectareas||'') : '';
-    const cantVal    = isEdit ? (reg.cantidad_kg||'') : '';
+    if (tipo === 'pulverizacion') { this._modalPulverizacion(reg); return; }
+
+    // FERTILIZACIÓN: selector del catálogo
+    const isEdit  = reg !== null;
+    const esc     = s => BBT.Security.sanitize(String(s||''));
+    const fechaVal = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
+    const haVal    = isEdit ? (reg.hectareas||'') : '';
+
+    const prodOpts = this._productosFert.map(p =>
+      `<option value="${esc(p.nombre)}"
+        ${(isEdit ? reg.producto : '') === p.nombre ? 'selected' : ''}>
+        ${esc(p.nombre)}
+      </option>`
+    ).join('');
 
     const m = Modal.show({
-      title: isEdit ? `Editar ${label.toLowerCase()}` : `Agregar ${label.toLowerCase()}`,
+      title: isEdit ? 'Editar fertilización' : 'Agregar fertilización',
       body: `
         <div class="flex flex-col gap-4">
           <div class="form-group">
             <label class="form-label">Fecha *</label>
-            <input class="input" type="date" id="mfp-fecha" value="${fechaVal}">
+            <input class="input" type="date" id="mf-fecha" value="${fechaVal}">
           </div>
           <div class="form-group">
             <label class="form-label">Producto *</label>
-            <input class="input" id="mfp-producto" maxlength="100"
-              value="${prodVal}"
-              placeholder="Ej: Urea, Glifosato, 2-4D...">
+            <select class="select" id="mf-producto">
+              <option value="">— Seleccionar —</option>
+              ${prodOpts}
+            </select>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-group">
               <label class="form-label">Hectáreas${this._lote?.hectareas
-                ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
-                : ''}</label>
-              <input class="input" type="number" id="mfp-ha"
-                min="0" step="0.1" placeholder="0" value="${haVal}">
+                ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">
+                    (lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)
+                  </span>` : ''}</label>
+              <input class="input" type="number" id="mf-ha"
+                min="0" step="0.1" value="${haVal}">
             </div>
             <div class="form-group">
-              <label class="form-label">Cantidad (${tipo === 'pulverizacion' ? 'litros' : 'kg'})</label>
-              <input class="input" type="number" id="mfp-kg"
-                min="0" step="0.1" placeholder="0" value="${cantVal}">
+              <label class="form-label">Cantidad (kg)</label>
+              <input class="input" type="number" id="mf-kg"
+                min="0" step="0.1" value="${isEdit ? reg.cantidad_kg||'' : ''}">
             </div>
           </div>
         </div>`,
-      footer: `<button class="btn btn-secondary" id="mfp-cancel">Cancelar</button>
-               <button class="btn btn-primary" id="mfp-ok">
+      footer: `<button class="btn btn-secondary" id="mf-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="mf-ok">
                  ${isEdit ? 'Actualizar' : 'Guardar'}
                </button>`
     });
-    setTimeout(() => m.querySelector('#mfp-producto').focus(), 50);
-    m.querySelector('#mfp-cancel').addEventListener('click',
+    m.querySelector('#mf-cancel').addEventListener('click',
       () => Modal.close(m), { once: true });
-    m.querySelector('#mfp-ok').addEventListener('click', async () => {
-      const btn      = m.querySelector('#mfp-ok');
-      const fecha    = m.querySelector('#mfp-fecha').value;
-      const producto = m.querySelector('#mfp-producto').value.trim();
+    m.querySelector('#mf-ok').addEventListener('click', async () => {
+      const btn     = m.querySelector('#mf-ok');
+      const fecha   = m.querySelector('#mf-fecha').value;
+      const producto = m.querySelector('#mf-producto').value;
       if (!fecha || !producto) {
         Toast.error('Fecha y producto son requeridos.'); return;
       }
@@ -787,17 +907,136 @@ const AgroCicloView = {
         if (isEdit) {
           await BBT.API.put(`/api/agro/registros/${reg.id}`, {
             fecha, producto,
-            hectareas:   m.querySelector('#mfp-ha').value || null,
-            cantidad_kg: m.querySelector('#mfp-kg').value || null,
+            hectareas:   m.querySelector('#mf-ha').value || null,
+            cantidad_kg: m.querySelector('#mf-kg').value || null,
           });
-          Toast.success(`${label} actualizada.`);
         } else {
           await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/registros`, {
-            tipo, fecha, producto,
-            hectareas:   m.querySelector('#mfp-ha').value || null,
-            cantidad_kg: m.querySelector('#mfp-kg').value || null,
+            tipo: 'fertilizacion', fecha, producto,
+            hectareas:   m.querySelector('#mf-ha').value || null,
+            cantidad_kg: m.querySelector('#mf-kg').value || null,
           });
-          Toast.success(`${label} registrada.`);
+        }
+        Modal.close(m);
+        Toast.success(isEdit ? 'Fertilización actualizada.' : 'Fertilización registrada.');
+        await this.render(this._cicloId);
+      } catch (err) {
+        Toast.error(err.message || 'Error.');
+        btn.disabled = false;
+        btn.textContent = isEdit ? 'Actualizar' : 'Guardar';
+      }
+    }, { once: true });
+  },
+
+  _modalPulverizacion(grupo = null) {
+    const isEdit   = grupo !== null;
+    const esc      = s => BBT.Security.sanitize(String(s||''));
+    const fechaVal = isEdit
+      ? String(grupo.fecha||'').slice(0,10)
+      : new Date().toISOString().slice(0,10);
+
+    const productosIniciales = isEdit && grupo.productos?.length
+      ? grupo.productos
+      : [{ producto: '', litros: '' }];
+
+    const renderFilaProd = (p, idx) => `
+      <div class="pulv-prod-row" data-idx="${idx}"
+        style="display:grid;grid-template-columns:1fr 140px 32px;gap:8px;align-items:center;margin-bottom:8px">
+        <select class="select pulv-prod-select">
+          <option value="">— Producto —</option>
+          ${this._productosPulv.map(op =>
+            `<option value="${esc(op.nombre)}"
+              ${p.producto === op.nombre ? 'selected' : ''}>${esc(op.nombre)}</option>`
+          ).join('')}
+        </select>
+        <input class="input pulv-litros-input" type="number"
+          min="0" step="0.1" placeholder="Litros" value="${p.litros||''}">
+        <button class="gtree-btn-icon gtree-btn-danger pulv-del-row" type="button" title="Quitar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`;
+
+    const m = Modal.show({
+      title: isEdit ? 'Editar pulverización' : 'Agregar pulverización',
+      body: `
+        <div class="flex flex-col gap-4">
+          <div class="form-group">
+            <label class="form-label">Fecha *</label>
+            <input class="input" type="date" id="mp-fecha" value="${fechaVal}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hectáreas *${this._lote?.hectareas
+              ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">
+                  (lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)
+                </span>` : ''}</label>
+            <input class="input" type="number" id="mp-ha"
+              min="0" step="0.1" value="${isEdit ? grupo.hectareas||'' : ''}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Productos</label>
+            <div id="mp-productos-list">
+              ${productosIniciales.map((p, i) => renderFilaProd(p, i)).join('')}
+            </div>
+            <button class="btn btn-secondary btn-sm" id="mp-add-prod" type="button" style="margin-top:6px">
+              ＋ Agregar producto
+            </button>
+          </div>
+        </div>`,
+      footer: `<button class="btn btn-secondary" id="mp-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="mp-ok">
+                 ${isEdit ? 'Actualizar' : 'Guardar'}
+               </button>`
+    });
+
+    setTimeout(() => {
+      const list = m.querySelector('#mp-productos-list');
+      const bindDel = (row) => {
+        row.querySelector('.pulv-del-row')?.addEventListener('click', function() {
+          if (list.querySelectorAll('.pulv-prod-row').length > 1) {
+            this.closest('.pulv-prod-row').remove();
+          } else { Toast.error('Debe haber al menos un producto.'); }
+        });
+      };
+      list.querySelectorAll('.pulv-prod-row').forEach(bindDel);
+      m.querySelector('#mp-add-prod')?.addEventListener('click', () => {
+        const idx = list.querySelectorAll('.pulv-prod-row').length;
+        const div = document.createElement('div');
+        div.innerHTML = renderFilaProd({ producto: '', litros: '' }, idx);
+        const row = div.firstElementChild;
+        list.appendChild(row);
+        bindDel(row);
+      });
+    }, 50);
+
+    m.querySelector('#mp-cancel').addEventListener('click',
+      () => Modal.close(m), { once: true });
+
+    m.querySelector('#mp-ok').addEventListener('click', async () => {
+      const btn   = m.querySelector('#mp-ok');
+      const fecha = m.querySelector('#mp-fecha').value;
+      const ha    = m.querySelector('#mp-ha').value;
+      if (!fecha) { Toast.error('Fecha requerida.'); return; }
+      const productos = [];
+      m.querySelectorAll('.pulv-prod-row').forEach(row => {
+        const prod   = row.querySelector('.pulv-prod-select').value;
+        const litros = row.querySelector('.pulv-litros-input').value;
+        if (prod) productos.push({ producto: prod, litros: litros || null });
+      });
+      if (!productos.length) { Toast.error('Agregá al menos un producto.'); return; }
+      btn.disabled = true;
+      btn.textContent = isEdit ? 'Actualizando...' : 'Guardando...';
+      try {
+        if (isEdit) {
+          await BBT.API.put(`/api/agro/pulverizaciones/${grupo.id}`,
+            { fecha, hectareas: ha || null, productos });
+          Toast.success('Pulverización actualizada.');
+        } else {
+          await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/pulverizaciones`,
+            { fecha, hectareas: ha || null, productos });
+          Toast.success('Pulverización registrada.');
         }
         Modal.close(m);
         await this.render(this._cicloId);
@@ -1186,15 +1425,16 @@ const AgroCicloView = {
 
     const siembras = this._registros.filter(r => r.tipo === 'siembra');
     const ferts    = this._registros.filter(r => r.tipo === 'fertilizacion');
-    const pulvs    = this._registros.filter(r => r.tipo === 'pulverizacion');
+    const pulvs    = this._pulverizaciones || [];
     const cosechas = this._cosechas;
 
     const totSiemHa = siembras.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
     const totSiemKg = siembras.reduce((s,r) => s+parseFloat(r.toneladas||0),0);
     const totFertHa = ferts.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
     const totFertKg = ferts.reduce((s,r) => s+parseFloat(r.cantidad_kg||0),0);
-    const totPulvHa = pulvs.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
-    const totPulvL  = pulvs.reduce((s,r) => s+parseFloat(r.cantidad_kg||0),0);
+    const totPulvHa = pulvs.reduce((s,g) => s+parseFloat(g.hectareas||0),0);
+    const totPulvL  = pulvs.reduce((s,g) =>
+      s+(g.productos||[]).reduce((sp,p) => sp+parseFloat(p.litros||0),0),0);
     const totCosHa  = cosechas.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
     const totCosKg  = cosechas.reduce((s,r) => s+parseFloat(r.toneladas||0),0);
 
@@ -1295,18 +1535,26 @@ const AgroCicloView = {
       )}
 
       ${seccion('💧 Pulverización',
-        `<tr><th>Fecha</th><th>Producto</th>
+        `<tr><th>Fecha</th>
          <th style="text-align:right">Hectáreas</th>
+         <th>Producto</th>
          <th style="text-align:right">Litros</th></tr>`,
-        pulvs.map(r => `<tr>
-          <td>${fmtFecha(r.fecha)}</td>
-          <td>${esc(r.producto||'—')}</td>
-          <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-          <td style="text-align:right">${fmtNum(r.cantidad_kg)} L</td>
-        </tr>`).join(''),
+        pulvs.map(g => (g.productos||[{ producto:'—', litros:null }]).map((p,i) => `
+          <tr>
+            ${i===0
+              ? `<td rowspan="${(g.productos||[{}]).length}">${fmtFecha(g.fecha)}</td>
+                 <td rowspan="${(g.productos||[{}]).length}" style="text-align:right">
+                   ${fmtNum(g.hectareas)} ha
+                 </td>`
+              : ''}
+            <td>${esc(p.producto||'—')}</td>
+            <td style="text-align:right">${fmtNum(p.litros)} L</td>
+          </tr>`).join('')
+        ).join(''),
         pulvs.length ? `<tr>
-          <td colspan="2">Total</td>
+          <td>Total</td>
           <td style="text-align:right">${fmtNum(totPulvHa)} ha</td>
+          <td></td>
           <td style="text-align:right">${fmtNum(totPulvL)} L</td>
         </tr>` : ''
       )}

@@ -7,6 +7,8 @@ const AgroAdmin = {
   _entidades: [],
   _cultivos:  [],
   _tipos:     [],
+  _prodsFert: [],
+  _prodsPulv: [],
   _fromAgro:  false,
 
   async render(fromAgro) {
@@ -16,18 +18,23 @@ const AgroAdmin = {
     App._enterFullscreen();
 
     try {
-      const [silos, camiones, entidades, cultivos, tipos] = await Promise.all([
+      const [silos, camiones, entidades, cultivos, tipos,
+             prodsFert, prodsPulv] = await Promise.all([
         BBT.API.get('/api/agro/silos/resumen'),
         BBT.API.get('/api/agro/camiones'),
         BBT.API.get('/api/agro/entidades'),
         BBT.API.get('/api/agro/cultivos').catch(() => []),
         BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
+        BBT.API.get('/api/agro/productos-fert').catch(() => []),
+        BBT.API.get('/api/agro/productos-pulv').catch(() => []),
       ]);
       this._silos     = silos;
       this._camiones  = camiones;
       this._entidades = entidades;
       this._cultivos  = cultivos;
       this._tipos     = tipos;
+      this._prodsFert = prodsFert;
+      this._prodsPulv = prodsPulv;
     } catch (err) {
       Toast.error('Error cargando datos.');
       return;
@@ -140,6 +147,34 @@ const AgroAdmin = {
               </button>
             </div>
             <div class="card-body" style="padding:0" id="tipos-list">
+              Cargando...
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-header">
+              <h4 style="font-family:var(--font-display);font-weight:700">
+                🧪 Productos Fertilización
+              </h4>
+              <button class="btn btn-primary btn-sm" id="btn-add-prod-fert">
+                ＋ Agregar
+              </button>
+            </div>
+            <div class="card-body" style="padding:0" id="prod-fert-list">
+              Cargando...
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-header">
+              <h4 style="font-family:var(--font-display);font-weight:700">
+                💧 Productos Pulverización
+              </h4>
+              <button class="btn btn-primary btn-sm" id="btn-add-prod-pulv">
+                ＋ Agregar
+              </button>
+            </div>
+            <div class="card-body" style="padding:0" id="prod-pulv-list">
               Cargando...
             </div>
           </div>
@@ -727,9 +762,27 @@ const AgroAdmin = {
   },
 
   async _addSimple(tipo) {
-    const label  = tipo === 'cultivo' ? 'cultivo' : 'tipo de cultivo';
-    const labelC = tipo === 'cultivo' ? 'Cultivo' : 'Tipo';
-    const url    = tipo === 'cultivo' ? '/api/agro/cultivos' : '/api/agro/tipos-cultivo';
+    const labelMap = {
+      'cultivo':   'cultivo',
+      'tipo':      'tipo de cultivo',
+      'prod-fert': 'producto de fertilización',
+      'prod-pulv': 'producto de pulverización',
+    };
+    const labelCMap = {
+      'cultivo':   'Cultivo',
+      'tipo':      'Tipo',
+      'prod-fert': 'Producto fert.',
+      'prod-pulv': 'Producto pulv.',
+    };
+    const urlMap = {
+      'cultivo':   '/api/agro/cultivos',
+      'tipo':      '/api/agro/tipos-cultivo',
+      'prod-fert': '/api/agro/productos-fert',
+      'prod-pulv': '/api/agro/productos-pulv',
+    };
+    const label  = labelMap[tipo]  || tipo;
+    const labelC = labelCMap[tipo] || tipo;
+    const url    = urlMap[tipo]    || '/api/agro/cultivos';
     const m = Modal.show({
       title: `Agregar ${label}`,
       body: `<div class="form-group">
@@ -785,14 +838,31 @@ const AgroAdmin = {
       ?.addEventListener('click', () => this._addSimple('cultivo'));
     document.getElementById('btn-add-tipo-cult')
       ?.addEventListener('click', () => this._addSimple('tipo'));
-    ['cultivos-list', 'tipos-list'].forEach(listId => {
+    document.getElementById('btn-add-prod-fert')
+      ?.addEventListener('click', () => this._addSimple('prod-fert'));
+    document.getElementById('btn-add-prod-pulv')
+      ?.addEventListener('click', () => this._addSimple('prod-pulv'));
+
+    document.getElementById('prod-fert-list').innerHTML =
+      this._renderSimpleList(
+        this._prodsFert.map(p => ({...p, _tipo:'prod-fert'})), 'Sin productos');
+    document.getElementById('prod-pulv-list').innerHTML =
+      this._renderSimpleList(
+        this._prodsPulv.map(p => ({...p, _tipo:'prod-pulv'})), 'Sin productos');
+
+    ['cultivos-list', 'tipos-list', 'prod-fert-list', 'prod-pulv-list'].forEach(listId => {
       document.getElementById(listId)?.addEventListener('click', async e => {
         const btn = e.target.closest('.btn-del-item');
         if (!btn) return;
         const tipo = btn.dataset.tipo;
-        const url  = tipo === 'cultivo'
-          ? `/api/agro/cultivos/${btn.dataset.id}`
-          : `/api/agro/tipos-cultivo/${btn.dataset.id}`;
+        const urlMap = {
+          'cultivo':   `/api/agro/cultivos/${btn.dataset.id}`,
+          'tipo':      `/api/agro/tipos-cultivo/${btn.dataset.id}`,
+          'prod-fert': `/api/agro/productos-fert/${btn.dataset.id}`,
+          'prod-pulv': `/api/agro/productos-pulv/${btn.dataset.id}`,
+        };
+        const url = urlMap[tipo];
+        if (!url) return;
         const ok = await Modal.confirm('Eliminar', '¿Eliminar?', 'Eliminar', 'danger');
         if (!ok) return;
         try {
