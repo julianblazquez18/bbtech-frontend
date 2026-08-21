@@ -309,13 +309,16 @@ const AgroCicloView = {
 
     if (tab === 'pulverizacion') {
       const grupos   = this._pulverizaciones || [];
-      const totHa    = grupos.reduce((s, g) => s + parseFloat(g.hectareas||0), 0);
+      const viejos   = this._registros.filter(r => r.tipo === 'pulverizacion');
+      const totHa    = grupos.reduce((s, g) => s + parseFloat(g.hectareas||0), 0)
+                     + viejos.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
       const totPulvL = grupos.reduce((s, g) =>
-        s + (g.productos||[]).reduce((sp, p) => sp + parseFloat(p.litros||0), 0), 0);
+        s + (g.productos||[]).reduce((sp, p) => sp + parseFloat(p.litros||0), 0), 0)
+        + viejos.reduce((s, r) => s + parseFloat(r.cantidad_kg||0), 0);
       const esc2     = s => BBT.Security.sanitize(String(s||''));
       return `
         <div class="agro-tab-header">${addBtn}</div>
-        ${grupos.length ? `
+        ${(grupos.length || viejos.length) ? `
         <div class="agro-table-wrap">
           <table class="agro-cam-table">
             <thead><tr>
@@ -326,6 +329,26 @@ const AgroCicloView = {
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
+              ${viejos.map(r => `<tr>
+                <td>${fmt(r.fecha)}</td>
+                <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+                <td>${esc2(r.producto||'—')}
+                  <span style="font-size:.7rem;color:var(--text-muted);margin-left:4px">
+                    (registro anterior)
+                  </span>
+                </td>
+                <td style="text-align:right">${fmtNum(r.cantidad_kg)} L</td>
+                ${!cerrado ? `<td>
+                  <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
+                    data-id="${r.id}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                  </button>
+                </td>` : ''}
+              </tr>`).join('')}
               ${grupos.map(g => {
                 const prods = g.productos || [];
                 if (!prods.length) {
