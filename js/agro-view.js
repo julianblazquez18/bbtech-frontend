@@ -137,7 +137,7 @@ const AgroView = {
         </section>
 
         <!-- ── SECCIÓN 4: CAMIONES ── -->
-        <section class="agro-section" style="padding-bottom:60px">
+        <section class="agro-section" id="agro-seccion-camiones" style="padding-bottom:60px">
           <div class="agro-section-header">
             <h2 class="agro-section-title">Camiones</h2>
             <button class="btn btn-secondary btn-sm" id="btn-reporte-camiones">
@@ -643,36 +643,43 @@ const AgroView = {
   },
 
   _refreshCamionesDOM() {
-    const secCam = document.querySelector(
-      '.agro-section:last-child .agro-camiones-table-wrap, ' +
-      '.agro-section:last-child .empty-state'
-    );
-    if (secCam) {
-      const tmp = document.createElement('div');
-      tmp.innerHTML = this._renderCamiones();
-      secCam.replaceWith(tmp.firstElementChild);
-      document.querySelectorAll('.btn-edit-mov').forEach(btn => {
-        btn.addEventListener('click', e => {
-          e.stopPropagation();
-          this._modalEditarMovimiento(btn.dataset);
-        });
-      });
-      document.querySelectorAll('.btn-del-mov').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const ok = await Modal.confirm(
-            'Eliminar registro',
-            '¿Eliminar este movimiento? Solo se elimina el registro, no impacta otros datos.',
-            'Eliminar', 'danger'
-          );
-          if (!ok) return;
-          try {
-            await BBT.API.del(`/api/agro/movimientos-camion/${btn.dataset.movId}`);
-            Toast.success('Registro eliminado.');
-            await this.render();
-          } catch (err) { Toast.error(err.message || 'Error.'); }
-        });
-      });
+    const secCam = document.getElementById('agro-seccion-camiones');
+    if (!secCam) {
+      this._renderPantalla();
+      this._bindEvents();
+      return;
     }
+    const contenido = secCam.querySelector(
+      '.agro-camiones-table-wrap, .empty-state'
+    );
+    const tmp = document.createElement('div');
+    tmp.innerHTML = this._renderCamiones();
+    if (contenido) {
+      contenido.replaceWith(tmp.firstElementChild);
+    } else {
+      secCam.appendChild(tmp.firstElementChild);
+    }
+    secCam.querySelectorAll('.btn-edit-mov').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        this._modalEditarMovimiento(btn.dataset);
+      });
+    });
+    secCam.querySelectorAll('.btn-del-mov').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ok = await Modal.confirm(
+          'Eliminar registro',
+          '¿Eliminar este movimiento? Solo se elimina el registro, no impacta otros datos.',
+          'Eliminar', 'danger'
+        );
+        if (!ok) return;
+        try {
+          await BBT.API.del(`/api/agro/movimientos-camion/${btn.dataset.movId}`);
+          Toast.success('Registro eliminado.');
+          await this.render();
+        } catch (err) { Toast.error(err.message || 'Error.'); }
+      });
+    });
   },
 
   async _addEstablecimiento() {
