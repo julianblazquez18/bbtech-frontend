@@ -898,11 +898,19 @@ const AgroAdmin = {
           </div>
           <div class="form-group">
             <label class="form-label">Cambiar cultivo</label>
-            <select class="select" id="aj-cultivo">
+            <select class="select" id="aj-cultivo"
+              ${parseFloat(s.toneladas_actuales||0) > 0 ? 'disabled' : ''}>
               <option value="">— Sin cambio —</option>
               <option value="__vaciar__">🗑 Vaciar cultivo (dejar vacío)</option>
               ${cultOpts}
             </select>
+            ${parseFloat(s.toneladas_actuales||0) > 0 ? `
+            <div style="font-size:.75rem;color:var(--orange-600);
+              margin-top:4px;padding:6px 10px;background:var(--orange-50);
+              border-radius:6px">
+              ⚠ Para cambiar el cultivo primero vaciá el silo
+              (${parseFloat(s.toneladas_actuales||0).toLocaleString('es-AR')} kg actuales)
+            </div>` : ''}
           </div>
           <div class="form-group">
             <label class="form-label">Ajuste de kilos</label>

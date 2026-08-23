@@ -6,13 +6,15 @@
 
 const AgroView = {
 
-  _establecimientos: [],
-  _silos:            [],
-  _bolsas:           [],
-  _movimientos:      [],
-  _camiones:         [],
-  _cultivos:         [],
-  _mesOffset:        0,
+  _establecimientos:  [],
+  _silos:             [],
+  _bolsas:            [],
+  _movimientos:       [],
+  _camiones:          [],
+  _cultivos:          [],
+  _tiposCult:         [],
+  _mesOffset:         0,
+  _historialPendiente: false,
 
   async render() {
     const main = $('#main-content');
@@ -21,24 +23,27 @@ const AgroView = {
     App._enterFullscreen();
 
     try {
-      const [ests, silos, bolsas, cams, cultivos] = await Promise.all([
+      const [ests, silos, bolsas, cams, cultivos, tiposCult] = await Promise.all([
         BBT.API.get('/api/agro/establecimientos'),
         BBT.API.get('/api/agro/silos/resumen'),
         BBT.API.get('/api/agro/bolsas/por-establecimiento'),
         BBT.API.get('/api/agro/camiones'),
         BBT.API.get('/api/agro/cultivos').catch(() => []),
+        BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
       ]);
       this._establecimientos = ests;
       this._silos            = silos;
       this._bolsas           = bolsas;
       this._camiones         = cams;
       this._cultivos         = cultivos;
+      this._tiposCult        = tiposCult;
     } catch (err) {
       main.innerHTML = '<div class="page"><div class="empty-state"><div class="empty-title">Error cargando datos.</div></div></div>';
       return;
     }
 
     await this._loadMovimientos();
+    this._checkCierreAgro().catch(() => {});
     this._renderPantalla();
   },
 
@@ -72,6 +77,31 @@ const AgroView = {
           </div>
         </div>
 
+        ${this._historialPendiente ? `
+        <div style="background:var(--orange-50,#fff7ed);
+          border:1px solid var(--orange-300,#fdba74);
+          border-radius:10px;padding:12px 16px;
+          display:flex;align-items:center;gap:12px;
+          margin-bottom:16px">
+          <span style="font-size:1.2rem">⚠️</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:.9rem;
+              color:var(--orange-800,#9a3412)">
+              Historial de ${BBT.Security.sanitize(
+                this._historialPendiente.titulo)} no guardado
+            </div>
+            <div style="font-size:.78rem;color:var(--orange-700,#c2410c);
+              margin-top:2px">
+              Guardá el historial para tener un registro de ese mes.
+            </div>
+          </div>
+          <button class="btn btn-sm" id="btn-guardar-historial-agro"
+            style="background:var(--orange-500,#f97316);color:#fff;
+              white-space:nowrap">
+            Guardar ahora
+          </button>
+        </div>` : ''}
+
         <!-- ── SECCIÓN 1: ESTABLECIMIENTOS ── -->
         <section class="agro-section">
           <div class="agro-section-header">
@@ -86,6 +116,9 @@ const AgroView = {
         <section class="agro-section">
           <div class="agro-section-header">
             <h2 class="agro-section-title">Silos</h2>
+            <button class="btn btn-secondary btn-sm" id="btn-reporte-silos">
+              📄 Reporte
+            </button>
           </div>
           ${this._renderSilos()}
         </section>
@@ -94,17 +127,22 @@ const AgroView = {
         <section class="agro-section">
           <div class="agro-section-header">
             <h2 class="agro-section-title">Silo Bolsas</h2>
-            <button class="btn btn-secondary btn-sm" id="agro-add-bolsa">
-              ＋ Nueva bolsa
+            <button class="btn btn-secondary btn-sm agro-add-bolsa-btn"
+              id="agro-add-bolsa">＋ Nueva bolsa</button>
+            <button class="btn btn-secondary btn-sm" id="btn-reporte-bolsas">
+              📄 Reporte
             </button>
           </div>
           ${this._renderBolsas()}
         </section>
 
         <!-- ── SECCIÓN 4: CAMIONES ── -->
-        <section class="agro-section">
+        <section class="agro-section" style="padding-bottom:60px">
           <div class="agro-section-header">
             <h2 class="agro-section-title">Camiones</h2>
+            <button class="btn btn-secondary btn-sm" id="btn-reporte-camiones">
+              📄 Reporte
+            </button>
             <div class="agro-mes-nav">
               <button class="emp-nav-btn" id="agro-mes-prev">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -126,6 +164,18 @@ const AgroView = {
           </div>
           ${this._renderCamiones()}
         </section>
+
+        <div class="gtree-historial" id="agro-btn-historial">
+          <div class="gtree-historial-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M12 8v4l3 3"/>
+              <path d="M3.05 11a9 9 0 1 1 .5 4"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </div>
+          <span>Historial</span>
+        </div>
 
       </div>`;
 
@@ -557,6 +607,19 @@ const AgroView = {
       });
     });
 
+    document.getElementById('agro-btn-historial')
+      ?.addEventListener('click', () => App.navigateToAgroHistorial());
+
+    document.getElementById('btn-guardar-historial-agro')
+      ?.addEventListener('click', () => this._guardarHistorialAgro());
+
+    document.getElementById('btn-reporte-silos')
+      ?.addEventListener('click', () => this._generarReporte('silos'));
+    document.getElementById('btn-reporte-bolsas')
+      ?.addEventListener('click', () => this._generarReporte('bolsas'));
+    document.getElementById('btn-reporte-camiones')
+      ?.addEventListener('click', () => this._generarReporte('camiones'));
+
     document.getElementById('agro-mes-prev')?.addEventListener('click', async () => {
       this._mesOffset--;
       await this._loadMovimientos();
@@ -919,6 +982,26 @@ const AgroView = {
               ).join('')}
             </select>
           </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Tipo
+                <span style="font-size:.72rem;color:var(--text-muted);font-weight:400"> — opcional</span>
+              </label>
+              <select class="select" id="nb-tipo">
+                <option value="">— Sin tipo —</option>
+                ${(this._tiposCult||[]).map(t =>
+                  `<option value="${esc(t.nombre)}">${esc(t.nombre)}</option>`
+                ).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Variedad
+                <span style="font-size:.72rem;color:var(--text-muted);font-weight:400"> — opcional</span>
+              </label>
+              <input class="input" id="nb-variedad" maxlength="80"
+                placeholder="Ej: SRM 5900...">
+            </div>
+          </div>
           <div class="form-group">
             <label class="form-label">Kilos iniciales</label>
             <input class="input" type="number" id="nb-kilos"
@@ -982,10 +1065,12 @@ const AgroView = {
       btn.disabled = true; btn.textContent = 'Creando...';
       try {
         await BBT.API.post('/api/agro/bolsas', {
-          lote_id:           loteId,
+          lote_id:  loteId,
           nombre,
-          cultivo:           cultivo || null,
-          toneladas_totales: kilos || null,
+          cultivo:  cultivo || null,
+          tipo:     m.querySelector('#nb-tipo')?.value || null,
+          variedad: m.querySelector('#nb-variedad')?.value.trim() || null,
+          kilos:    m.querySelector('#nb-kilos')?.value || null,
         });
         Modal.close(m);
         Toast.success(`Bolsa "${nombre}" creada.`);
@@ -1057,6 +1142,503 @@ const AgroView = {
         btn.disabled = false; btn.textContent = 'Actualizar';
       }
     }, { once: true });
+  },
+
+  async _checkCierreAgro() {
+    try {
+      const ahora   = new Date();
+      const mesPrev = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+      const anio    = mesPrev.getFullYear();
+      const mes     = mesPrev.getMonth() + 1;
+      const periodo = `${anio}-${String(mes).padStart(2,'0')}`;
+
+      const historial  = await BBT.API.get('/api/agro/historial');
+      const yaGuardado = historial.some(h => h.periodo === periodo);
+
+      if (!yaGuardado) {
+        this._historialPendiente = {
+          anio, mes, periodo,
+          titulo: mesPrev.toLocaleDateString('es-AR',
+            { month: 'long', year: 'numeric' })
+        };
+        this._renderPantalla();
+      } else {
+        this._historialPendiente = false;
+      }
+    } catch {}
+  },
+
+  async _guardarHistorialAgro() {
+    const p = this._historialPendiente;
+    if (!p) return;
+    const btn = document.getElementById('btn-guardar-historial-agro');
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+    try {
+      const [silosData, bolsasData, camsData] = await Promise.all([
+        BBT.API.get(`/api/agro/reporte/silos?mes=${p.mes}&anio=${p.anio}`),
+        BBT.API.get(`/api/agro/reporte/bolsas?mes=${p.mes}&anio=${p.anio}`),
+        BBT.API.get(`/api/agro/reporte/camiones?mes=${p.mes}&anio=${p.anio}`),
+      ]);
+      const ultimoDia = new Date(p.anio, p.mes, 0);
+      await BBT.API.post('/api/agro/historial', {
+        tipo:              'mes',
+        periodo:           p.periodo,
+        titulo:            p.titulo,
+        fecha_desde:       `${p.anio}-${String(p.mes).padStart(2,'0')}-01`,
+        fecha_hasta:       ultimoDia.toISOString().slice(0,10),
+        silos_snapshot:    silosData,
+        bolsas_snapshot:   bolsasData,
+        camiones_snapshot: camsData,
+      });
+      Toast.success(`Historial de ${p.titulo} guardado.`);
+      this._historialPendiente = false;
+      this._renderPantalla();
+    } catch {
+      Toast.error('Error al guardar historial.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Guardar ahora'; }
+    }
+  },
+
+  async _generarReporte(tipo) {
+    const ahora = new Date();
+    const mes   = ahora.getMonth() + 1;
+    const anio  = ahora.getFullYear();
+    const btn   = document.getElementById(`btn-reporte-${tipo}`);
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando...'; }
+    try {
+      const data = await BBT.API.get(
+        `/api/agro/reporte/${tipo}?mes=${mes}&anio=${anio}`
+      );
+      this._exportarReportePDF(tipo, data);
+    } catch {
+      Toast.error('Error al generar reporte.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📄 Reporte'; }
+    }
+  },
+
+  _exportarReportePDF(tipo, data) {
+    const esc      = s => BBT.Security.sanitize(String(s||''));
+    const fmtKg    = n => n != null
+      ? parseFloat(n).toLocaleString('es-AR',{maximumFractionDigits:1}) + ' kg' : '—';
+    const fmtFecha = d => {
+      if (!d) return '—';
+      const s = String(d).slice(0,10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '—';
+      const [y,m,day] = s.split('-');
+      return `${day}/${m}/${y}`;
+    };
+
+    const empresa   = BBT.Auth._user?.empresaNombre || 'BBTECH';
+    const periodo   = data.periodo || {};
+    const mesNombre = periodo.anio && periodo.mes
+      ? new Date(periodo.anio, periodo.mes - 1, 1)
+          .toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+    const ahora = new Date().toLocaleDateString('es-AR',
+      { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const estilos = `
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:Arial,sans-serif;font-size:11px;
+        color:#1a1a1a;padding:20px}
+      h1{font-size:16px;font-weight:700;margin-bottom:2px}
+      h2{font-size:12px;font-weight:700;color:#2d6a3f;
+        border-bottom:2px solid #2d6a3f;padding-bottom:4px;
+        margin:18px 0 8px}
+      h3{font-size:11px;font-weight:700;color:#444;
+        margin:12px 0 4px;text-transform:uppercase;
+        letter-spacing:.04em}
+      .sub{font-size:10px;color:#666;margin-bottom:12px}
+      .header{display:flex;justify-content:space-between;
+        border-bottom:2px solid #2d6a3f;padding-bottom:10px;
+        margin-bottom:16px}
+      .fecha-gen{font-size:10px;color:#888;text-align:right}
+      table{width:100%;border-collapse:collapse;
+        font-size:10px;margin-bottom:12px}
+      th{background:#f4f7f5;font-weight:700;padding:5px 6px;
+        text-align:left;border:1px solid #ddd}
+      td{padding:4px 6px;border:1px solid #eee;vertical-align:top}
+      tr:nth-child(even) td{background:#fafafa}
+      tfoot td{font-weight:700;background:#eef2ef;
+        border-top:2px solid #ccc}
+      .badge{display:inline-block;padding:2px 6px;
+        border-radius:4px;font-size:9px;font-weight:700}
+      .badge-v{background:#d1fae5;color:#065f46}
+      .badge-g{background:#f3f4f6;color:#374151}
+      .silo-card{border:1px solid #ddd;border-radius:6px;
+        padding:8px 12px;margin-bottom:6px;
+        display:flex;justify-content:space-between;
+        align-items:center;gap:12px}
+      .empty{color:#999;font-style:italic;
+        padding:6px 0;font-size:10px}
+      .footer{margin-top:20px;font-size:10px;color:#aaa;
+        text-align:center;border-top:1px solid #eee;
+        padding-top:8px}
+      @media print{body{padding:0}}`;
+
+    let contenido = '';
+
+    // ═══════════════════════════════════════
+    // SILOS
+    // ═══════════════════════════════════════
+    if (tipo === 'silos') {
+      const silos    = data.silos    || [];
+      const entradas = data.entradas || [];
+      const salidas  = data.salidas  || [];
+      const ajustes  = data.ajustes  || [];
+
+      contenido += '<h2>📊 Estado actual de silos</h2>';
+      if (!silos.length) {
+        contenido += '<div class="empty">Sin silos configurados.</div>';
+      } else {
+        silos.forEach(s => {
+          const ton = parseFloat(s.toneladas_actuales||0);
+          const cap = parseFloat(s.capacidad_efectiva||0);
+          const pct = cap > 0 ? Math.round((ton/cap)*100) : null;
+          contenido += `
+            <div class="silo-card">
+              <div>
+                <strong>${esc(s.nombre)}</strong>
+                ${s.cultivo_actual
+                  ? `<span class="badge badge-v" style="margin-left:6px">
+                      ${esc(s.cultivo_actual)}</span>`
+                  : '<span class="badge badge-g" style="margin-left:6px">Vacío</span>'}
+              </div>
+              <div style="text-align:right;font-size:10px">
+                <div><strong>${fmtKg(ton)}</strong> ocupado</div>
+                ${cap > 0
+                  ? `<div style="color:#555">de ${fmtKg(cap)} cap.
+                      ${pct != null ? `(${pct}%)` : ''}</div>`
+                  : ''}
+              </div>
+            </div>`;
+        });
+      }
+
+      contenido += `<h2>📥 Entradas — ${mesNombre}</h2>`;
+      if (!entradas.length) {
+        contenido += '<div class="empty">Sin entradas en este período.</div>';
+      } else {
+        const totEnt = entradas.reduce((s,e)=>s+parseFloat(e.kilos||0),0);
+        contenido += `<table>
+          <thead><tr>
+            <th>Fecha</th><th>Silo</th><th>Cultivo</th>
+            <th>Tipo</th><th>Variedad</th>
+            <th>Establecimiento</th><th>Lote</th>
+            <th>Ciclo/Bolsa origen</th>
+            <th style="text-align:right">Kilos</th>
+          </tr></thead>
+          <tbody>${entradas.map(e => `<tr>
+            <td>${fmtFecha(e.fecha)}</td>
+            <td>${esc(e.silo_nombre||'—')}</td>
+            <td>${esc(e.cultivo||'—')}</td>
+            <td>${esc(e.tipo||'—')}</td>
+            <td>${esc(e.variedad||'—')}</td>
+            <td>${esc(e.establecimiento_nombre||'—')}</td>
+            <td>${esc(e.lote_nombre||'—')}</td>
+            <td>${e.bolsa_origen
+              ? `Bolsa: ${esc(e.bolsa_origen)}`
+              : esc(e.ciclo_nombre||'—')}</td>
+            <td style="text-align:right">${fmtKg(e.kilos)}</td>
+          </tr>`).join('')}</tbody>
+          <tfoot><tr>
+            <td colspan="8">Total entradas</td>
+            <td style="text-align:right">${fmtKg(totEnt)}</td>
+          </tr></tfoot>
+        </table>`;
+      }
+
+      contenido += `<h2>📤 Salidas — ${mesNombre}</h2>`;
+      if (!salidas.length) {
+        contenido += '<div class="empty">Sin salidas en este período.</div>';
+      } else {
+        const capitalize = str => str
+          ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+          : '—';
+        const totSal = salidas.reduce((s,e)=>s+parseFloat(e.kilos||0),0);
+        contenido += `<table>
+          <thead><tr>
+            <th>Fecha</th><th>Silo</th><th>Cultivo</th>
+            <th>Destino</th><th>Detalle destino</th>
+            <th>Camión</th><th>Entidad</th>
+            <th style="text-align:right">Kilos</th>
+          </tr></thead>
+          <tbody>${salidas.map(s => {
+            const destTipo = s.destino_categoria === 'camion' || (!s.destino_categoria && s.camion_nombre)
+              ? 'Camión'
+              : s.destino_categoria
+              ? capitalize(s.destino_categoria)
+              : '—';
+            const destDetalle = s.destino_categoria === 'bolsa' && s.destino_bolsa_nombre
+              ? `${esc(s.destino_bolsa_nombre)}${
+                  s.destino_est_nombre ? ' — '+esc(s.destino_est_nombre) : ''}${
+                  s.destino_lote_nombre ? ' / '+esc(s.destino_lote_nombre) : ''}`
+              : '—';
+            return `<tr>
+              <td>${fmtFecha(s.fecha)}</td>
+              <td>${esc(s.silo_nombre||'—')}</td>
+              <td>${esc(s.cultivo||'—')}</td>
+              <td>${destTipo}</td>
+              <td>${destDetalle}</td>
+              <td>${esc(s.camion_nombre||'—')}</td>
+              <td>${esc(s.entidad_nombre||'—')}</td>
+              <td style="text-align:right">${fmtKg(s.kilos)}</td>
+            </tr>`;
+          }).join('')}</tbody>
+          <tfoot><tr>
+            <td colspan="7">Total salidas</td>
+            <td style="text-align:right">${fmtKg(totSal)}</td>
+          </tr></tfoot>
+        </table>`;
+      }
+
+      if (ajustes.length) {
+        contenido += `<h2>⚖ Ajustes manuales — ${mesNombre}</h2>
+          <table>
+            <thead><tr>
+              <th>Fecha</th><th>Silo</th><th>Tipo</th>
+              <th>Cultivo anterior</th><th>Cultivo nuevo</th>
+              <th style="text-align:right">Kilos</th><th>Motivo</th>
+            </tr></thead>
+            <tbody>${ajustes.map(a=>`<tr>
+              <td>${fmtFecha(a.fecha)}</td>
+              <td>${esc(a.silo_nombre||'—')}</td>
+              <td>${esc(a.tipo||'—')}</td>
+              <td>${esc(a.cultivo_anterior||'—')}</td>
+              <td>${esc(a.cultivo_nuevo||'—')}</td>
+              <td style="text-align:right">${fmtKg(a.kilos)}</td>
+              <td>${esc(a.obs||'—')}</td>
+            </tr>`).join('')}</tbody>
+          </table>`;
+      }
+
+    // ═══════════════════════════════════════
+    // BOLSAS
+    // ═══════════════════════════════════════
+    } else if (tipo === 'bolsas') {
+      const bolsas   = data.bolsas   || [];
+      const entradas = data.entradas || [];
+      const salidas  = data.salidas  || [];
+
+      contenido += '<h2>📊 Estado actual de silo bolsas</h2>';
+      if (!bolsas.length) {
+        contenido += '<div class="empty">Sin silo bolsas configuradas.</div>';
+      } else {
+        const porEst = {};
+        bolsas.forEach(b => {
+          const k = b.establecimiento_nombre || '—';
+          if (!porEst[k]) porEst[k] = [];
+          porEst[k].push(b);
+        });
+        Object.entries(porEst).forEach(([estNom, bs]) => {
+          contenido += `<h3>${esc(estNom)}</h3>
+            <table>
+              <thead><tr>
+                <th>Lote</th><th>Bolsa</th><th>Cultivo</th>
+                <th>Tipo</th><th>Variedad</th>
+                <th style="text-align:right">Stock actual</th>
+                <th style="text-align:right">Total ingresado</th>
+                <th>Estado</th>
+              </tr></thead>
+              <tbody>${bs.map(b=>`<tr>
+                <td>${esc(b.lote_nombre||'—')}</td>
+                <td>${esc(b.nombre||'—')}</td>
+                <td>${esc(b.cultivo||'—')}</td>
+                <td>${esc(b.tipo||'—')}</td>
+                <td>${esc(b.variedad||'—')}</td>
+                <td style="text-align:right">${fmtKg(b.toneladas_actuales)}</td>
+                <td style="text-align:right">${fmtKg(b.total_ingresado)}</td>
+                <td>${b.cerrada
+                  ? '<span class="badge badge-g">Cerrada</span>'
+                  : '<span class="badge badge-v">Activa</span>'}</td>
+              </tr>`).join('')}</tbody>
+            </table>`;
+        });
+      }
+
+      contenido += `<h2>📥 Entradas — ${mesNombre}</h2>`;
+      if (!entradas.length) {
+        contenido += '<div class="empty">Sin entradas en este período.</div>';
+      } else {
+        const totEnt = entradas.reduce((s,e)=>s+parseFloat(e.kilos||0),0);
+        contenido += `<table>
+          <thead><tr>
+            <th>Fecha</th><th>Bolsa</th><th>Establecimiento</th>
+            <th>Lote</th><th>Cultivo</th>
+            <th>Tipo</th><th>Variedad</th>
+            <th>Ciclo / Silo origen</th>
+            <th style="text-align:right">Kilos</th>
+          </tr></thead>
+          <tbody>${entradas.map(e => `<tr>
+            <td>${fmtFecha(e.fecha)}</td>
+            <td>${esc(e.bolsa_nombre||'—')}</td>
+            <td>${esc(e.establecimiento_nombre||'—')}</td>
+            <td>${esc(e.lote_nombre||'—')}</td>
+            <td>${esc(e.cultivo||'—')}</td>
+            <td>${esc(e.tipo||'—')}</td>
+            <td>${esc(e.variedad||'—')}</td>
+            <td>${e.silo_origen
+              ? `Silo: ${esc(e.silo_origen)}`
+              : esc(e.ciclo_nombre||'—')}</td>
+            <td style="text-align:right">${fmtKg(e.kilos)}</td>
+          </tr>`).join('')}</tbody>
+          <tfoot><tr>
+            <td colspan="8">Total entradas</td>
+            <td style="text-align:right">${fmtKg(totEnt)}</td>
+          </tr></tfoot>
+        </table>`;
+      }
+
+      contenido += `<h2>📤 Salidas — ${mesNombre}</h2>`;
+      if (!salidas.length) {
+        contenido += '<div class="empty">Sin salidas en este período.</div>';
+      } else {
+        const capitalizeBolsa = str => str
+          ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+          : '—';
+        const totSal = salidas.reduce((s,e)=>s+parseFloat(e.kilos||0),0);
+        contenido += `<table>
+          <thead><tr>
+            <th>Fecha</th><th>Bolsa</th><th>Establecimiento</th>
+            <th>Lote</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
+            <th>Destino</th><th>Detalle destino</th>
+            <th>Camión</th><th>Entidad</th>
+            <th style="text-align:right">Kilos</th>
+          </tr></thead>
+          <tbody>${salidas.map(s => {
+            const destCap = capitalizeBolsa(s.destino_categoria||'');
+            const detalleDest = s.destino_categoria === 'silo' && s.destino_silo_nombre
+              ? `Silo: ${esc(s.destino_silo_nombre)}`
+              : s.destino_categoria === 'bolsa' && s.destino_bolsa_nombre
+              ? `${esc(s.destino_bolsa_nombre)}${
+                  s.destino_lote_nombre ? ' — '+esc(s.destino_lote_nombre) : ''}${
+                  s.destino_est_nombre ? ' / '+esc(s.destino_est_nombre) : ''}`
+              : '—';
+            return `<tr>
+              <td>${fmtFecha(s.fecha)}</td>
+              <td>${esc(s.bolsa_nombre||'—')}</td>
+              <td>${esc(s.establecimiento_nombre||'—')}</td>
+              <td>${esc(s.lote_nombre||'—')}</td>
+              <td>${esc(s.cultivo||'—')}</td>
+              <td>${esc(s.tipo||'—')}</td>
+              <td>${esc(s.variedad||'—')}</td>
+              <td>${destCap}</td>
+              <td>${detalleDest}</td>
+              <td>${esc(s.camion_nombre||'—')}</td>
+              <td>${esc(s.entidad_nombre||'—')}</td>
+              <td style="text-align:right">${fmtKg(s.kilos)}</td>
+            </tr>`;
+          }).join('')}</tbody>
+          <tfoot><tr>
+            <td colspan="11">Total salidas</td>
+            <td style="text-align:right">${fmtKg(totSal)}</td>
+          </tr></tfoot>
+        </table>`;
+      }
+
+    // ═══════════════════════════════════════
+    // CAMIONES
+    // ═══════════════════════════════════════
+    } else if (tipo === 'camiones') {
+      const movimientos = data.movimientos || [];
+
+      contenido += `<h2>🚛 Movimientos y salidas — ${mesNombre}</h2>`;
+      if (!movimientos.length) {
+        contenido += '<div class="empty">Sin movimientos en este período.</div>';
+      } else {
+        const capitalizeCam = str => str
+          ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+          : '—';
+        const porCamion = {};
+        movimientos.forEach(m => {
+          const k = m.camion_nombre || 'Sin camión asignado';
+          if (!porCamion[k]) porCamion[k] = [];
+          porCamion[k].push(m);
+        });
+        Object.entries(porCamion).forEach(([camNom, movs]) => {
+          const esSinCamion = camNom === 'Sin camión asignado';
+          const totKg = movs.reduce((s,m)=>s+parseFloat(m.toneladas||0),0);
+          const tipoMostrar = m => m.tipo || '—';
+          const variedadMostrar = m => m.variedad || '—';
+          contenido += `
+            <h3>${esSinCamion ? '📦' : '🚛'} ${esc(camNom)}
+              <span style="font-weight:400;font-size:9px;color:#666">
+                — ${movs.length} mov. · ${fmtKg(totKg)} total
+              </span>
+            </h3>
+            <table>
+              <thead><tr>
+                <th>Fecha</th><th>Origen</th><th>Cultivo</th>
+                <th>Tipo</th><th>Variedad</th>
+                ${esSinCamion ? '<th>Destino</th>' : ''}
+                <th>${esSinCamion ? 'Entidad' : 'Entidad destino'}</th>
+                <th style="text-align:right">Kilos</th>
+              </tr></thead>
+              <tbody>${movs.map(m => {
+                const origen = m.silo_nombre
+                  ? `Silo: ${esc(m.silo_nombre)}`
+                  : m.bolsa_nombre
+                  ? `Bolsa: ${esc(m.bolsa_nombre)}${
+                      m.establecimiento_nombre ? ' — '+esc(m.establecimiento_nombre) : ''}${
+                      m.lote_nombre ? ' / '+esc(m.lote_nombre) : ''}`
+                  : m.ciclo_nombre
+                  ? `Cosecha: ${esc(m.ciclo_est_nombre||'—')} / ${
+                      esc(m.ciclo_lote_nombre||'—')} — ${esc(m.ciclo_nombre)}`
+                  : '—';
+                const destino = m.destino_categoria === 'silo' && m.destino_silo_nombre
+                  ? `Silo: ${esc(m.destino_silo_nombre)}`
+                  : m.destino_categoria === 'bolsa' && m.destino_bolsa_nombre
+                  ? `Bolsa: ${esc(m.destino_bolsa_nombre)}`
+                  : capitalizeCam(m.destino_categoria||'');
+                return `<tr>
+                  <td>${fmtFecha(m.fecha)}</td>
+                  <td>${origen}</td>
+                  <td>${esc(m.cultivo||'—')}</td>
+                  <td>${esc(tipoMostrar(m))}</td>
+                  <td>${esc(variedadMostrar(m))}</td>
+                  ${esSinCamion ? `<td>${destino}</td>` : ''}
+                  <td>${esc(m.entidad_nombre||'—')}</td>
+                  <td style="text-align:right">${fmtKg(m.toneladas)}</td>
+                </tr>`;
+              }).join('')}</tbody>
+              <tfoot><tr>
+                <td colspan="${esSinCamion ? 7 : 6}">Total ${esc(camNom)}</td>
+                <td style="text-align:right">${fmtKg(totKg)}</td>
+              </tr></tfoot>
+            </table>`;
+        });
+      }
+    }
+
+    const titulo = tipo === 'silos' ? 'Silos'
+      : tipo === 'bolsas' ? 'Silo Bolsas' : 'Camiones';
+    const html = `<!DOCTYPE html><html lang="es"><head>
+      <meta charset="UTF-8">
+      <title>Reporte ${titulo} — ${mesNombre}</title>
+      <style>${estilos}</style>
+    </head><body>
+      <div class="header">
+        <div>
+          <h1>Reporte de ${titulo}</h1>
+          <div class="sub">${esc(empresa)} · ${mesNombre}</div>
+        </div>
+        <div class="fecha-gen">
+          Generado el ${ahora}<br>
+          ${periodo.desde ? `${fmtFecha(periodo.desde)} → ${fmtFecha(periodo.hasta)}` : ''}
+        </div>
+      </div>
+      ${contenido}
+      <div class="footer">
+        ${esc(empresa)} — BBTECH Systems · Control Agrícola
+      </div>
+    </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) { Toast.error('Habilitá los popups para generar el reporte.'); return; }
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => { try { win.print(); } catch(e){} }, 500);
   },
 
   hide() {

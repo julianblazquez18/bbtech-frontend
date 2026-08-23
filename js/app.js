@@ -215,6 +215,15 @@ const App = {
     await ServCicloView.render(cicloId);
   },
 
+  async navigateToAgroHistorial() {
+    this.currentView    = 'agro-historial';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#agro-historial')
+      window.location.hash = 'agro-historial';
+    this._enterFullscreen();
+    await AgroHistorialView.render();
+  },
+
   async navigateToAgro() {
     this.currentView    = 'agro';
     this.currentCicloId = null;
@@ -288,6 +297,7 @@ const App = {
     if (hash === 'empleados')          { this.navigateToEmpleados();      return; }
     if (hash === 'empleados-admin')    { this.navigateToEmpleadosAdmin(); return; }
     if (hash === 'agro')              { this.navigateToAgro();           return; }
+    if (hash === 'agro-historial')    { this.navigateToAgroHistorial();  return; }
     if (hash === 'agro-admin')        { this.navigateToAgroAdmin();      return; }
     if (hash.startsWith('agro-est/')) {
       const estId = hash.split('/')[1];
@@ -326,6 +336,8 @@ const App = {
         this.navigateToEmpleados();
       } else if (hash === 'agro' && this.currentView !== 'agro') {
         this.navigateToAgro();
+      } else if (hash === 'agro-historial' && this.currentView !== 'agro-historial') {
+        this.navigateToAgroHistorial();
       } else if (hash === 'agro-admin' && this.currentView !== 'agro-admin') {
         this.navigateToAgroAdmin();
       } else if (hash.startsWith('agro-est/') && !hash.startsWith(

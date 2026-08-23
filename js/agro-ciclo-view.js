@@ -1436,6 +1436,18 @@ const AgroCicloView = {
       title: 'Agregar cosecha',
       body: `
         <div class="flex flex-col gap-4">
+          ${this._ciclo?.cultivo ? `
+          <div style="background:var(--surface-bg);padding:10px 14px;
+            border-radius:8px;font-size:.85rem;color:var(--text-secondary);
+            border:1px solid var(--border)">
+            <strong>Cultivo:</strong> ${esc(this._ciclo.cultivo||'—')}
+            ${this._ciclo.tipo
+              ? ` · <strong>Tipo:</strong> ${esc(this._ciclo.tipo)}`
+              : ''}
+            ${this._ciclo.variedad
+              ? ` · <strong>Variedad:</strong> ${esc(this._ciclo.variedad)}`
+              : ''}
+          </div>` : ''}
           <div class="form-group">
             <label class="form-label">Fecha *</label>
             <input class="input" type="date" id="mc-fecha" value="${fechaVal}">
