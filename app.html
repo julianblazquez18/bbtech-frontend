@@ -22,7 +22,9 @@
     <div id="main">
       <header id="topbar" role="banner">
         <!-- Marca (visible solo en fullscreen) -->
-        <div class="topbar-brand" id="topbar-brand">
+        <div class="topbar-brand" id="topbar-brand"
+          style="cursor:pointer" title="Ir al panel de control"
+          onclick="if(typeof App!=='undefined')App.navigateToDashboard()">
           <img id="topbar-brand-logo" src="assets/logo.png"
             class="topbar-brand-logo" alt="Logo"
             onerror="this.style.display='none';document.getElementById('topbar-brand-fallback').style.display='flex'">
