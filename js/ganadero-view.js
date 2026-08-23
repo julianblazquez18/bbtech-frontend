@@ -110,6 +110,7 @@ const GanaderoView = {
     main.innerHTML = html;
 
     this._bindEvents();
+    this._precargarVacas().catch(() => {});
   },
 
   _renderCampo(est) {
@@ -163,7 +164,8 @@ const GanaderoView = {
       .filter(c => c.estado !== 'cerrado')
       .forEach(c => {
         Object.values(c.vacas || {}).forEach(vaca => {
-          if (vaca && !vaca.descarte && vaca.caravana) {
+          // Excluir descartadas Y traspasadas (están en otro ciclo)
+          if (vaca && !vaca.rechazo && !vaca.traspasada && vaca.caravana) {
             caravanasRodeo.add(vaca.caravana);
           }
         });
@@ -216,14 +218,22 @@ const GanaderoView = {
     if (ciclos.length) {
       ciclos.forEach(ciclo => {
         const isClosed = ciclo.estado === 'cerrado';
-        const vacCount = Object.values(ciclo.vacas || {}).filter(v => !v.rechazo).length || ciclo._vacaCount || 0;
+        // Siempre usar _vacaCount del backend en el árbol —
+        // es más confiable que el caché de vacas que puede
+        // estar desactualizado al volver de una safra
+        const vacCount     = ciclo._vacaCount || 0;
+        const totalEnCiclo = ciclo._vacaCountTotal || ciclo._vacaCount || 0;
         html += `
           <div class="gtree-safra${isClosed ? ' gtree-safra-closed' : ''}" data-ciclo-id="${ciclo.id}">
             <div class="gtree-safra-left">
               <span class="gtree-safra-icon">${isClosed ? '🔒' : '📋'}</span>
               <span class="gtree-safra-name">${BBT.Security.sanitize(ciclo.nombre)}</span>
               <span class="gtree-safra-fecha">${_fmtFecha(ciclo.fechaInicio)}</span>
-              <span class="gtree-safra-count">${vacCount} anim.</span>
+              <span class="gtree-safra-count">${(() => {
+                if (totalEnCiclo === 0) return '0 anim.';
+                if (vacCount === 0) return '<span style="color:var(--text-muted);font-style:italic;font-size:.75rem">Traspasadas</span>';
+                return vacCount + ' anim.';
+              })()}</span>
               ${!isClosed ? '<span class="gtree-safra-badge-activa">Activa</span>' : ''}
             </div>
             <button class="gtree-btn-ver btn-ver-safra" data-ciclo="${ciclo.id}">Ver →</button>
@@ -524,6 +534,34 @@ const GanaderoView = {
     await BBT.Estancias.deleteRodeo(estanciaId, rodeoId);
     Toast.success(`Grupo "${rodeo.nombre}" eliminado.`);
     this.render();
+  },
+
+  async _precargarVacas() {
+    const estancias = BBT.Estancias.getAll();
+    for (const est of estancias) {
+      const rodeos = est.rodeos || [];
+      for (const rodeo of rodeos) {
+        const ciclos = BBT.Ciclos.getByGrupo(rodeo.id);
+        for (const ciclo of ciclos) {
+          if (ciclo.estado === 'cerrado') continue;
+          if (Object.keys(ciclo.vacas || {}).length === 0) {
+            try {
+              await BBT.Ciclos.fetchVacas(ciclo.id);
+            } catch {}
+          }
+        }
+      }
+    }
+    this._renderVista();
+  },
+
+  _renderVista() {
+    const tree = document.querySelector('.ganadero-tree');
+    if (!tree) return;
+    const estancias = BBT.Estancias.getAll();
+    let html = '';
+    estancias.forEach(est => { html += this._renderCampo(est); });
+    tree.innerHTML = html;
   },
 
   hide() {

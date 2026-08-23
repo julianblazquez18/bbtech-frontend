@@ -18,6 +18,7 @@ const AgroCicloView = {
   _productosFert:   [],
   _productosPulv:   [],
   _pulverizaciones: [],
+  _fertilizaciones: [],
   _tabActivo: 'siembra',
 
   async render(cicloId) {
@@ -30,7 +31,8 @@ const AgroCicloView = {
 
     try {
       const [registros, cosechas, silos, bolsas, camiones, entidades, ests,
-             cultivos, tipos, asignaciones, productosFert, productosPulv, pulverizaciones] =
+             cultivos, tipos, asignaciones, productosFert, productosPulv,
+             pulverizaciones, fertilizaciones] =
         await Promise.all([
           BBT.API.get(`/api/agro/ciclos/${cicloId}/registros`),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/cosechas`),
@@ -45,6 +47,7 @@ const AgroCicloView = {
           BBT.API.get('/api/agro/productos-fert').catch(() => []),
           BBT.API.get('/api/agro/productos-pulv').catch(() => []),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/pulverizaciones`).catch(() => []),
+          BBT.API.get(`/api/agro/ciclos/${cicloId}/fertilizaciones`).catch(() => []),
         ]);
       this._registros       = registros;
       this._cosechas        = cosechas;
@@ -58,6 +61,7 @@ const AgroCicloView = {
       this._productosFert   = productosFert;
       this._productosPulv   = productosPulv;
       this._pulverizaciones = pulverizaciones;
+      this._fertilizaciones = fertilizaciones;
 
       // Buscar el ciclo recorriendo establecimientos → lotes → ciclos
       this._ciclo = null;
@@ -194,54 +198,69 @@ const AgroCicloView = {
       </button>`;
 
     if (tab === 'siembra') {
-      const rows  = this._registros.filter(r => r.tipo === 'siembra');
-      const totHa = rows.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
-      const totKg = rows.reduce((s, r) => s + parseFloat(r.toneladas||0), 0);
+      const rows       = this._registros.filter(r => r.tipo === 'siembra');
+      const totHa      = rows.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
+      const totKgTotal = rows.reduce((s, r) =>
+        s + parseFloat(r.hectareas||0) * parseFloat(r.toneladas||0), 0);
       return `
         <div class="agro-tab-header">${addBtn}</div>
         ${rows.length ? `
         <div class="agro-table-wrap">
           <table class="agro-cam-table">
             <thead><tr>
-              <th>Fecha</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
+              <th>Fecha</th>
+              <th>Cultivo</th>
+              <th>Tipo</th>
+              <th>Variedad</th>
               <th style="text-align:right">Hectáreas</th>
-              <th style="text-align:right">Kilos semilla</th>
+              <th style="text-align:right">kg/ha</th>
+              <th style="text-align:right">Total kg</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
-              ${rows.map(r => `<tr>
-                <td>${fmt(r.fecha)}</td>
-                <td>${esc(r.cultivo||'—')}</td>
-                <td>${esc(r.variedad||'—')}</td>
-                <td>${esc(r.obs||'—')}</td>
-                <td style="text-align:right">${fmtNum(r.hectareas)}</td>
-                <td style="text-align:right">${fmtKg(r.toneladas)}</td>
-                ${!cerrado ? `<td>
-                  <div style="display:flex;gap:4px">
-                    <button class="gtree-btn-icon btn-edit-reg"
-                      data-id="${r.id}" data-tipo="${tab}">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                    </button>
-                    <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
-                      data-id="${r.id}">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      </svg>
-                    </button>
-                  </div>
-                </td>` : ''}
-              </tr>`).join('')}
+              ${rows.map(r => {
+                const fechaDisplay = r.fecha_fin
+                  ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
+                  : fmt(r.fecha);
+                const totalKg = r.hectareas && r.toneladas
+                  ? fmtKg(parseFloat(r.hectareas) * parseFloat(r.toneladas))
+                  : '—';
+                return `<tr>
+                  <td>${fechaDisplay}</td>
+                  <td>${esc(r.cultivo||'—')}</td>
+                  <td>${esc(r.variedad||'—')}</td>
+                  <td>${esc(r.obs||'—')}</td>
+                  <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+                  <td style="text-align:right">${fmtKg(r.toneladas)}</td>
+                  <td style="text-align:right">${totalKg}</td>
+                  ${!cerrado ? `<td>
+                    <div style="display:flex;gap:4px">
+                      <button class="gtree-btn-icon btn-edit-reg"
+                        data-id="${r.id}" data-tipo="${tab}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
+                        data-id="${r.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>` : ''}
+                </tr>`;
+              }).join('')}
             </tbody>
             <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
               <td colspan="4">Total</td>
               <td style="text-align:right">${fmtNum(totHa)} ha</td>
-              <td style="text-align:right">${fmtKg(totKg)}</td>
+              <td></td>
+              <td style="text-align:right">${fmtKg(totKgTotal)}</td>
               ${!cerrado ? '<td></td>' : ''}
             </tr></tfoot>
           </table>
@@ -252,54 +271,121 @@ const AgroCicloView = {
     }
 
     if (tab === 'fertilizacion') {
-      const rows  = this._registros.filter(r => r.tipo === 'fertilizacion');
-      const totHa = rows.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
-      const totKg = rows.reduce((s, r) => s + parseFloat(r.cantidad_kg||0), 0);
+      const grupos  = this._fertilizaciones || [];
+      const viejos  = this._registros.filter(r => r.tipo === 'fertilizacion');
+      const totHa   = grupos.reduce((s,g) => s+parseFloat(g.hectareas||0), 0)
+                    + viejos.reduce((s,r) => s+parseFloat(r.hectareas||0), 0);
+      const totKg   = grupos.reduce((s,g) =>
+        s + (g.productos||[]).reduce((sp,p) => sp+parseFloat(p.cantidad_kg||0), 0), 0)
+        + viejos.reduce((s,r) => s+parseFloat(r.cantidad_kg||0), 0);
+      const esc2 = s => BBT.Security.sanitize(String(s||''));
+
       return `
         <div class="agro-tab-header">${addBtn}</div>
-        ${rows.length ? `
+        ${(grupos.length || viejos.length) ? `
         <div class="agro-table-wrap">
           <table class="agro-cam-table">
             <thead><tr>
-              <th>Fecha</th><th>Producto</th>
+              <th>Fecha</th>
               <th style="text-align:right">Hectáreas</th>
-              <th style="text-align:right">Cantidad (kg)</th>
+              <th>Producto</th>
+              <th style="text-align:right">kg/ha</th>
+              <th style="text-align:right">Total kg</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
-              ${rows.map(r => `<tr>
+              ${viejos.map(r => `<tr>
                 <td>${fmt(r.fecha)}</td>
-                <td>${esc(r.producto||'—')}</td>
-                <td style="text-align:right">${fmtNum(r.hectareas)}</td>
-                <td style="text-align:right">${fmtNum(r.cantidad_kg)} kg</td>
+                <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+                <td>${esc2(r.producto||'—')}
+                  <span style="font-size:.7rem;color:var(--text-muted);margin-left:4px">
+                    (registro anterior)
+                  </span>
+                </td>
+                <td style="text-align:right">${fmtNum(r.cantidad_kg)} kg/ha</td>
+                <td style="text-align:right">
+                  ${r.hectareas && r.cantidad_kg
+                    ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.cantidad_kg)) + ' kg'
+                    : '—'}
+                </td>
                 ${!cerrado ? `<td>
-                  <div style="display:flex;gap:4px">
-                    <button class="gtree-btn-icon btn-edit-reg"
-                      data-id="${r.id}" data-tipo="fertilizacion">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                    </button>
-                    <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
-                      data-id="${r.id}">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      </svg>
-                    </button>
-                  </div>
+                  <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
+                    data-id="${r.id}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                  </button>
                 </td>` : ''}
               </tr>`).join('')}
+              ${grupos.map(g => {
+                const prods = g.productos || [];
+                if (!prods.length) {
+                  return `<tr>
+                    <td>${fmt(g.fecha)}</td>
+                    <td style="text-align:right">${fmtNum(g.hectareas)} ha</td>
+                    <td>—</td><td>—</td><td>—</td>
+                    ${!cerrado ? `<td>
+                      <div style="display:flex;gap:4px">
+                        <button class="gtree-btn-icon btn-edit-fert"
+                          data-grupo-id="${g.id}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button class="gtree-btn-icon gtree-btn-danger btn-del-fert"
+                          data-grupo-id="${g.id}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>` : ''}
+                  </tr>`;
+                }
+                return prods.map((p, idx) => `<tr>
+                  ${idx === 0
+                    ? `<td rowspan="${prods.length}">${fmt(g.fecha)}</td>
+                       <td rowspan="${prods.length}" style="text-align:right">
+                         ${fmtNum(g.hectareas)} ha
+                       </td>`
+                    : ''}
+                  <td>${esc2(p.producto||'—')}</td>
+                  <td style="text-align:right">${fmtNum(p.cantidad_kg)} kg/ha</td>
+                  <td style="text-align:right">
+                    ${g.hectareas && p.cantidad_kg
+                      ? fmtNum(parseFloat(g.hectareas) * parseFloat(p.cantidad_kg)) + ' kg'
+                      : '—'}
+                  </td>
+                  ${!cerrado && idx === 0 ? `<td rowspan="${prods.length}"
+                    style="vertical-align:middle">
+                    <div style="display:flex;gap:4px">
+                      <button class="gtree-btn-icon btn-edit-fert"
+                        data-grupo-id="${g.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button class="gtree-btn-icon gtree-btn-danger btn-del-fert"
+                        data-grupo-id="${g.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>` : ''}
+                </tr>`).join('');
+              }).join('')}
             </tbody>
-            <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
-              <td colspan="2">Total</td>
-              <td style="text-align:right">${fmtNum(totHa)} ha</td>
-              <td style="text-align:right">${fmtNum(totKg)} kg</td>
-              ${!cerrado ? '<td></td>' : ''}
-            </tr></tfoot>
           </table>
         </div>` : `<div class="empty-state" style="padding:40px">
           <div class="empty-icon">🧪</div>
@@ -325,7 +411,8 @@ const AgroCicloView = {
               <th>Fecha</th>
               <th style="text-align:right">Hectáreas</th>
               <th>Producto</th>
-              <th style="text-align:right">Litros</th>
+              <th style="text-align:right">L/ha</th>
+              <th style="text-align:right">Total L</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
@@ -337,7 +424,12 @@ const AgroCicloView = {
                     (registro anterior)
                   </span>
                 </td>
-                <td style="text-align:right">${fmtNum(r.cantidad_kg)} L</td>
+                <td style="text-align:right">${fmtNum(r.cantidad_kg)} L/ha</td>
+                <td style="text-align:right">
+                  ${r.hectareas && r.cantidad_kg
+                    ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.cantidad_kg)) + ' L'
+                    : '—'}
+                </td>
                 ${!cerrado ? `<td>
                   <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
                     data-id="${r.id}">
@@ -355,7 +447,7 @@ const AgroCicloView = {
                   return `<tr>
                     <td>${fmt(g.fecha)}</td>
                     <td style="text-align:right">${fmtNum(g.hectareas)} ha</td>
-                    <td>—</td><td>—</td>
+                    <td>—</td><td>—</td><td>—</td>
                     ${!cerrado ? `<td>
                       <div style="display:flex;gap:4px">
                         <button class="gtree-btn-icon btn-edit-pulv" data-grupo-id="${g.id}">
@@ -382,7 +474,12 @@ const AgroCicloView = {
                        <td rowspan="${prods.length}" style="text-align:right">${fmtNum(g.hectareas)} ha</td>`
                     : ''}
                   <td>${esc2(p.producto||'—')}</td>
-                  <td style="text-align:right">${fmtNum(p.litros)} L</td>
+                  <td style="text-align:right">${fmtNum(p.litros)} L/ha</td>
+                  <td style="text-align:right">
+                    ${g.hectareas && p.litros
+                      ? fmtNum(parseFloat(g.hectareas) * parseFloat(p.litros)) + ' L'
+                      : '—'}
+                  </td>
                   ${!cerrado && idx === 0 ? `<td rowspan="${prods.length}" style="vertical-align:middle">
                     <div style="display:flex;gap:4px">
                       <button class="gtree-btn-icon btn-edit-pulv" data-grupo-id="${g.id}">
@@ -404,13 +501,6 @@ const AgroCicloView = {
                 </tr>`).join('');
               }).join('')}
             </tbody>
-            <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
-              <td>Total</td>
-              <td style="text-align:right">${fmtNum(totHa)} ha</td>
-              <td></td>
-              <td style="text-align:right">${fmtNum(totPulvL)} L</td>
-              ${!cerrado ? '<td></td>' : ''}
-            </tr></tfoot>
           </table>
         </div>` : `<div class="empty-state" style="padding:40px">
           <div class="empty-icon">💧</div>
@@ -441,37 +531,48 @@ const AgroCicloView = {
           <table class="agro-cam-table">
             <thead><tr>
               <th>Fecha</th>
+              <th>Cultivo</th>
+              <th>Tipo</th>
+              <th>Variedad</th>
               <th style="text-align:right">Hectáreas</th>
-              <th style="text-align:right">Kilos</th>
+              <th style="text-align:right">Kilos totales</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
-              ${rows.map(r => `<tr>
-                <td>${fmt(r.fecha)}</td>
-                <td style="text-align:right">${fmtNum(r.hectareas)}</td>
-                <td style="text-align:right;font-weight:600">${fmtKg(r.toneladas)}</td>
-                ${!cerrado ? `<td>
-                  <div style="display:flex;gap:4px">
-                    <button class="gtree-btn-icon btn-edit-cosecha" data-id="${r.id}">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                    </button>
-                    <button class="gtree-btn-icon gtree-btn-danger btn-del-cosecha" data-id="${r.id}">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      </svg>
-                    </button>
-                  </div>
-                </td>` : ''}
-              </tr>`).join('')}
+              ${rows.map(r => {
+                const fechaDisplay = r.fecha_fin
+                  ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
+                  : fmt(r.fecha);
+                return `<tr>
+                  <td>${fechaDisplay}</td>
+                  <td>${esc((this._ciclo||{}).cultivo||'—')}</td>
+                  <td>${esc((this._ciclo||{}).tipo||'—')}</td>
+                  <td>${esc((this._ciclo||{}).variedad||'—')}</td>
+                  <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+                  <td style="text-align:right;font-weight:600">${fmtKg(r.toneladas)}</td>
+                  ${!cerrado ? `<td>
+                    <div style="display:flex;gap:4px">
+                      <button class="gtree-btn-icon btn-edit-cosecha" data-id="${r.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button class="gtree-btn-icon gtree-btn-danger btn-del-cosecha" data-id="${r.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>` : ''}
+                </tr>`;
+              }).join('')}
             </tbody>
             <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
-              <td>Total</td>
+              <td colspan="4">Total</td>
               <td style="text-align:right">${fmtNum(totHa)} ha</td>
               <td style="text-align:right">${fmtKg(totCosKg)}</td>
               ${!cerrado ? '<td></td>' : ''}
@@ -658,6 +759,30 @@ const AgroCicloView = {
       }, { once: true });
     });
 
+    document.querySelectorAll('.btn-edit-fert').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const grupoId = btn.dataset.grupoId;
+        const grupo = (this._fertilizaciones||[]).find(g => g.id === grupoId);
+        if (grupo) this._modalFertilizacion(grupo);
+      });
+    });
+
+    document.querySelectorAll('.btn-del-fert').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ok = await Modal.confirm(
+          'Eliminar fertilización',
+          '¿Eliminar este registro? No se puede deshacer.',
+          'Eliminar', 'danger'
+        );
+        if (!ok) return;
+        try {
+          await BBT.API.del(`/api/agro/fertilizaciones/${btn.dataset.grupoId}`);
+          Toast.success('Fertilización eliminada.');
+          await this.render(this._cicloId);
+        } catch (err) { Toast.error(err.message || 'Error.'); }
+      }, { once: true });
+    });
+
     document.querySelectorAll('.btn-edit-cosecha').forEach(btn => {
       btn.addEventListener('click', () => {
         const cos = this._cosechas.find(c => c.id === btn.dataset.id);
@@ -758,6 +883,15 @@ const AgroCicloView = {
             <label class="form-label">Fecha *</label>
             <input class="input" type="date" id="ms-fecha" value="${fechaVal}">
           </div>
+          <div class="form-group">
+            <label class="form-label">
+              Fecha fin
+              <span style="font-size:.72rem;color:var(--text-muted);
+                font-weight:400"> — opcional</span>
+            </label>
+            <input class="input" type="date" id="ms-fecha-fin"
+              value="${isEdit ? String(reg.fecha_fin||'').slice(0,10) : ''}">
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-group">
               <label class="form-label">Cultivo *</label>
@@ -834,6 +968,7 @@ const AgroCicloView = {
         if (isEdit) {
           await BBT.API.put(`/api/agro/registros/${reg.id}`, {
             fecha,
+            fecha_fin: m.querySelector('#ms-fecha-fin').value || null,
             cultivo,
             variedad:  tipoSel,
             obs:       variedad,
@@ -845,6 +980,7 @@ const AgroCicloView = {
           await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/registros`, {
             tipo:      'siembra',
             fecha,
+            fecha_fin: m.querySelector('#ms-fecha-fin').value || null,
             cultivo,
             variedad:  tipoSel,
             obs:       variedad,
@@ -865,19 +1001,45 @@ const AgroCicloView = {
 
   _modalFertPulv(tipo, reg = null) {
     if (tipo === 'pulverizacion') { this._modalPulverizacion(reg); return; }
+    this._modalFertilizacion(reg);
+  },
 
-    // FERTILIZACIÓN: selector del catálogo
-    const isEdit  = reg !== null;
-    const esc     = s => BBT.Security.sanitize(String(s||''));
-    const fechaVal = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
-    const haVal    = isEdit ? (reg.hectareas||'') : '';
+  _modalFertilizacion(grupo = null) {
+    const isEdit   = grupo !== null;
+    const esc      = s => BBT.Security.sanitize(String(s||''));
+    const fechaVal = isEdit
+      ? String(grupo.fecha||'').slice(0,10)
+      : new Date().toISOString().slice(0,10);
 
-    const prodOpts = this._productosFert.map(p =>
-      `<option value="${esc(p.nombre)}"
-        ${(isEdit ? reg.producto : '') === p.nombre ? 'selected' : ''}>
-        ${esc(p.nombre)}
-      </option>`
-    ).join('');
+    const productosIniciales = isEdit && grupo.productos?.length
+      ? grupo.productos
+      : [{ producto: '', cantidad_kg: '' }];
+
+    const renderFilaProd = (p) => `
+      <div class="pulv-prod-row"
+        style="display:grid;grid-template-columns:1fr 140px 32px;
+          gap:8px;align-items:center;margin-bottom:8px">
+        <select class="select pulv-prod-select">
+          <option value="">— Producto —</option>
+          ${this._productosFert.map(op =>
+            `<option value="${esc(op.nombre)}"
+              ${p.producto === op.nombre ? 'selected' : ''}>
+              ${esc(op.nombre)}
+            </option>`
+          ).join('')}
+        </select>
+        <input class="input pulv-litros-input" type="number"
+          min="0" step="0.1" placeholder="kg/ha"
+          value="${p.cantidad_kg||''}">
+        <button class="gtree-btn-icon gtree-btn-danger pulv-del-row"
+          type="button" title="Quitar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`;
 
     const m = Modal.show({
       title: isEdit ? 'Editar fertilización' : 'Agregar fertilización',
@@ -888,26 +1050,31 @@ const AgroCicloView = {
             <input class="input" type="date" id="mf-fecha" value="${fechaVal}">
           </div>
           <div class="form-group">
-            <label class="form-label">Producto *</label>
-            <select class="select" id="mf-producto">
-              <option value="">— Seleccionar —</option>
-              ${prodOpts}
-            </select>
+            <label class="form-label">Hectáreas *
+              ${this._lote?.hectareas
+                ? `<span style="font-size:.72rem;color:var(--text-muted)">
+                    (lote: ${parseFloat(this._lote.hectareas)
+                      .toLocaleString('es-AR')} ha)
+                  </span>` : ''}
+            </label>
+            <input class="input" type="number" id="mf-ha"
+              min="0" step="0.1"
+              value="${isEdit ? grupo.hectareas||'' : ''}">
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-              <label class="form-label">Hectáreas${this._lote?.hectareas
-                ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">
-                    (lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)
-                  </span>` : ''}</label>
-              <input class="input" type="number" id="mf-ha"
-                min="0" step="0.1" value="${haVal}">
+          <div class="form-group">
+            <label class="form-label">
+              Productos
+              <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">
+                — producto y kg por hectárea
+              </span>
+            </label>
+            <div id="mf-productos-list">
+              ${productosIniciales.map(p => renderFilaProd(p)).join('')}
             </div>
-            <div class="form-group">
-              <label class="form-label">Cantidad (kg)</label>
-              <input class="input" type="number" id="mf-kg"
-                min="0" step="0.1" value="${isEdit ? reg.cantidad_kg||'' : ''}">
-            </div>
+            <button class="btn btn-secondary btn-sm" id="mf-add-prod"
+              type="button" style="margin-top:6px">
+              ＋ Agregar producto
+            </button>
           </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="mf-cancel">Cancelar</button>
@@ -915,33 +1082,58 @@ const AgroCicloView = {
                  ${isEdit ? 'Actualizar' : 'Guardar'}
                </button>`
     });
+
+    setTimeout(() => {
+      const list = m.querySelector('#mf-productos-list');
+      const bindDel = (row) => {
+        row.querySelector('.pulv-del-row')?.addEventListener('click', function() {
+          if (list.querySelectorAll('.pulv-prod-row').length > 1) {
+            this.closest('.pulv-prod-row').remove();
+          } else { Toast.error('Debe haber al menos un producto.'); }
+        });
+      };
+      list.querySelectorAll('.pulv-prod-row').forEach(bindDel);
+      m.querySelector('#mf-add-prod')?.addEventListener('click', () => {
+        const div = document.createElement('div');
+        div.innerHTML = renderFilaProd({ producto: '', cantidad_kg: '' });
+        const row = div.firstElementChild;
+        list.appendChild(row);
+        bindDel(row);
+      });
+    }, 50);
+
     m.querySelector('#mf-cancel').addEventListener('click',
       () => Modal.close(m), { once: true });
+
     m.querySelector('#mf-ok').addEventListener('click', async () => {
-      const btn     = m.querySelector('#mf-ok');
-      const fecha   = m.querySelector('#mf-fecha').value;
-      const producto = m.querySelector('#mf-producto').value;
-      if (!fecha || !producto) {
-        Toast.error('Fecha y producto son requeridos.'); return;
+      const btn   = m.querySelector('#mf-ok');
+      const fecha = m.querySelector('#mf-fecha').value;
+      const ha    = m.querySelector('#mf-ha').value;
+      if (!fecha) { Toast.error('Fecha requerida.'); return; }
+      const productos = [];
+      m.querySelectorAll('.pulv-prod-row').forEach(row => {
+        const prod = row.querySelector('.pulv-prod-select').value;
+        const kg   = row.querySelector('.pulv-litros-input').value;
+        if (prod) productos.push({ producto: prod, cantidad_kg: kg||null });
+      });
+      if (!productos.length) {
+        Toast.error('Agregá al menos un producto.'); return;
       }
       btn.disabled = true;
       btn.textContent = isEdit ? 'Actualizando...' : 'Guardando...';
       try {
         if (isEdit) {
-          await BBT.API.put(`/api/agro/registros/${reg.id}`, {
-            fecha, producto,
-            hectareas:   m.querySelector('#mf-ha').value || null,
-            cantidad_kg: m.querySelector('#mf-kg').value || null,
-          });
+          await BBT.API.put(`/api/agro/fertilizaciones/${grupo.id}`,
+            { fecha, hectareas: ha||null, productos });
+          Toast.success('Fertilización actualizada.');
         } else {
-          await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/registros`, {
-            tipo: 'fertilizacion', fecha, producto,
-            hectareas:   m.querySelector('#mf-ha').value || null,
-            cantidad_kg: m.querySelector('#mf-kg').value || null,
-          });
+          await BBT.API.post(
+            `/api/agro/ciclos/${this._cicloId}/fertilizaciones`,
+            { fecha, hectareas: ha||null, productos }
+          );
+          Toast.success('Fertilización registrada.');
         }
         Modal.close(m);
-        Toast.success(isEdit ? 'Fertilización actualizada.' : 'Fertilización registrada.');
         await this.render(this._cicloId);
       } catch (err) {
         Toast.error(err.message || 'Error.');
@@ -973,7 +1165,7 @@ const AgroCicloView = {
           ).join('')}
         </select>
         <input class="input pulv-litros-input" type="number"
-          min="0" step="0.1" placeholder="Litros" value="${p.litros||''}">
+          min="0" step="0.1" placeholder="L/ha" value="${p.litros||''}">
         <button class="gtree-btn-icon gtree-btn-danger pulv-del-row" type="button" title="Quitar">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -1114,6 +1306,15 @@ const AgroCicloView = {
               <label class="form-label">Fecha *</label>
               <input class="input" type="date" id="mc-fecha" value="${fechaVal}">
             </div>
+            <div class="form-group">
+              <label class="form-label">
+                Fecha fin
+                <span style="font-size:.72rem;color:var(--text-muted);
+                  font-weight:400"> — opcional</span>
+              </label>
+              <input class="input" type="date" id="mc-fecha-fin"
+                value="${isEdit ? String(cos.fecha_fin||'').slice(0,10) : ''}">
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div class="form-group">
                 <label class="form-label">Hectáreas${this._lote?.hectareas
@@ -1206,6 +1407,7 @@ const AgroCicloView = {
         const tipo = editModal.querySelector('#mc-destino-tipo').value;
         const body = {
           fecha,
+          fecha_fin: editModal.querySelector('#mc-fecha-fin').value || null,
           hectareas: editModal.querySelector('#mc-ha').value || null,
           kilos,
         };
@@ -1237,6 +1439,14 @@ const AgroCicloView = {
           <div class="form-group">
             <label class="form-label">Fecha *</label>
             <input class="input" type="date" id="mc-fecha" value="${fechaVal}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Fecha fin
+              <span style="font-size:.72rem;color:var(--text-muted);
+                font-weight:400"> — opcional</span>
+            </label>
+            <input class="input" type="date" id="mc-fecha-fin" value="">
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-group">
@@ -1275,7 +1485,9 @@ const AgroCicloView = {
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {
         await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/cosechas`,
-          { fecha, toneladas: kilos, hectareas: hectareas || null });
+          { fecha,
+            fecha_fin: m.querySelector('#mc-fecha-fin').value || null,
+            toneladas: kilos, hectareas: hectareas || null });
         Modal.close(m);
         Toast.success('Cosecha registrada.');
         await this.render(this._cicloId);
@@ -1446,15 +1658,20 @@ const AgroCicloView = {
     };
     const empresa = BBT.Auth?._user?.empresaNombre || 'BBTECH';
 
-    const siembras = this._registros.filter(r => r.tipo === 'siembra');
-    const ferts    = this._registros.filter(r => r.tipo === 'fertilizacion');
-    const pulvs    = this._pulverizaciones || [];
-    const cosechas = this._cosechas;
+    const siembras   = this._registros.filter(r => r.tipo === 'siembra');
+    const ferts      = this._fertilizaciones || [];
+    const fertsViej  = this._registros.filter(r => r.tipo === 'fertilizacion');
+    const pulvs      = this._pulverizaciones || [];
+    const cosechas   = this._cosechas;
 
     const totSiemHa = siembras.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
-    const totSiemKg = siembras.reduce((s,r) => s+parseFloat(r.toneladas||0),0);
-    const totFertHa = ferts.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
-    const totFertKg = ferts.reduce((s,r) => s+parseFloat(r.cantidad_kg||0),0);
+    const totSiemKg = siembras.reduce((s,r) =>
+      s+parseFloat(r.hectareas||0)*parseFloat(r.toneladas||0),0);
+    const totFertHa = ferts.reduce((s,g) => s+parseFloat(g.hectareas||0),0)
+                    + fertsViej.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
+    const totFertKg = ferts.reduce((s,g) =>
+      s+(g.productos||[]).reduce((sp,p) => sp+parseFloat(p.cantidad_kg||0),0),0)
+      + fertsViej.reduce((s,r) => s+parseFloat(r.cantidad_kg||0),0);
     const totPulvHa = pulvs.reduce((s,g) => s+parseFloat(g.hectareas||0),0);
     const totPulvL  = pulvs.reduce((s,g) =>
       s+(g.productos||[]).reduce((sp,p) => sp+parseFloat(p.litros||0),0),0);
@@ -1522,46 +1739,87 @@ const AgroCicloView = {
       </div>
 
       ${seccion('🌱 Siembra',
-        `<tr><th>Fecha</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
-         <th style="text-align:right">Hectáreas</th>
-         <th style="text-align:right">Kilos semilla</th></tr>`,
-        siembras.map(r => `<tr>
-          <td>${fmtFecha(r.fecha)}</td>
-          <td>${esc(r.cultivo||'—')}</td>
-          <td>${esc(r.variedad||'—')}</td>
-          <td>${esc(r.obs||'—')}</td>
-          <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-          <td style="text-align:right">${fmtNum(r.toneladas)} kg</td>
-        </tr>`).join(''),
+        `<tr>
+          <th>Fecha</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
+          <th style="text-align:right">Hectáreas</th>
+          <th style="text-align:right">kg/ha</th>
+          <th style="text-align:right">Total kg</th>
+        </tr>`,
+        siembras.map(r => {
+          const fechaDisplay = r.fecha_fin
+            ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
+            : fmtFecha(r.fecha);
+          const totalKg = r.hectareas && r.toneladas
+            ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.toneladas)) + ' kg'
+            : '—';
+          return `<tr>
+            <td>${fechaDisplay}</td>
+            <td>${esc(r.cultivo||'—')}</td>
+            <td>${esc(r.variedad||'—')}</td>
+            <td>${esc(r.obs||'—')}</td>
+            <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+            <td style="text-align:right">${fmtNum(r.toneladas)} kg</td>
+            <td style="text-align:right">${totalKg}</td>
+          </tr>`;
+        }).join(''),
         siembras.length ? `<tr>
           <td colspan="4">Total</td>
           <td style="text-align:right">${fmtNum(totSiemHa)} ha</td>
-          <td style="text-align:right">${fmtNum(totSiemKg)} kg</td>
+          <td></td>
+          <td style="text-align:right">
+            ${fmtNum(siembras.reduce((s,r) =>
+              s + parseFloat(r.hectareas||0) * parseFloat(r.toneladas||0), 0))} kg
+          </td>
         </tr>` : ''
       )}
 
       ${seccion('🧪 Fertilización',
-        `<tr><th>Fecha</th><th>Producto</th>
-         <th style="text-align:right">Hectáreas</th>
-         <th style="text-align:right">Kilos</th></tr>`,
-        ferts.map(r => `<tr>
+        `<tr>
+          <th>Fecha</th>
+          <th style="text-align:right">Hectáreas</th>
+          <th>Producto</th>
+          <th style="text-align:right">kg/ha</th>
+          <th style="text-align:right">Total kg</th>
+        </tr>`,
+        ferts.map(g => (g.productos||[{ nombre:'—', cantidad_kg:null }]).map((p,i) => `
+          <tr>
+            ${i===0
+              ? `<td rowspan="${(g.productos||[{}]).length}">${fmtFecha(g.fecha)}</td>
+                 <td rowspan="${(g.productos||[{}]).length}" style="text-align:right">
+                   ${fmtNum(g.hectareas)} ha
+                 </td>`
+              : ''}
+            <td>${esc(p.nombre||p.producto||'—')}</td>
+            <td style="text-align:right">${fmtNum(p.cantidad_kg)} kg/ha</td>
+            <td style="text-align:right">
+              ${g.hectareas && p.cantidad_kg
+                ? fmtNum(parseFloat(g.hectareas) * parseFloat(p.cantidad_kg)) + ' kg'
+                : '—'}
+            </td>
+          </tr>`).join('')
+        ).join('') +
+        fertsViej.map(r => `<tr>
           <td>${fmtFecha(r.fecha)}</td>
-          <td>${esc(r.producto||'—')}</td>
           <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-          <td style="text-align:right">${fmtNum(r.cantidad_kg)} kg</td>
+          <td>${esc(r.producto||'—')} <em style="color:#888">(anterior)</em></td>
+          <td style="text-align:right">${fmtNum(r.cantidad_kg)} kg/ha</td>
+          <td style="text-align:right">
+            ${r.hectareas && r.cantidad_kg
+              ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.cantidad_kg)) + ' kg'
+              : '—'}
+          </td>
         </tr>`).join(''),
-        ferts.length ? `<tr>
-          <td colspan="2">Total</td>
-          <td style="text-align:right">${fmtNum(totFertHa)} ha</td>
-          <td style="text-align:right">${fmtNum(totFertKg)} kg</td>
-        </tr>` : ''
+        ''
       )}
 
       ${seccion('💧 Pulverización',
-        `<tr><th>Fecha</th>
-         <th style="text-align:right">Hectáreas</th>
-         <th>Producto</th>
-         <th style="text-align:right">Litros</th></tr>`,
+        `<tr>
+          <th>Fecha</th>
+          <th style="text-align:right">Hectáreas</th>
+          <th>Producto</th>
+          <th style="text-align:right">L/ha</th>
+          <th style="text-align:right">Total L</th>
+        </tr>`,
         pulvs.map(g => (g.productos||[{ producto:'—', litros:null }]).map((p,i) => `
           <tr>
             ${i===0
@@ -1571,30 +1829,43 @@ const AgroCicloView = {
                  </td>`
               : ''}
             <td>${esc(p.producto||'—')}</td>
-            <td style="text-align:right">${fmtNum(p.litros)} L</td>
+            <td style="text-align:right">${fmtNum(p.litros)} L/ha</td>
+            <td style="text-align:right">
+              ${g.hectareas && p.litros
+                ? fmtNum(parseFloat(g.hectareas) * parseFloat(p.litros)) + ' L'
+                : '—'}
+            </td>
           </tr>`).join('')
         ).join(''),
-        pulvs.length ? `<tr>
-          <td>Total</td>
-          <td style="text-align:right">${fmtNum(totPulvHa)} ha</td>
-          <td></td>
-          <td style="text-align:right">${fmtNum(totPulvL)} L</td>
-        </tr>` : ''
+        ''
       )}
 
       ${seccion('🌾 Cosecha',
-        `<tr><th>Fecha</th>
-         <th style="text-align:right">Hectáreas</th>
-         <th style="text-align:right">Kilos</th>
-         <th>Destino</th></tr>`,
-        cosechas.map(r => `<tr>
-          <td>${fmtFecha(r.fecha)}</td>
-          <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-          <td style="text-align:right">${fmtNum(r.toneladas)} kg</td>
-          <td>${fmtDestino(r)}</td>
-        </tr>`).join(''),
+        `<tr>
+          <th>Fecha</th>
+          <th>Cultivo</th>
+          <th>Tipo</th>
+          <th>Variedad</th>
+          <th style="text-align:right">Hectáreas</th>
+          <th style="text-align:right">Kilos totales</th>
+          <th>Destino</th>
+        </tr>`,
+        cosechas.map(r => {
+          const fechaDisplay = r.fecha_fin
+            ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
+            : fmtFecha(r.fecha);
+          return `<tr>
+            <td>${fechaDisplay}</td>
+            <td>${esc(ciclo.cultivo||'—')}</td>
+            <td>${esc(ciclo.tipo||'—')}</td>
+            <td>${esc(ciclo.variedad||'—')}</td>
+            <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+            <td style="text-align:right">${fmtNum(r.toneladas)} kg</td>
+            <td>${fmtDestino(r)}</td>
+          </tr>`;
+        }).join(''),
         cosechas.length ? `<tr>
-          <td>Total</td>
+          <td colspan="4">Total</td>
           <td style="text-align:right">${fmtNum(totCosHa)} ha</td>
           <td style="text-align:right">${fmtNum(totCosKg)} kg</td>
           <td></td>

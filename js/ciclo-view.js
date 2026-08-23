@@ -370,7 +370,7 @@ const CicloView = {
     const allRodeos = BBT.Estancias.getAllRodeos();
     const getNombreGrupo = gid => { const r = allRodeos.find(r => r.id === gid); return r ? r.nombre : gid; };
 
-    const totalActivos = vacas.filter(v => !v.rechazo).length;
+    const totalActivos = vacas.filter(v => !v.rechazo && !v.traspasada).length;
     if (count) count.textContent = `${totalActivos} ${totalActivos === 1 ? 'animal' : 'animales'}`;
     if (!vacas.length) {
       tbody.innerHTML = '';
@@ -687,8 +687,7 @@ const CicloView = {
       }
       Modal.close(m);
       Toast.success(`Descarte actualizado para ${ids.length} ${ids.length === 1 ? 'animal' : 'animales'}.`);
-      this._refreshLocal();
-      await App.refreshSidebar();
+      await this._refresh();
     });
   },
 
@@ -803,6 +802,7 @@ const CicloView = {
       if (!res.ok) { Toast.error(res.error); okBtn.disabled = false; okBtn.textContent = `Traspasar ${cantidad} animales`; return; }
       Modal.close(m);
       _toastMoverTraspasar(res, 'traspasado', 'traspasados');
+      await this._refresh();
       App.refreshSidebar();
     });
   },

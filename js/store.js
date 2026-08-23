@@ -316,6 +316,16 @@ const Ciclos = {
   async fetchByCiclo(cicloId) {
     const raw  = await API.get('/api/ciclos/' + cicloId);
     const norm = _normCiclo(raw);
+    // Preservar vacas en caché si ya estaban cargadas
+    const existing = this._cache[cicloId];
+    if (existing && Object.keys(existing.vacas || {}).length > 0) {
+      norm.vacas = existing.vacas;
+    }
+    // Actualizar conteos desde el backend (siempre)
+    norm._vacaCount      = Number.isFinite(parseInt(raw.vaca_count))
+      ? parseInt(raw.vaca_count) : 0;
+    norm._vacaCountTotal = Number.isFinite(parseInt(raw.vaca_count_total))
+      ? parseInt(raw.vaca_count_total) : 0;
     this._cache[cicloId] = norm;
     return norm;
   },
@@ -332,11 +342,15 @@ const Ciclos = {
         existing.fechaCierre = c.fecha_cierre || null;
         existing.lote        = c.lote || '';
         existing.obs         = c.obs  || '';
-        existing._vacaCount  = parseInt(c.vaca_count) || Object.keys(existing.vacas).length;
+        existing._vacaCount      = Number.isFinite(parseInt(c.vaca_count))
+          ? parseInt(c.vaca_count)
+          : Object.keys(existing.vacas).length;
+        existing._vacaCountTotal = parseInt(c.vaca_count_total) ?? existing._vacaCountTotal ?? 0;
       } else {
         // Sin vacas en caché — reemplazar normalmente
         const norm = _normCiclo(c);
-        norm._vacaCount = parseInt(c.vaca_count) || 0;
+        norm._vacaCount      = parseInt(c.vaca_count) || 0;
+        norm._vacaCountTotal = parseInt(c.vaca_count_total) || 0;
         this._cache[c.id] = norm;
       }
     });
