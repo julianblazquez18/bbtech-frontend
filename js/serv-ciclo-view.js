@@ -2,14 +2,15 @@
 
 const ServCicloView = {
 
-  _cicloId:   null,
-  _ciclo:     null,
-  _lote:      null,
-  _est:       null,
-  _registros: [],
-  _cultivos:  [],
-  _tiposCult: [],
-  _tabActivo: 'siembra',
+  _cicloId:       null,
+  _ciclo:         null,
+  _lote:          null,
+  _est:           null,
+  _registros:     [],
+  _cultivos:      [],
+  _tiposCult:     [],
+  _productosFert: [],
+  _tabActivo:     'siembra',
 
   async render(cicloId) {
     const main = $('#main-content');
@@ -20,15 +21,17 @@ const ServCicloView = {
     this._cicloId = cicloId;
 
     try {
-      const [registros, cultivos, tipos, ests] = await Promise.all([
+      const [registros, cultivos, tipos, productosFert, ests] = await Promise.all([
         BBT.API.get(`/api/serv/ciclos/${cicloId}/registros`),
         BBT.API.get('/api/agro/cultivos').catch(() => []),
         BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
+        BBT.API.get('/api/agro/productos-fert').catch(() => []),
         BBT.API.get('/api/serv/establecimientos'),
       ]);
-      this._registros = registros;
-      this._cultivos  = cultivos;
-      this._tiposCult = tipos;
+      this._registros     = registros;
+      this._cultivos      = cultivos;
+      this._tiposCult     = tipos;
+      this._productosFert = productosFert;
 
       this._ciclo = null;
       for (const est of ests) {
@@ -99,6 +102,8 @@ const ServCicloView = {
         <div class="emp-admin-tabs">
           <button class="emp-tab ${this._tabActivo==='siembra'?'emp-tab-active':''}"
             data-tab="siembra">🌱 Siembra</button>
+          <button class="emp-tab ${this._tabActivo==='fertilizacion'?'emp-tab-active':''}"
+            data-tab="fertilizacion">🧪 Fertilización</button>
           <button class="emp-tab ${this._tabActivo==='cosecha'?'emp-tab-active':''}"
             data-tab="cosecha">🌾 Cosecha</button>
         </div>
@@ -138,15 +143,36 @@ const ServCicloView = {
     const fmtNum = n => n != null
       ? parseFloat(n).toLocaleString('es-AR',{maximumFractionDigits:1}) : '—';
 
+    const addLabel = tab === 'siembra' ? 'siembra'
+      : tab === 'fertilizacion' ? 'fertilización'
+      : 'cosecha';
     const addBtn = cerrado ? '' : `
       <button class="btn btn-primary btn-sm" id="sciclo-add-reg">
-        ＋ Agregar ${tab === 'siembra' ? 'siembra' : 'cosecha'}
+        ＋ Agregar ${addLabel}
       </button>`;
+
+    const editBtns = id => `<div style="display:flex;gap:4px">
+      <button class="gtree-btn-icon btn-edit-reg" data-id="${id}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+      <button class="gtree-btn-icon gtree-btn-danger btn-del-reg" data-id="${id}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        </svg>
+      </button>
+    </div>`;
 
     if (tab === 'siembra') {
       const rows  = this._registros.filter(r => r.tipo === 'siembra');
       const totHa = rows.reduce((s,r) => s+parseFloat(r.hectareas||0), 0);
-      const totKg = rows.reduce((s,r) => s+parseFloat(r.kilos||0), 0);
+      const totKgTotal = rows.reduce((s,r) =>
+        s + parseFloat(r.hectareas||0) * parseFloat(r.kilos||0), 0);
       return `
         <div class="agro-tab-header">${addBtn}</div>
         ${rows.length ? `
@@ -155,46 +181,77 @@ const ServCicloView = {
             <thead><tr>
               <th>Fecha</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
               <th style="text-align:right">Hectáreas</th>
-              <th style="text-align:right">Kilos semilla</th>
+              <th style="text-align:right">kg/ha</th>
+              <th style="text-align:right">Total kg</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
-              ${rows.map(r => `<tr>
-                <td>${fmt(r.fecha)}</td>
-                <td>${esc(r.cultivo||'—')}</td>
-                <td>${esc(r.tipo_cult||'—')}</td>
-                <td>${esc(r.variedad||'—')}</td>
-                <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-                <td style="text-align:right">${fmtKg(r.kilos)}</td>
-                ${!cerrado ? `<td><div style="display:flex;gap:4px">
-                  <button class="gtree-btn-icon btn-edit-reg" data-id="${r.id}">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
-                  <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
-                    data-id="${r.id}">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    </svg>
-                  </button>
-                </div></td>` : ''}
-              </tr>`).join('')}
+              ${rows.map(r => {
+                const fechaDisplay = r.fecha_fin
+                  ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
+                  : fmt(r.fecha);
+                const totalKg = r.hectareas && r.kilos
+                  ? fmtKg(parseFloat(r.hectareas) * parseFloat(r.kilos))
+                  : '—';
+                return `<tr>
+                  <td>${fechaDisplay}</td>
+                  <td>${esc(r.cultivo||'—')}</td>
+                  <td>${esc(r.tipo_cult||'—')}</td>
+                  <td>${esc(r.variedad||'—')}</td>
+                  <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+                  <td style="text-align:right">${fmtKg(r.kilos)}</td>
+                  <td style="text-align:right">${totalKg}</td>
+                  ${!cerrado ? `<td>${editBtns(r.id)}</td>` : ''}
+                </tr>`;
+              }).join('')}
             </tbody>
             <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
               <td colspan="4">Total</td>
               <td style="text-align:right">${fmtNum(totHa)} ha</td>
-              <td style="text-align:right">${fmtKg(totKg)}</td>
+              <td></td>
+              <td style="text-align:right">${fmtKg(totKgTotal)}</td>
               ${!cerrado ? '<td></td>' : ''}
             </tr></tfoot>
           </table>
         </div>` : `<div class="empty-state" style="padding:40px">
           <div class="empty-icon">🌱</div>
           <div class="empty-title">Sin siembras registradas</div>
+        </div>`}`;
+    }
+
+    if (tab === 'fertilizacion') {
+      const rows  = this._registros.filter(r => r.tipo === 'fertilizacion');
+      return `
+        <div class="agro-tab-header">${addBtn}</div>
+        ${rows.length ? `
+        <div class="agro-table-wrap">
+          <table class="agro-cam-table">
+            <thead><tr>
+              <th>Fecha</th>
+              <th style="text-align:right">Hectáreas</th>
+              <th>Producto</th>
+              <th style="text-align:right">kg/ha</th>
+              <th style="text-align:right">Total kg</th>
+              ${!cerrado ? '<th></th>' : ''}
+            </tr></thead>
+            <tbody>
+              ${rows.map(r => `<tr>
+                <td>${fmt(r.fecha)}</td>
+                <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+                <td>${esc(r.producto||r.destino||'—')}</td>
+                <td style="text-align:right">${fmtKg(r.kilos)}</td>
+                <td style="text-align:right">
+                  ${r.hectareas && r.kilos
+                    ? fmtKg(parseFloat(r.hectareas)*parseFloat(r.kilos))
+                    : '—'}
+                </td>
+                ${!cerrado ? `<td>${editBtns(r.id)}</td>` : ''}
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : `<div class="empty-state" style="padding:40px">
+          <div class="empty-icon">🧪</div>
+          <div class="empty-title">Sin fertilizaciones registradas</div>
         </div>`}`;
     }
 
@@ -209,38 +266,33 @@ const ServCicloView = {
           <table class="agro-cam-table">
             <thead><tr>
               <th>Fecha</th>
+              <th>Cultivo</th>
+              <th>Tipo</th>
+              <th>Variedad</th>
               <th style="text-align:right">Hectáreas</th>
-              <th style="text-align:right">Kilos</th>
+              <th style="text-align:right">Kilos totales</th>
               <th>Destino</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
-              ${rows.map(r => `<tr>
-                <td>${fmt(r.fecha)}</td>
-                <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-                <td style="text-align:right;font-weight:600">${fmtKg(r.kilos)}</td>
-                <td>${esc(r.destino||'—')}</td>
-                ${!cerrado ? `<td><div style="display:flex;gap:4px">
-                  <button class="gtree-btn-icon btn-edit-reg" data-id="${r.id}">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
-                  <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
-                    data-id="${r.id}">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    </svg>
-                  </button>
-                </div></td>` : ''}
-              </tr>`).join('')}
+              ${rows.map(r => {
+                const fechaDisplay = r.fecha_fin
+                  ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
+                  : fmt(r.fecha);
+                return `<tr>
+                  <td>${fechaDisplay}</td>
+                  <td>${esc(this._ciclo?.cultivo||'—')}</td>
+                  <td>${esc(this._ciclo?.tipo||'—')}</td>
+                  <td>${esc(this._ciclo?.variedad||'—')}</td>
+                  <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+                  <td style="text-align:right;font-weight:600">${fmtKg(r.kilos)}</td>
+                  <td>${esc(r.destino||'—')}</td>
+                  ${!cerrado ? `<td>${editBtns(r.id)}</td>` : ''}
+                </tr>`;
+              }).join('')}
             </tbody>
             <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
-              <td>Total</td>
+              <td colspan="4">Total</td>
               <td style="text-align:right">${fmtNum(totHa)} ha</td>
               <td style="text-align:right">${fmtKg(totKg)}</td>
               <td></td>
@@ -280,7 +332,7 @@ const ServCicloView = {
             if (this._est) App.navigateToServEst(this._est.id);
             else App.navigateToServ();
           } catch (err) { Toast.error(err.message || 'Error.'); }
-        }, { once: true });
+        });
 
       document.getElementById('sciclo-save-notas')
         ?.addEventListener('click', async () => {
@@ -318,8 +370,9 @@ const ServCicloView = {
     document.getElementById('sciclo-add-reg')
       ?.addEventListener('click', () => {
         if (this._tabActivo === 'siembra') this._modalSiembra();
+        else if (this._tabActivo === 'fertilizacion') this._modalFertilizacion();
         else this._modalCosecha();
-      }, { once: true });
+      });
 
     document.querySelectorAll('.btn-del-reg').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -339,6 +392,7 @@ const ServCicloView = {
         const reg = this._registros.find(r => r.id === btn.dataset.id);
         if (!reg) return;
         if (reg.tipo === 'siembra') this._modalSiembra(reg);
+        else if (reg.tipo === 'fertilizacion') this._modalFertilizacion(reg);
         else this._modalCosecha(reg);
       });
     });
@@ -375,6 +429,13 @@ const ServCicloView = {
             <label class="form-label">Fecha *</label>
             <input class="input" type="date" id="ss-fecha"
               value="${isEdit ? String(reg.fecha).slice(0,10) : new Date().toISOString().slice(0,10)}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha fin
+              <span style="font-size:.72rem;color:var(--text-muted);font-weight:400"> — opcional</span>
+            </label>
+            <input class="input" type="date" id="ss-fecha-fin"
+              value="${isEdit ? String(reg.fecha_fin||'').slice(0,10) : ''}">
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-group">
@@ -414,7 +475,7 @@ const ServCicloView = {
                 value="${isEdit ? reg.hectareas||'' : ''}">
             </div>
             <div class="form-group">
-              <label class="form-label">Kilos semilla</label>
+              <label class="form-label">Kilos semilla (kg/ha)</label>
               <input class="input" type="number" id="ss-kilos"
                 min="0" step="0.1"
                 value="${isEdit ? reg.kilos||'' : ''}">
@@ -450,6 +511,7 @@ const ServCicloView = {
       const body = {
         tipo:      'siembra',
         fecha,
+        fecha_fin:  m.querySelector('#ss-fecha-fin').value || null,
         cultivo,
         tipo_cult:  m.querySelector('#ss-tipo').value || null,
         variedad:   m.querySelector('#ss-variedad').value.trim() || null,
@@ -473,6 +535,164 @@ const ServCicloView = {
     }, { once: true });
   },
 
+  _modalFertilizacion(reg = null) {
+    const isEdit  = reg !== null;
+    const esc     = s => BBT.Security.sanitize(String(s||''));
+    const fechaVal = isEdit
+      ? String(reg.fecha||'').slice(0,10)
+      : new Date().toISOString().slice(0,10);
+
+    const renderFilaProd = (p = {}) => `
+      <div class="pulv-prod-row"
+        style="display:grid;grid-template-columns:1fr 140px 32px;
+          gap:8px;align-items:center;margin-bottom:8px">
+        <select class="select pulv-prod-select">
+          <option value="">— Producto —</option>
+          ${this._productosFert.map(op =>
+            `<option value="${esc(op.nombre)}"
+              ${(p.producto||'') === op.nombre ? 'selected' : ''}>
+              ${esc(op.nombre)}
+            </option>`
+          ).join('')}
+        </select>
+        <input class="input pulv-litros-input" type="number"
+          min="0" step="0.1" placeholder="kg/ha"
+          value="${p.kilos||''}">
+        <button class="gtree-btn-icon gtree-btn-danger pulv-del-row"
+          type="button" title="Quitar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`;
+
+    const productosIniciales = isEdit
+      ? [{ producto: reg.producto||reg.destino||'', kilos: reg.kilos||'' }]
+      : [{ producto: '', kilos: '' }];
+
+    const m = Modal.show({
+      title: isEdit ? 'Editar fertilización' : 'Agregar fertilización',
+      body: `
+        <div class="flex flex-col gap-4">
+          <div class="form-group">
+            <label class="form-label">Fecha *</label>
+            <input class="input" type="date" id="sf-fecha"
+              value="${fechaVal}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hectáreas *
+              ${this._lote?.hectareas
+                ? `<span style="font-size:.72rem;color:var(--text-muted)">
+                    (lote: ${parseFloat(this._lote.hectareas)
+                      .toLocaleString('es-AR')} ha)
+                  </span>` : ''}
+            </label>
+            <input class="input" type="number" id="sf-ha"
+              min="0" step="0.1"
+              value="${isEdit ? reg.hectareas||'' : ''}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Productos
+              <span style="font-size:.72rem;color:var(--text-muted);
+                font-weight:400"> — producto y kg por hectárea</span>
+            </label>
+            <div id="sf-productos-list">
+              ${productosIniciales.map(p => renderFilaProd(p)).join('')}
+            </div>
+            ${!isEdit ? `
+            <button class="btn btn-secondary btn-sm" id="sf-add-prod"
+              type="button" style="margin-top:6px">
+              ＋ Agregar producto
+            </button>` : ''}
+          </div>
+        </div>`,
+      footer: `<button class="btn btn-secondary" id="sf-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="sf-ok">
+                 ${isEdit ? 'Guardar' : 'Agregar'}
+               </button>`
+    });
+
+    setTimeout(() => {
+      const list = m.querySelector('#sf-productos-list');
+
+      const bindDelRow = btn => {
+        btn.addEventListener('click', function() {
+          if (list.querySelectorAll('.pulv-prod-row').length > 1) {
+            this.closest('.pulv-prod-row').remove();
+          } else {
+            Toast.error('Debe haber al menos un producto.');
+          }
+        });
+      };
+
+      list?.querySelectorAll('.pulv-del-row').forEach(bindDelRow);
+
+      m.querySelector('#sf-add-prod')?.addEventListener('click', () => {
+        const div = document.createElement('div');
+        div.innerHTML = renderFilaProd({});
+        list.appendChild(div.firstElementChild);
+        list.lastElementChild.querySelector('.pulv-del-row') &&
+          bindDelRow(list.lastElementChild.querySelector('.pulv-del-row'));
+      });
+    }, 50);
+
+    m.querySelector('#sf-cancel').addEventListener('click',
+      () => Modal.close(m), { once: true });
+
+    m.querySelector('#sf-ok').addEventListener('click', async () => {
+      const btn   = m.querySelector('#sf-ok');
+      const fecha = m.querySelector('#sf-fecha').value;
+      const ha    = m.querySelector('#sf-ha').value;
+      if (!fecha) { Toast.error('Fecha requerida.'); return; }
+
+      const filas = [];
+      m.querySelectorAll('.pulv-prod-row').forEach(row => {
+        const prod = row.querySelector('.pulv-prod-select').value;
+        const kg   = row.querySelector('.pulv-litros-input').value;
+        if (prod) filas.push({ producto: prod, kilos: kg||null });
+      });
+      if (!filas.length) {
+        Toast.error('Agregá al menos un producto.'); return;
+      }
+
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      try {
+        if (isEdit) {
+          await BBT.API.put(`/api/serv/registros/${reg.id}`, {
+            tipo:      'fertilizacion',
+            fecha,
+            hectareas: ha || null,
+            producto:  filas[0].producto,
+            kilos:     filas[0].kilos || null,
+          });
+        } else {
+          for (const fila of filas) {
+            await BBT.API.post(
+              `/api/serv/ciclos/${this._cicloId}/registros`,
+              {
+                tipo:      'fertilizacion',
+                fecha,
+                hectareas: ha || null,
+                producto:  fila.producto,
+                kilos:     fila.kilos || null,
+              }
+            );
+          }
+        }
+        Modal.close(m);
+        Toast.success(isEdit ? 'Actualizado.' : 'Fertilización registrada.');
+        await this.render(this._cicloId);
+      } catch (err) {
+        Toast.error(err.message || 'Error.');
+        btn.disabled = false;
+        btn.textContent = isEdit ? 'Guardar' : 'Agregar';
+      }
+    }, { once: true });
+  },
+
   _modalCosecha(reg) {
     const esc = s => BBT.Security.sanitize(String(s||''));
     const isEdit = !!reg;
@@ -485,6 +705,13 @@ const ServCicloView = {
             <label class="form-label">Fecha *</label>
             <input class="input" type="date" id="sc-fecha"
               value="${isEdit ? String(reg.fecha).slice(0,10) : new Date().toISOString().slice(0,10)}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha fin
+              <span style="font-size:.72rem;color:var(--text-muted);font-weight:400"> — opcional</span>
+            </label>
+            <input class="input" type="date" id="sc-fecha-fin"
+              value="${isEdit ? String(reg.fecha_fin||'').slice(0,10) : ''}">
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-group">
@@ -525,9 +752,10 @@ const ServCicloView = {
       const body = {
         tipo:      'cosecha',
         fecha,
-        hectareas: m.querySelector('#sc-ha').value || null,
+        fecha_fin:  m.querySelector('#sc-fecha-fin').value || null,
+        hectareas:  m.querySelector('#sc-ha').value || null,
         kilos,
-        destino:   m.querySelector('#sc-destino').value.trim() || null,
+        destino:    m.querySelector('#sc-destino').value.trim() || null,
       };
       try {
         if (isEdit) {
@@ -565,9 +793,11 @@ const ServCicloView = {
       ? parseFloat(n).toLocaleString('es-AR',{maximumFractionDigits:1}) + ' kg' : '—';
 
     const siembras = this._registros.filter(r => r.tipo === 'siembra');
+    const ferts    = this._registros.filter(r => r.tipo === 'fertilizacion');
     const cosechas = this._registros.filter(r => r.tipo === 'cosecha');
     const totSHa = siembras.reduce((s,r) => s+parseFloat(r.hectareas||0), 0);
-    const totSKg = siembras.reduce((s,r) => s+parseFloat(r.kilos||0), 0);
+    const totSKgTotal = siembras.reduce((s,r) =>
+      s + parseFloat(r.hectareas||0) * parseFloat(r.kilos||0), 0);
     const totCHa = cosechas.reduce((s,r) => s+parseFloat(r.hectareas||0), 0);
     const totCKg = cosechas.reduce((s,r) => s+parseFloat(r.kilos||0), 0);
 
@@ -618,39 +848,83 @@ const ServCicloView = {
         <thead><tr>
           <th>Fecha</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
           <th style="text-align:right">Hectáreas</th>
-          <th style="text-align:right">Kilos semilla</th>
+          <th style="text-align:right">kg/ha</th>
+          <th style="text-align:right">Total kg</th>
         </tr></thead>
-        <tbody>${siembras.map(r => `<tr>
-          <td>${fmtFecha(r.fecha)}</td>
-          <td>${esc(r.cultivo||'—')}</td>
-          <td>${esc(r.tipo_cult||'—')}</td>
-          <td>${esc(r.variedad||'—')}</td>
-          <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-          <td style="text-align:right">${fmtKg(r.kilos)}</td>
-        </tr>`).join('')}</tbody>
+        <tbody>${siembras.map(r => {
+          const fechaDisplay = r.fecha_fin
+            ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
+            : fmtFecha(r.fecha);
+          const totalKg = r.hectareas && r.kilos
+            ? fmtNum(parseFloat(r.hectareas)*parseFloat(r.kilos))+' kg'
+            : '—';
+          return `<tr>
+            <td>${fechaDisplay}</td>
+            <td>${esc(r.cultivo||'—')}</td>
+            <td>${esc(r.tipo_cult||'—')}</td>
+            <td>${esc(r.variedad||'—')}</td>
+            <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+            <td style="text-align:right">${fmtNum(r.kilos)} kg</td>
+            <td style="text-align:right">${totalKg}</td>
+          </tr>`;
+        }).join('')}</tbody>
         <tfoot><tr>
           <td colspan="4">Total</td>
           <td style="text-align:right">${fmtNum(totSHa)} ha</td>
-          <td style="text-align:right">${fmtKg(totSKg)}</td>
+          <td></td>
+          <td style="text-align:right">${fmtNum(totSKgTotal)} kg</td>
         </tr></tfoot>
       </table>` : '<p style="color:#999;font-style:italic;margin-bottom:8px">Sin siembras.</p>'}
+
+      <h3>🧪 Fertilización</h3>
+      ${ferts.length ? `<table>
+        <thead><tr>
+          <th>Fecha</th>
+          <th style="text-align:right">Hectáreas</th>
+          <th>Producto</th>
+          <th style="text-align:right">kg/ha</th>
+          <th style="text-align:right">Total kg</th>
+        </tr></thead>
+        <tbody>${ferts.map(r => `<tr>
+          <td>${fmtFecha(r.fecha)}</td>
+          <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+          <td>${esc(r.producto||r.destino||'—')}</td>
+          <td style="text-align:right">${fmtNum(r.kilos)} kg/ha</td>
+          <td style="text-align:right">
+            ${r.hectareas && r.kilos
+              ? fmtNum(parseFloat(r.hectareas)*parseFloat(r.kilos))+' kg'
+              : '—'}
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>` : '<p style="color:#999;font-style:italic;margin-bottom:8px">Sin fertilizaciones.</p>'}
 
       <h3>🌾 Cosecha</h3>
       ${cosechas.length ? `<table>
         <thead><tr>
           <th>Fecha</th>
+          <th>Cultivo</th>
+          <th>Tipo</th>
+          <th>Variedad</th>
           <th style="text-align:right">Hectáreas</th>
-          <th style="text-align:right">Kilos</th>
+          <th style="text-align:right">Kilos totales</th>
           <th>Destino</th>
         </tr></thead>
-        <tbody>${cosechas.map(r => `<tr>
-          <td>${fmtFecha(r.fecha)}</td>
-          <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-          <td style="text-align:right">${fmtKg(r.kilos)}</td>
-          <td>${esc(r.destino||'—')}</td>
-        </tr>`).join('')}</tbody>
+        <tbody>${cosechas.map(r => {
+          const fechaDisplay = r.fecha_fin
+            ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
+            : fmtFecha(r.fecha);
+          return `<tr>
+            <td>${fechaDisplay}</td>
+            <td>${esc(ciclo.cultivo||'—')}</td>
+            <td>${esc(ciclo.tipo||'—')}</td>
+            <td>${esc(ciclo.variedad||'—')}</td>
+            <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+            <td style="text-align:right">${fmtKg(r.kilos)}</td>
+            <td>${esc(r.destino||'—')}</td>
+          </tr>`;
+        }).join('')}</tbody>
         <tfoot><tr>
-          <td>Total</td>
+          <td colspan="4">Total</td>
           <td style="text-align:right">${fmtNum(totCHa)} ha</td>
           <td style="text-align:right">${fmtKg(totCKg)}</td>
           <td></td>
