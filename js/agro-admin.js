@@ -5,10 +5,11 @@ const AgroAdmin = {
   _silos:     [],
   _camiones:  [],
   _entidades: [],
-  _cultivos:  [],
-  _tipos:     [],
-  _prodsFert: [],
-  _prodsPulv: [],
+  _cultivos:       [],
+  _cultivosPastura:[],
+  _tipos:          [],
+  _prodsFert:      [],
+  _prodsPulv:      [],
   _fromAgro:  false,
 
   async render(fromAgro) {
@@ -18,23 +19,25 @@ const AgroAdmin = {
     App._enterFullscreen();
 
     try {
-      const [silos, camiones, entidades, cultivos, tipos,
-             prodsFert, prodsPulv] = await Promise.all([
+      const [silos, camiones, entidades, cultivos, cultivosPastura,
+             tipos, prodsFert, prodsPulv] = await Promise.all([
         BBT.API.get('/api/agro/silos/resumen'),
         BBT.API.get('/api/agro/camiones'),
         BBT.API.get('/api/agro/entidades'),
         BBT.API.get('/api/agro/cultivos').catch(() => []),
+        BBT.API.get('/api/agro/cultivos-pastura').catch(() => []),
         BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
         BBT.API.get('/api/agro/productos-fert').catch(() => []),
         BBT.API.get('/api/agro/productos-pulv').catch(() => []),
       ]);
-      this._silos     = silos;
-      this._camiones  = camiones;
-      this._entidades = entidades;
-      this._cultivos  = cultivos;
-      this._tipos     = tipos;
-      this._prodsFert = prodsFert;
-      this._prodsPulv = prodsPulv;
+      this._silos          = silos;
+      this._camiones       = camiones;
+      this._entidades      = entidades;
+      this._cultivos       = cultivos;
+      this._cultivosPastura = cultivosPastura;
+      this._tipos          = tipos;
+      this._prodsFert      = prodsFert;
+      this._prodsPulv      = prodsPulv;
     } catch (err) {
       Toast.error('Error cargando datos.');
       return;
@@ -134,6 +137,19 @@ const AgroAdmin = {
               </button>
             </div>
             <div class="card-body" style="padding:0" id="cultivos-list">
+              Cargando...
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <h4 style="font-family:var(--font-display);font-weight:700">
+                🌿 Cultivos Pastura
+              </h4>
+              <button class="btn btn-primary btn-sm" id="btn-add-cultivo-pastura">
+                ＋ Agregar
+              </button>
+            </div>
+            <div class="card-body" style="padding:0" id="cultivos-pastura-list">
               Cargando...
             </div>
           </div>
@@ -352,6 +368,11 @@ const AgroAdmin = {
             this._renderSimpleList(
               this._cultivos.map(c => ({...c, _tipo:'cultivo'})),
               'Sin cultivos configurados'
+            );
+          document.getElementById('cultivos-pastura-list').innerHTML =
+            this._renderSimpleList(
+              this._cultivosPastura.map(c => ({...c, _tipo:'cultivo-pastura'})),
+              'Sin cultivos de pastura configurados'
             );
           document.getElementById('tipos-list').innerHTML =
             this._renderSimpleList(
@@ -763,22 +784,30 @@ const AgroAdmin = {
 
   async _addSimple(tipo) {
     const labelMap = {
-      'cultivo':   'cultivo',
-      'tipo':      'tipo de cultivo',
-      'prod-fert': 'producto de fertilización',
-      'prod-pulv': 'producto de pulverización',
+      'cultivo':         'cultivo',
+      'cultivo-pastura': 'cultivo de pastura',
+      'tipo':            'tipo de cultivo',
+      'prod-fert':       'producto de fertilización',
+      'prod-pulv':       'producto de pulverización',
     };
     const labelCMap = {
-      'cultivo':   'Cultivo',
-      'tipo':      'Tipo',
-      'prod-fert': 'Producto fert.',
-      'prod-pulv': 'Producto pulv.',
+      'cultivo':         'Cultivo',
+      'cultivo-pastura': 'Cultivo de Pastura',
+      'tipo':            'Tipo',
+      'prod-fert':       'Producto fert.',
+      'prod-pulv':       'Producto pulv.',
     };
     const urlMap = {
-      'cultivo':   '/api/agro/cultivos',
-      'tipo':      '/api/agro/tipos-cultivo',
-      'prod-fert': '/api/agro/productos-fert',
-      'prod-pulv': '/api/agro/productos-pulv',
+      'cultivo':         '/api/agro/cultivos',
+      'cultivo-pastura': '/api/agro/cultivos-pastura',
+      'tipo':            '/api/agro/tipos-cultivo',
+      'prod-fert':       '/api/agro/productos-fert',
+      'prod-pulv':       '/api/agro/productos-pulv',
+    };
+    const placeholderMap = {
+      'cultivo':         'Ej: Soja, Maíz, Trigo...',
+      'cultivo-pastura': 'Ej: Alfalfa, Festuca...',
+      'tipo':            'Ej: Primera, Segunda...',
     };
     const label  = labelMap[tipo]  || tipo;
     const labelC = labelCMap[tipo] || tipo;
@@ -788,9 +817,7 @@ const AgroAdmin = {
       body: `<div class="form-group">
         <label class="form-label">Nombre *</label>
         <input class="input" id="ass-nombre" maxlength="50"
-          placeholder="${tipo === 'cultivo'
-            ? 'Ej: Soja, Maíz, Trigo...'
-            : 'Ej: Primera, Segunda...'}">
+          placeholder="${placeholderMap[tipo] || 'Nombre...'}">
       </div>`,
       footer: `<button class="btn btn-secondary" id="ass-cancel">Cancelar</button>
                <button class="btn btn-primary" id="ass-ok">Agregar</button>`
@@ -816,9 +843,13 @@ const AgroAdmin = {
   },
 
   async _delSimple(tipo, id, nombre) {
-    const label = tipo === 'cultivo' ? 'cultivo' : 'tipo';
-    const url   = tipo === 'cultivo'
+    const label = tipo === 'cultivo' ? 'cultivo'
+      : tipo === 'cultivo-pastura' ? 'cultivo de pastura'
+      : 'tipo';
+    const url = tipo === 'cultivo'
       ? `/api/agro/cultivos/${id}`
+      : tipo === 'cultivo-pastura'
+      ? `/api/agro/cultivos-pastura/${id}`
       : `/api/agro/tipos-cultivo/${id}`;
     const ok = await Modal.confirm(
       `Eliminar ${label}`,
@@ -836,6 +867,8 @@ const AgroAdmin = {
   _bindCatalogoEvents() {
     document.getElementById('btn-add-cultivo')
       ?.addEventListener('click', () => this._addSimple('cultivo'));
+    document.getElementById('btn-add-cultivo-pastura')
+      ?.addEventListener('click', () => this._addSimple('cultivo-pastura'));
     document.getElementById('btn-add-tipo-cult')
       ?.addEventListener('click', () => this._addSimple('tipo'));
     document.getElementById('btn-add-prod-fert')
@@ -843,6 +876,11 @@ const AgroAdmin = {
     document.getElementById('btn-add-prod-pulv')
       ?.addEventListener('click', () => this._addSimple('prod-pulv'));
 
+    document.getElementById('cultivos-pastura-list').innerHTML =
+      this._renderSimpleList(
+        this._cultivosPastura.map(c => ({...c, _tipo:'cultivo-pastura'})),
+        'Sin cultivos de pastura configurados'
+      );
     document.getElementById('prod-fert-list').innerHTML =
       this._renderSimpleList(
         this._prodsFert.map(p => ({...p, _tipo:'prod-fert'})), 'Sin productos');
@@ -850,16 +888,18 @@ const AgroAdmin = {
       this._renderSimpleList(
         this._prodsPulv.map(p => ({...p, _tipo:'prod-pulv'})), 'Sin productos');
 
-    ['cultivos-list', 'tipos-list', 'prod-fert-list', 'prod-pulv-list'].forEach(listId => {
+    ['cultivos-list', 'cultivos-pastura-list', 'tipos-list',
+     'prod-fert-list', 'prod-pulv-list'].forEach(listId => {
       document.getElementById(listId)?.addEventListener('click', async e => {
         const btn = e.target.closest('.btn-del-item');
         if (!btn) return;
         const tipo = btn.dataset.tipo;
         const urlMap = {
-          'cultivo':   `/api/agro/cultivos/${btn.dataset.id}`,
-          'tipo':      `/api/agro/tipos-cultivo/${btn.dataset.id}`,
-          'prod-fert': `/api/agro/productos-fert/${btn.dataset.id}`,
-          'prod-pulv': `/api/agro/productos-pulv/${btn.dataset.id}`,
+          'cultivo':         `/api/agro/cultivos/${btn.dataset.id}`,
+          'cultivo-pastura': `/api/agro/cultivos-pastura/${btn.dataset.id}`,
+          'tipo':            `/api/agro/tipos-cultivo/${btn.dataset.id}`,
+          'prod-fert':       `/api/agro/productos-fert/${btn.dataset.id}`,
+          'prod-pulv':       `/api/agro/productos-pulv/${btn.dataset.id}`,
         };
         const url = urlMap[tipo];
         if (!url) return;

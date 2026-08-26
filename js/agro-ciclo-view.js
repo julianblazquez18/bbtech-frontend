@@ -12,13 +12,15 @@ const AgroCicloView = {
   _bolsas:    [],
   _camiones:  [],
   _entidades: [],
-  _cultivos:  [],
+  _cultivos:        [],
+  _cultivosPastura: [],
   _tiposCult:    [],
   _asignaciones:    [],
   _productosFert:   [],
   _productosPulv:   [],
   _pulverizaciones: [],
   _fertilizaciones: [],
+  _pasturas:        [],
   _tabActivo: 'siembra',
 
   async render(cicloId) {
@@ -31,8 +33,8 @@ const AgroCicloView = {
 
     try {
       const [registros, cosechas, silos, bolsas, camiones, entidades, ests,
-             cultivos, tipos, asignaciones, productosFert, productosPulv,
-             pulverizaciones, fertilizaciones] =
+             cultivos, cultivosPastura, tipos, asignaciones, productosFert, productosPulv,
+             pulverizaciones, fertilizaciones, pasturas] =
         await Promise.all([
           BBT.API.get(`/api/agro/ciclos/${cicloId}/registros`),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/cosechas`),
@@ -42,21 +44,25 @@ const AgroCicloView = {
           BBT.API.get('/api/agro/entidades'),
           BBT.API.get('/api/agro/establecimientos'),
           BBT.API.get('/api/agro/cultivos').catch(() => []),
+          BBT.API.get('/api/agro/cultivos-pastura').catch(() => []),
           BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/asignaciones`).catch(() => []),
           BBT.API.get('/api/agro/productos-fert').catch(() => []),
           BBT.API.get('/api/agro/productos-pulv').catch(() => []),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/pulverizaciones`).catch(() => []),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/fertilizaciones`).catch(() => []),
+          BBT.API.get(`/api/agro/ciclos/${cicloId}/pasturas`).catch(() => []),
         ]);
-      this._registros       = registros;
-      this._cosechas        = cosechas;
-      this._silos           = silos;
-      this._bolsas          = bolsas;
-      this._camiones        = camiones;
-      this._entidades       = entidades;
-      this._cultivos        = cultivos;
-      this._tiposCult       = tipos;
+      this._registros         = registros;
+      this._cosechas          = cosechas;
+      this._silos             = silos;
+      this._bolsas            = bolsas;
+      this._camiones          = camiones;
+      this._entidades         = entidades;
+      this._cultivos          = cultivos;
+      this._cultivosPastura   = cultivosPastura;
+      this._tiposCult         = tipos;
+      this._pasturas          = pasturas;
       this._asignaciones    = asignaciones;
       this._productosFert   = productosFert;
       this._productosPulv   = productosPulv;
@@ -198,13 +204,34 @@ const AgroCicloView = {
       </button>`;
 
     if (tab === 'siembra') {
-      const rows       = this._registros.filter(r => r.tipo === 'siembra');
-      const totHa      = rows.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
-      const totKgTotal = rows.reduce((s, r) =>
+      const rows        = this._registros.filter(r => r.tipo === 'siembra');
+      const rowsNormal  = rows.filter(r => !r.es_pastura);
+      const totHa       = rowsNormal.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
+      const totKgTotal  = rowsNormal.reduce((s, r) =>
         s + parseFloat(r.hectareas||0) * parseFloat(r.toneladas||0), 0);
+
+      const editDelBtns = (r) => `<div style="display:flex;gap:4px">
+        <button class="gtree-btn-icon btn-edit-reg"
+          data-id="${r.id}" data-tipo="${tab}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
+          data-id="${r.id}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          </svg>
+        </button>
+      </div>`;
+
       return `
         <div class="agro-tab-header">${addBtn}</div>
-        ${rows.length ? `
+        ${rowsNormal.length ? `
         <div class="agro-table-wrap">
           <table class="agro-cam-table">
             <thead><tr>
@@ -218,7 +245,7 @@ const AgroCicloView = {
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
-              ${rows.map(r => {
+              ${rowsNormal.map(r => {
                 const fechaDisplay = r.fecha_fin
                   ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
                   : fmt(r.fecha);
@@ -233,26 +260,7 @@ const AgroCicloView = {
                   <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
                   <td style="text-align:right">${fmtKg(r.toneladas)}</td>
                   <td style="text-align:right">${totalKg}</td>
-                  ${!cerrado ? `<td>
-                    <div style="display:flex;gap:4px">
-                      <button class="gtree-btn-icon btn-edit-reg"
-                        data-id="${r.id}" data-tipo="${tab}">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                      </button>
-                      <button class="gtree-btn-icon gtree-btn-danger btn-del-reg"
-                        data-id="${r.id}">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </td>` : ''}
+                  ${!cerrado ? `<td>${editDelBtns(r)}</td>` : ''}
                 </tr>`;
               }).join('')}
             </tbody>
@@ -264,10 +272,86 @@ const AgroCicloView = {
               ${!cerrado ? '<td></td>' : ''}
             </tr></tfoot>
           </table>
-        </div>` : `<div class="empty-state" style="padding:40px">
+        </div>` : this._pasturas.length ? '' : `<div class="empty-state" style="padding:40px">
           <div class="empty-icon">🌱</div>
           <div class="empty-title">Sin siembras registradas</div>
-        </div>`}`;
+        </div>`}
+        ${this._pasturas.length ? `
+        <div style="margin-top:20px">
+          <h3 style="font-size:.85rem;font-weight:700;color:var(--text-secondary);
+            text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
+            🌿 Pastura
+          </h3>
+          <div class="agro-table-wrap">
+            <table class="agro-cam-table">
+              <thead><tr>
+                <th>Fecha</th>
+                <th style="text-align:right">Hectáreas</th>
+                <th>Cultivo</th>
+                <th style="text-align:right">kg/ha</th>
+                <th style="text-align:right">Total kg</th>
+                ${!cerrado ? '<th></th>' : ''}
+              </tr></thead>
+              <tbody>
+                ${this._pasturas.map(g => {
+                  const fechaDisplay = g.fecha_fin
+                    ? `${fmt(g.fecha)} → ${fmt(g.fecha_fin)}`
+                    : fmt(g.fecha);
+                  const cultivos = (g.cultivos||[]).filter(c => c.cultivo);
+                  if (!cultivos.length) return '';
+                  const rowspan = cultivos.length;
+                  return cultivos.map((c, i) => {
+                    const totKg = parseFloat(g.hectareas||0)
+                                * parseFloat(c.kilos_ha||0);
+                    return `<tr>
+                      ${i === 0 ? `
+                        <td rowspan="${rowspan}">${fechaDisplay}</td>
+                        <td rowspan="${rowspan}" style="text-align:right">
+                          ${fmtNum(g.hectareas)} ha</td>
+                      ` : ''}
+                      <td>${esc(c.cultivo)}</td>
+                      <td style="text-align:right">
+                        ${c.kilos_ha ? fmtNum(c.kilos_ha)+' kg/ha' : '—'}</td>
+                      <td style="text-align:right">${fmtKg(totKg)}</td>
+                      ${!cerrado && i === 0 ? `
+                        <td rowspan="${rowspan}">
+                          <div style="display:flex;gap:4px">
+                            <button class="gtree-btn-icon btn-edit-past"
+                              data-id="${g.id}">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                            <button class="gtree-btn-icon gtree-btn-danger btn-del-past"
+                              data-id="${g.id}">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                              </svg>
+                            </button>
+                          </div>
+                        </td>` : !cerrado ? '' : ''}
+                    </tr>`;
+                  }).join('');
+                }).join('')}
+              </tbody>
+              <tfoot><tr style="font-weight:700;background:var(--surface-bg)">
+                <td colspan="4">Total pastura</td>
+                <td style="text-align:right">
+                  ${fmtKg(this._pasturas.reduce((s,g) =>
+                    (g.cultivos||[]).reduce((s2,c) =>
+                      s2 + parseFloat(g.hectareas||0) * parseFloat(c.kilos_ha||0), s
+                    ), 0
+                  ))}
+                </td>
+                ${!cerrado ? '<td></td>' : ''}
+              </tr></tfoot>
+            </table>
+          </div>
+        </div>` : ''}`;
     }
 
     if (tab === 'fertilizacion') {
@@ -509,12 +593,16 @@ const AgroCicloView = {
     }
 
     if (tab === 'cosecha') {
-      const rows      = this._cosechas;
-      const asigs     = this._asignaciones;
-      const totHa     = rows.reduce((s, r)  => s + parseFloat(r.hectareas||0), 0);
-      const totCosKg  = rows.reduce((s, r)  => s + parseFloat(r.toneladas||0), 0);
-      const totAsigKg = asigs.reduce((s, a) => s + parseFloat(a.kilos||0),     0);
+      const rows       = this._cosechas;
+      const cosNormal  = rows.filter(r => !r.clase || r.clase === 'cosecha');
+      const cosPastRes = rows.filter(r => r.clase === 'pastoreo' || r.clase === 'reserva');
+      const asigs      = this._asignaciones;
+      const totHa      = cosNormal.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
+      const totCosKg   = cosNormal.reduce((s, r) => s + parseFloat(r.toneladas||0), 0);
+      const totAsigKg  = asigs.reduce((s, a) => s + parseFloat(a.kilos||0), 0);
       const disponible = totCosKg - totAsigKg;
+
+      const claseLabel = c => c === 'pastoreo' ? '🐄 Pastoreo' : c === 'reserva' ? '📦 Reserva' : '🌾 Cosecha';
 
       const fmtAsigDestino = a => {
         if (a.destino_tipo === 'silo')
@@ -526,7 +614,25 @@ const AgroCicloView = {
         return '—';
       };
 
-      const cosechaTable = rows.length ? `
+      const editDelBtns = id => `
+        <div style="display:flex;gap:4px">
+          <button class="gtree-btn-icon btn-edit-cosecha" data-id="${id}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="gtree-btn-icon gtree-btn-danger btn-del-cosecha" data-id="${id}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+          </button>
+        </div>`;
+
+      const cosechaTable = cosNormal.length ? `
         <div class="agro-table-wrap">
           <table class="agro-cam-table">
             <thead><tr>
@@ -539,7 +645,7 @@ const AgroCicloView = {
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
-              ${rows.map(r => {
+              ${cosNormal.map(r => {
                 const fechaDisplay = r.fecha_fin
                   ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
                   : fmt(r.fecha);
@@ -550,24 +656,7 @@ const AgroCicloView = {
                   <td>${esc((this._ciclo||{}).variedad||'—')}</td>
                   <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
                   <td style="text-align:right;font-weight:600">${fmtKg(r.toneladas)}</td>
-                  ${!cerrado ? `<td>
-                    <div style="display:flex;gap:4px">
-                      <button class="gtree-btn-icon btn-edit-cosecha" data-id="${r.id}">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                      </button>
-                      <button class="gtree-btn-icon gtree-btn-danger btn-del-cosecha" data-id="${r.id}">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </td>` : ''}
+                  ${!cerrado ? `<td>${editDelBtns(r.id)}</td>` : ''}
                 </tr>`;
               }).join('')}
             </tbody>
@@ -578,10 +667,40 @@ const AgroCicloView = {
               ${!cerrado ? '<td></td>' : ''}
             </tr></tfoot>
           </table>
-        </div>` : `<div class="empty-state" style="padding:40px">
+        </div>` : cosPastRes.length ? '' : `<div class="empty-state" style="padding:40px">
           <div class="empty-icon">🌾</div>
           <div class="empty-title">Sin cosechas registradas</div>
         </div>`;
+
+      const pastResTable = cosPastRes.length ? `
+        <div style="margin-top:24px">
+          <h4 style="font-size:.88rem;font-weight:600;color:var(--text-secondary);margin-bottom:8px">
+            Pastoreo / Reserva
+          </h4>
+          <div class="agro-table-wrap">
+            <table class="agro-cam-table">
+              <thead><tr>
+                <th>Fecha</th>
+                <th>Clase</th>
+                <th style="text-align:right">Hectáreas</th>
+                ${!cerrado ? '<th></th>' : ''}
+              </tr></thead>
+              <tbody>
+                ${cosPastRes.map(r => {
+                  const fechaDisplay = r.fecha_fin
+                    ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
+                    : fmt(r.fecha);
+                  return `<tr>
+                    <td>${fechaDisplay}</td>
+                    <td>${claseLabel(r.clase)}</td>
+                    <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+                    ${!cerrado ? `<td>${editDelBtns(r.id)}</td>` : ''}
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : '';
 
       const asigTable = asigs.length ? `
         <div class="agro-table-wrap" style="margin-top:8px">
@@ -616,6 +735,7 @@ const AgroCicloView = {
       return `
         <div class="agro-tab-header">${addBtn}</div>
         ${cosechaTable}
+        ${pastResTable}
         <div style="margin-top:20px;display:flex;justify-content:space-between;
           align-items:center;flex-wrap:wrap;gap:8px">
           <h4 style="font-size:.88rem;font-weight:600;color:var(--text-secondary)">
@@ -807,6 +927,36 @@ const AgroCicloView = {
       }, { once: true });
     });
 
+    document.querySelectorAll('.btn-edit-past').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const grupo = this._pasturas.find(g => g.id === btn.dataset.id);
+        if (grupo) this._modalSiembra({
+          ...grupo,
+          _grupoId:   grupo.id,
+          es_pastura: true,
+          fecha:      grupo.fecha,
+          fecha_fin:  grupo.fecha_fin,
+          hectareas:  grupo.hectareas,
+        });
+      });
+    });
+
+    document.querySelectorAll('.btn-del-past').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ok = await Modal.confirm(
+          'Eliminar pastura',
+          '¿Eliminar este registro de pastura?',
+          'Eliminar', 'danger'
+        );
+        if (!ok) return;
+        try {
+          await BBT.API.del(`/api/agro/pasturas/${btn.dataset.id}`);
+          Toast.success('Pastura eliminada.');
+          await this.render(this._cicloId);
+        } catch (err) { Toast.error(err.message || 'Error.'); }
+      }, { once: true });
+    });
+
     document.querySelectorAll('.btn-del-cosecha').forEach(btn => {
       btn.addEventListener('click', async () => {
         const ok = await Modal.confirm(
@@ -853,6 +1003,7 @@ const AgroCicloView = {
     const ciclo        = this._ciclo;
     const tieneSiembra = !isEdit && ciclo?.cultivo;
     const esc          = s => BBT.Security.sanitize(String(s||''));
+    const esPastura    = reg?.es_pastura || false;
 
     const cultivoOpts = this._cultivos.length
       ? this._cultivos.map(c => {
@@ -870,87 +1021,240 @@ const AgroCicloView = {
         }).join('')
       : '<option value="">Sin tipos configurados</option>';
 
-    const fechaVal   = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
+    const fechaVal    = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
     const variedadVal = isEdit ? esc(reg.obs||'') : esc(ciclo?.variedad||'');
-    const haVal      = isEdit ? (reg.hectareas||'') : '';
-    const kilosVal   = isEdit ? (reg.toneladas||'') : '';
+    const haVal       = isEdit ? (reg.hectareas||'') : '';
+    const kilosVal    = isEdit ? (reg.toneladas||'') : '';
+
+    const renderFilaPastura = (cult = '') => `
+      <div class="pastura-row" style="display:grid;
+        grid-template-columns:1fr 140px 32px;
+        gap:8px;align-items:center;margin-bottom:8px">
+        <select class="select pastura-cult-select">
+          <option value="">— Cultivo —</option>
+          ${this._cultivosPastura.map(c =>
+            `<option value="${esc(c.nombre)}"${cult === c.nombre ? ' selected' : ''}>${esc(c.nombre)}</option>`
+          ).join('')}
+        </select>
+        <input class="input pastura-kg-input"
+          type="number" min="0" step="0.1" placeholder="kg/ha">
+        <button class="gtree-btn-icon gtree-btn-danger pastura-del-row" type="button">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`;
 
     const m = Modal.show({
       title: isEdit ? 'Editar siembra' : 'Agregar siembra',
       body: `
         <div class="flex flex-col gap-4">
-          <div class="form-group">
-            <label class="form-label">Fecha *</label>
-            <input class="input" type="date" id="ms-fecha" value="${fechaVal}">
-          </div>
-          <div class="form-group">
-            <label class="form-label">
-              Fecha fin
-              <span style="font-size:.72rem;color:var(--text-muted);
-                font-weight:400"> — opcional</span>
+          <div style="display:flex;align-items:center;gap:10px;
+            padding:10px 14px;background:var(--surface-bg);
+            border-radius:8px;border:1px solid var(--border);
+            margin-bottom:4px">
+            <input type="checkbox" id="ms-es-pastura"
+              ${esPastura ? 'checked' : ''}
+              style="width:16px;height:16px;cursor:pointer">
+            <label for="ms-es-pastura" style="font-weight:600;
+              cursor:pointer;font-size:.9rem">
+              🌿 Pastura
             </label>
-            <input class="input" type="date" id="ms-fecha-fin"
-              value="${isEdit ? String(reg.fecha_fin||'').slice(0,10) : ''}">
+            <span style="font-size:.75rem;color:var(--text-muted)">
+              — permite múltiples cultivos, sin tipo ni variedad
+            </span>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div id="ms-normal-fields">
             <div class="form-group">
-              <label class="form-label">Cultivo *</label>
-              <select class="select" id="ms-cultivo"${tieneSiembra ? ' disabled' : ''}>
-                <option value="">— Seleccionar —</option>
-                ${cultivoOpts}
-              </select>
+              <label class="form-label">Fecha *</label>
+              <input class="input" type="date" id="ms-fecha" value="${fechaVal}">
             </div>
             <div class="form-group">
-              <label class="form-label">Tipo</label>
-              <select class="select" id="ms-tipo"${tieneSiembra ? ' disabled' : ''}>
-                <option value="">— Seleccionar —</option>
-                ${tipoOpts}
-              </select>
+              <label class="form-label">
+                Fecha fin
+                <span style="font-size:.72rem;color:var(--text-muted);
+                  font-weight:400"> — opcional</span>
+              </label>
+              <input class="input" type="date" id="ms-fecha-fin"
+                value="${isEdit ? String(reg.fecha_fin||'').slice(0,10) : ''}">
             </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label class="form-label">Cultivo *</label>
+                <select class="select" id="ms-cultivo"${tieneSiembra ? ' disabled' : ''}>
+                  <option value="">— Seleccionar —</option>
+                  ${cultivoOpts}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tipo</label>
+                <select class="select" id="ms-tipo"${tieneSiembra ? ' disabled' : ''}>
+                  <option value="">— Seleccionar —</option>
+                  ${tipoOpts}
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Variedad</label>
+              <input class="input" id="ms-variedad" maxlength="80"
+                value="${variedadVal}"
+                ${tieneSiembra ? 'readonly style="opacity:.6"' : ''}
+                placeholder="Ej: SRM 5900, DM 50i20...">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label class="form-label">Hectáreas${this._lote?.hectareas
+                  ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
+                  : ''}</label>
+                <input class="input" type="number" id="ms-ha"
+                  min="0" step="0.1" placeholder="0" value="${haVal}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Kilos semilla</label>
+                <input class="input" type="number" id="ms-kilos"
+                  min="0" step="1" placeholder="0" value="${kilosVal}">
+              </div>
+            </div>
+            ${tieneSiembra ? `<div style="font-size:.75rem;color:var(--green-700);
+              background:var(--green-50,#f0fdf4);padding:8px 12px;border-radius:6px">
+              Cultivo fijo: ${esc(ciclo.cultivo)}
+              ${ciclo.tipo ? ' · ' + esc(ciclo.tipo) : ''}
+              ${ciclo.variedad ? ' · ' + esc(ciclo.variedad) : ''}
+            </div>` : ''}
           </div>
-          <div class="form-group">
-            <label class="form-label">Variedad</label>
-            <input class="input" id="ms-variedad" maxlength="80"
-              value="${variedadVal}"
-              ${tieneSiembra ? 'readonly style="opacity:.6"' : ''}
-              placeholder="Ej: SRM 5900, DM 50i20...">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div id="ms-pastura-fields" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Fecha *</label>
+              <input class="input" type="date" id="ms-fecha-p" value="${fechaVal}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                Fecha fin
+                <span style="font-size:.72rem;color:var(--text-muted);
+                  font-weight:400"> — opcional</span>
+              </label>
+              <input class="input" type="date" id="ms-fecha-fin-p"
+                value="${isEdit ? String(reg.fecha_fin||'').slice(0,10) : ''}">
+            </div>
             <div class="form-group">
               <label class="form-label">Hectáreas${this._lote?.hectareas
                 ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
                 : ''}</label>
-              <input class="input" type="number" id="ms-ha"
+              <input class="input" type="number" id="ms-ha-p"
                 min="0" step="0.1" placeholder="0" value="${haVal}">
             </div>
             <div class="form-group">
-              <label class="form-label">Kilos semilla</label>
-              <input class="input" type="number" id="ms-kilos"
-                min="0" step="1" placeholder="0" value="${kilosVal}">
+              <label class="form-label">Cultivos de pastura</label>
+              <div id="ms-pastura-list"></div>
+              <button class="btn btn-secondary btn-sm" id="ms-add-pastura"
+                type="button" style="margin-top:6px">
+                ＋ Agregar cultivo
+              </button>
             </div>
           </div>
-          ${tieneSiembra ? `<div style="font-size:.75rem;color:var(--green-700);
-            background:var(--green-50,#f0fdf4);padding:8px 12px;border-radius:6px">
-            Cultivo fijo: ${esc(ciclo.cultivo)}
-            ${ciclo.tipo ? ' · ' + esc(ciclo.tipo) : ''}
-            ${ciclo.variedad ? ' · ' + esc(ciclo.variedad) : ''}
-          </div>` : ''}
         </div>`,
       footer: `<button class="btn btn-secondary" id="ms-cancel">Cancelar</button>
                <button class="btn btn-primary" id="ms-ok">
                  ${isEdit ? 'Actualizar siembra' : 'Guardar siembra'}
                </button>`
     });
+
     setTimeout(() => {
-      if (tieneSiembra && this._ciclo?.tipo) {
+      if (!esPastura && tieneSiembra && this._ciclo?.tipo) {
         const tipSel = m.querySelector('#ms-tipo');
         if (tipSel) tipSel.value = this._ciclo.tipo;
       }
+
+      const chkPastura    = m.querySelector('#ms-es-pastura');
+      const normalFields  = m.querySelector('#ms-normal-fields');
+      const pasturaFields = m.querySelector('#ms-pastura-fields');
+      const pasturaList   = m.querySelector('#ms-pastura-list');
+
+      const bindPasturaRow = (row) => {
+        row.querySelector('.pastura-del-row')
+          ?.addEventListener('click', function() {
+            if (pasturaList.querySelectorAll('.pastura-row').length > 1) {
+              this.closest('.pastura-row').remove();
+            } else {
+              Toast.error('Debe haber al menos un cultivo.');
+            }
+          });
+      };
+
+      const addPasturaRow = (cult = '') => {
+        const div = document.createElement('div');
+        div.innerHTML = renderFilaPastura(cult);
+        pasturaList.appendChild(div.firstElementChild);
+        bindPasturaRow(pasturaList.querySelector('.pastura-row:last-child'));
+      };
+
+      const togglePastura = (isPastura) => {
+        normalFields.style.display  = isPastura ? 'none' : '';
+        pasturaFields.style.display = isPastura ? '' : 'none';
+      };
+
+      if (esPastura) {
+        togglePastura(true);
+        addPasturaRow(isEdit && reg.cultivo ? reg.cultivo : '');
+      }
+
+      chkPastura.addEventListener('change', () => {
+        togglePastura(chkPastura.checked);
+        if (chkPastura.checked && pasturaList.children.length === 0) {
+          addPasturaRow();
+        }
+      });
+
+      m.querySelector('#ms-add-pastura')
+        ?.addEventListener('click', () => addPasturaRow());
     }, 30);
+
     m.querySelector('#ms-cancel').addEventListener('click',
       () => Modal.close(m), { once: true });
+
     m.querySelector('#ms-ok').addEventListener('click', async () => {
-      const btn      = m.querySelector('#ms-ok');
+      const btn       = m.querySelector('#ms-ok');
+      const isPastura = m.querySelector('#ms-es-pastura').checked;
+
+      if (isPastura) {
+        const fecha    = m.querySelector('#ms-fecha').value;
+        const fechaFin = m.querySelector('#ms-fecha-fin')?.value || null;
+        const ha       = m.querySelector('#ms-ha-p')?.value || null;
+        if (!fecha) { Toast.error('Fecha requerida.'); return; }
+        const cultivos = [];
+        m.querySelectorAll('.pastura-row').forEach(row => {
+          const cult  = row.querySelector('.pastura-cult-select').value;
+          const kilos = row.querySelector('.pastura-kg-input').value;
+          if (cult) cultivos.push({ cultivo: cult, kilos_ha: kilos || null });
+        });
+        if (!cultivos.length) { Toast.error('Agregá al menos un cultivo.'); return; }
+        btn.disabled = true; btn.textContent = 'Guardando...';
+        try {
+          if (isEdit && reg._grupoId) {
+            await BBT.API.put(
+              `/api/agro/pasturas/${reg._grupoId}`,
+              { fecha, fecha_fin: fechaFin, hectareas: ha, cultivos }
+            );
+          } else {
+            await BBT.API.post(
+              `/api/agro/ciclos/${this._cicloId}/pasturas`,
+              { fecha, fecha_fin: fechaFin, hectareas: ha, cultivos }
+            );
+          }
+          Modal.close(m);
+          Toast.success(isEdit ? 'Actualizado.' : 'Pastura registrada.');
+          await this.render(this._cicloId);
+        } catch (err) {
+          Toast.error(err.message || 'Error.');
+          btn.disabled = false;
+          btn.textContent = isEdit ? 'Guardar' : 'Agregar';
+        }
+        return;
+      }
+
+      // Flujo normal
       const fecha    = m.querySelector('#ms-fecha').value;
       const cultivo  = tieneSiembra
         ? ciclo.cultivo
@@ -1264,8 +1568,9 @@ const AgroCicloView = {
   },
 
   _modalCosecha(cos = null) {
-    const isEdit   = cos !== null;
-    const esc      = s => BBT.Security.sanitize(String(s||''));
+    const isEdit      = cos !== null;
+    const esc         = s => BBT.Security.sanitize(String(s||''));
+    const claseActual = cos?.clase || 'cosecha';
     const silosOk  = this._silos.filter(s =>
       !s.cultivo_actual || s.cultivo_actual === (this._ciclo?.cultivo||'')
     );
@@ -1303,10 +1608,19 @@ const AgroCicloView = {
         body: `
           <div class="flex flex-col gap-4">
             <div class="form-group">
+              <label class="form-label">Tipo de registro *</label>
+              <select class="select" id="mc-clase">
+                <option value="cosecha" ${claseActual==='cosecha'?'selected':''}>🌾 Cosecha</option>
+                <option value="pastoreo" ${claseActual==='pastoreo'?'selected':''}>🐄 Pastoreo</option>
+                <option value="reserva" ${claseActual==='reserva'?'selected':''}>📦 Reserva</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label class="form-label">Fecha *</label>
               <input class="input" type="date" id="mc-fecha" value="${fechaVal}">
             </div>
-            <div class="form-group">
+            <div id="mc-fechafin-wrap" class="form-group"
+              ${claseActual==='pastoreo' ? 'style="display:none"' : ''}>
               <label class="form-label">
                 Fecha fin
                 <span style="font-size:.72rem;color:var(--text-muted);
@@ -1315,19 +1629,18 @@ const AgroCicloView = {
               <input class="input" type="date" id="mc-fecha-fin"
                 value="${isEdit ? String(cos.fecha_fin||'').slice(0,10) : ''}">
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div class="form-group">
-                <label class="form-label">Hectáreas${this._lote?.hectareas
-                  ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
-                  : ''}</label>
-                <input class="input" type="number" id="mc-ha"
-                  min="0" step="0.1" placeholder="0" value="${haVal}">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Kilos *</label>
-                <input class="input" type="number" id="mc-kilos"
-                  min="0" step="1" placeholder="0" value="${kgVal}">
-              </div>
+            <div class="form-group">
+              <label class="form-label">Hectáreas${this._lote?.hectareas
+                ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
+                : ''}</label>
+              <input class="input" type="number" id="mc-ha"
+                min="0" step="0.1" placeholder="0" value="${haVal}">
+            </div>
+            <div id="mc-kilos-wrap" class="form-group"
+              ${claseActual!=='cosecha' ? 'style="display:none"' : ''}>
+              <label class="form-label">Kilos *</label>
+              <input class="input" type="number" id="mc-kilos"
+                min="0" step="1" placeholder="0" value="${kgVal}">
             </div>
             <div class="form-group">
               <label class="form-label">Destino</label>
@@ -1370,6 +1683,16 @@ const AgroCicloView = {
                  <button class="btn btn-primary" id="mc-ok">Actualizar cosecha</button>`
       });
 
+      // Listener clase (edit modal)
+      const selClaseEdit     = editModal.querySelector('#mc-clase');
+      const kilosWrapEdit    = editModal.querySelector('#mc-kilos-wrap');
+      const fechaFinWrapEdit = editModal.querySelector('#mc-fechafin-wrap');
+      selClaseEdit?.addEventListener('change', () => {
+        const v = selClaseEdit.value;
+        if (kilosWrapEdit)    kilosWrapEdit.style.display    = v === 'cosecha' ? '' : 'none';
+        if (fechaFinWrapEdit) fechaFinWrapEdit.style.display = v === 'pastoreo' ? 'none' : '';
+      });
+
       // Pre-seleccionar destino actual
       const destTipoActual = cos.destino_tipo === 'bolsa_nueva' ? 'bolsa' : (cos.destino_tipo || '');
       const destSel = editModal.querySelector('#mc-destino-tipo');
@@ -1400,16 +1723,18 @@ const AgroCicloView = {
       editModal.querySelector('#mc-ok').addEventListener('click', async () => {
         const btn   = editModal.querySelector('#mc-ok');
         const fecha = editModal.querySelector('#mc-fecha').value;
-        const kilos = editModal.querySelector('#mc-kilos').value;
-        if (!fecha || !kilos) {
+        const clase = editModal.querySelector('#mc-clase')?.value || 'cosecha';
+        const kilos = clase === 'cosecha' ? editModal.querySelector('#mc-kilos').value : null;
+        if (!fecha || (clase === 'cosecha' && !kilos)) {
           Toast.error('Fecha y kilos son requeridos.'); return;
         }
         const tipo = editModal.querySelector('#mc-destino-tipo').value;
         const body = {
+          clase,
           fecha,
           fecha_fin: editModal.querySelector('#mc-fecha-fin').value || null,
           hectareas: editModal.querySelector('#mc-ha').value || null,
-          kilos,
+          kilos: kilos || null,
         };
         if (tipo) {
           body.destino_tipo       = tipo;
@@ -1449,10 +1774,18 @@ const AgroCicloView = {
               : ''}
           </div>` : ''}
           <div class="form-group">
+            <label class="form-label">Tipo de registro *</label>
+            <select class="select" id="mc-clase">
+              <option value="cosecha" selected>🌾 Cosecha</option>
+              <option value="pastoreo">🐄 Pastoreo</option>
+              <option value="reserva">📦 Reserva</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label class="form-label">Fecha *</label>
             <input class="input" type="date" id="mc-fecha" value="${fechaVal}">
           </div>
-          <div class="form-group">
+          <div id="mc-fechafin-wrap" class="form-group">
             <label class="form-label">
               Fecha fin
               <span style="font-size:.72rem;color:var(--text-muted);
@@ -1460,19 +1793,17 @@ const AgroCicloView = {
             </label>
             <input class="input" type="date" id="mc-fecha-fin" value="">
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-              <label class="form-label">Hectáreas${this._lote?.hectareas
-                ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
-                : ''}</label>
-              <input class="input" type="number" id="mc-ha"
-                min="0" step="0.1" placeholder="0">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Kilos *</label>
-              <input class="input" type="number" id="mc-kilos"
-                min="0" step="1" placeholder="0">
-            </div>
+          <div class="form-group">
+            <label class="form-label">Hectáreas${this._lote?.hectareas
+              ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
+              : ''}</label>
+            <input class="input" type="number" id="mc-ha"
+              min="0" step="0.1" placeholder="0">
+          </div>
+          <div id="mc-kilos-wrap" class="form-group">
+            <label class="form-label">Kilos *</label>
+            <input class="input" type="number" id="mc-kilos"
+              min="0" step="1" placeholder="0">
           </div>
           <div style="background:var(--green-50);border:1px solid var(--green-200);
             border-radius:8px;padding:10px 14px;font-size:.82rem;color:var(--green-700)">
@@ -1486,20 +1817,32 @@ const AgroCicloView = {
     m.querySelector('#mc-cancel').addEventListener('click',
       () => Modal.close(m), { once: true });
 
+    // Listener clase (new modal)
+    const selClaseNew     = m.querySelector('#mc-clase');
+    const kilosWrapNew    = m.querySelector('#mc-kilos-wrap');
+    const fechaFinWrapNew = m.querySelector('#mc-fechafin-wrap');
+    selClaseNew?.addEventListener('change', () => {
+      const v = selClaseNew.value;
+      if (kilosWrapNew)    kilosWrapNew.style.display    = v === 'cosecha' ? '' : 'none';
+      if (fechaFinWrapNew) fechaFinWrapNew.style.display = v === 'pastoreo' ? 'none' : '';
+    });
+
     m.querySelector('#mc-ok').addEventListener('click', async () => {
       const btn       = m.querySelector('#mc-ok');
       const fecha     = m.querySelector('#mc-fecha').value;
-      const kilos     = m.querySelector('#mc-kilos').value;
+      const clase     = m.querySelector('#mc-clase')?.value || 'cosecha';
+      const kilos     = clase === 'cosecha' ? m.querySelector('#mc-kilos').value : null;
       const hectareas = m.querySelector('#mc-ha').value;
-      if (!fecha || !kilos) {
+      if (!fecha || (clase === 'cosecha' && !kilos)) {
         Toast.error('Fecha y kilos son requeridos.'); return;
       }
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {
         await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/cosechas`,
-          { fecha,
+          { clase,
+            fecha,
             fecha_fin: m.querySelector('#mc-fecha-fin').value || null,
-            toneladas: kilos, hectareas: hectareas || null });
+            toneladas: kilos || null, hectareas: hectareas || null });
         Modal.close(m);
         Toast.success('Cosecha registrada.');
         await this.render(this._cicloId);
@@ -1670,11 +2013,16 @@ const AgroCicloView = {
     };
     const empresa = BBT.Auth?._user?.empresaNombre || 'BBTECH';
 
-    const siembras   = this._registros.filter(r => r.tipo === 'siembra');
-    const ferts      = this._fertilizaciones || [];
-    const fertsViej  = this._registros.filter(r => r.tipo === 'fertilizacion');
-    const pulvs      = this._pulverizaciones || [];
-    const cosechas   = this._cosechas;
+    const siembrasAll  = this._registros.filter(r => r.tipo === 'siembra');
+    const siembras     = siembrasAll.filter(r => !r.es_pastura);
+    const ferts        = this._fertilizaciones || [];
+    const fertsViej    = this._registros.filter(r => r.tipo === 'fertilizacion');
+    const pulvs        = this._pulverizaciones || [];
+    const cosechasAll  = this._cosechas;
+    const cosNormal    = cosechasAll.filter(r => !r.clase || r.clase === 'cosecha');
+    const cosPastRes   = cosechasAll.filter(r => r.clase === 'pastoreo' || r.clase === 'reserva');
+
+    const claseLabel = c => c === 'pastoreo' ? 'Pastoreo' : c === 'reserva' ? 'Reserva' : 'Cosecha';
 
     const totSiemHa = siembras.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
     const totSiemKg = siembras.reduce((s,r) =>
@@ -1687,8 +2035,8 @@ const AgroCicloView = {
     const totPulvHa = pulvs.reduce((s,g) => s+parseFloat(g.hectareas||0),0);
     const totPulvL  = pulvs.reduce((s,g) =>
       s+(g.productos||[]).reduce((sp,p) => sp+parseFloat(p.litros||0),0),0);
-    const totCosHa  = cosechas.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
-    const totCosKg  = cosechas.reduce((s,r) => s+parseFloat(r.toneladas||0),0);
+    const totCosHa  = cosNormal.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
+    const totCosKg  = cosNormal.reduce((s,r) => s+parseFloat(r.toneladas||0),0);
 
     const fmtDestino = r => {
       if (r.destino_tipo === 'silo')   return `Silo: ${esc(r.silo_nombre||'—')}`;
@@ -1785,6 +2133,32 @@ const AgroCicloView = {
         </tr>` : ''
       )}
 
+      ${this._pasturas.length ? seccion('🌿 Siembra — Pastura',
+        `<tr>
+          <th>Fecha</th>
+          <th>Cultivos</th>
+          <th style="text-align:right">Hectáreas</th>
+          <th style="text-align:right">Total kg</th>
+        </tr>`,
+        this._pasturas.map(g => {
+          const cultivosList = (g.cultivos||[])
+            .filter(c => c.cultivo)
+            .map(c => `${esc(c.cultivo)}${
+              c.kilos_ha ? ` (${fmtNum(c.kilos_ha)} kg/ha)` : ''
+            }`).join(', ');
+          const totKg = (g.cultivos||[]).reduce((s,c) =>
+            s + parseFloat(g.hectareas||0) * parseFloat(c.kilos_ha||0), 0
+          );
+          return `<tr>
+            <td>${fmtFecha(g.fecha)}${g.fecha_fin ? ' → '+fmtFecha(g.fecha_fin) : ''}</td>
+            <td>${cultivosList||'—'}</td>
+            <td style="text-align:right">${fmtNum(g.hectareas)} ha</td>
+            <td style="text-align:right">${fmtNum(totKg)} kg</td>
+          </tr>`;
+        }).join(''),
+        ''
+      ) : ''}
+
       ${seccion('🧪 Fertilización',
         `<tr>
           <th>Fecha</th>
@@ -1862,7 +2236,7 @@ const AgroCicloView = {
           <th style="text-align:right">Kilos totales</th>
           <th>Destino</th>
         </tr>`,
-        cosechas.map(r => {
+        cosNormal.map(r => {
           const fechaDisplay = r.fecha_fin
             ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
             : fmtFecha(r.fecha);
@@ -1876,13 +2250,38 @@ const AgroCicloView = {
             <td>${fmtDestino(r)}</td>
           </tr>`;
         }).join(''),
-        cosechas.length ? `<tr>
+        cosNormal.length ? `<tr>
           <td colspan="4">Total</td>
           <td style="text-align:right">${fmtNum(totCosHa)} ha</td>
           <td style="text-align:right">${fmtNum(totCosKg)} kg</td>
           <td></td>
         </tr>` : ''
       )}
+
+      ${cosPastRes.length ? seccion('🐄 Pastoreo / Reserva',
+        `<tr>
+          <th>Fecha</th>
+          <th>Clase</th>
+          <th style="text-align:right">Hectáreas</th>
+        </tr>`,
+        cosPastRes.map(r => {
+          const fechaDisplay = r.fecha_fin
+            ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
+            : fmtFecha(r.fecha);
+          return `<tr>
+            <td>${fechaDisplay}</td>
+            <td>${claseLabel(r.clase)}</td>
+            <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
+          </tr>`;
+        }).join(''),
+        cosPastRes.length ? `<tr>
+          <td>Total</td>
+          <td></td>
+          <td style="text-align:right">
+            ${fmtNum(cosPastRes.reduce((s,r)=>s+parseFloat(r.hectareas||0),0))} ha
+          </td>
+        </tr>` : ''
+      ) : ''}
 
       ${ciclo.obs ? `
         <div class="notas">
