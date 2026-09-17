@@ -9,6 +9,8 @@ const GanaderoView = {
   _expanded: {},
   _clickHandler: null,
   _rodeoToExpand: null,
+  _toros: [],
+  _ciclos: [],
 
   renderWithRodeo(rodeoId) {
     this._rodeoToExpand = rodeoId;
@@ -29,6 +31,9 @@ const GanaderoView = {
       await BBT.Estancias.fetchAll();
       const rodeos = BBT.Estancias.getAllRodeos();
       await Promise.all(rodeos.map(r => BBT.Ciclos.fetchByGrupo(r.id)));
+      this._ciclos = rodeos.flatMap(r => BBT.Ciclos.getByGrupo(r.id));
+      console.log('ciclos cargados:', this._ciclos.length);
+      this._toros  = await BBT.API.get('/api/toros').catch(() => []);
     } catch (err) {
       console.error('GanaderoView.render:', err);
     }
@@ -92,6 +97,8 @@ const GanaderoView = {
       estancias.forEach(est => { html += this._renderCampo(est); });
       html += '</div>';
     }
+
+    html += this._renderToros();
 
     html += `
       <div class="gtree-historial" id="btn-historial">
@@ -327,6 +334,8 @@ const GanaderoView = {
         resultados.innerHTML = '';
       });
     }
+
+    this._bindTorosEvents();
   },
 
   /* ── Buscador caravana ────────────────────────────────── */
@@ -562,6 +571,275 @@ const GanaderoView = {
     let html = '';
     estancias.forEach(est => { html += this._renderCampo(est); });
     tree.innerHTML = html;
+  },
+
+  _renderToros() {
+    const esc      = s => BBT.Security.sanitize(String(s||''));
+    const toros    = this._toros || [];
+    const estancias = BBT.Estancias.getAll();
+
+    const filasToros = toros.map(t => {
+      return `
+        <div class="gtree-toro-row" data-toro-id="${t.id}"
+          style="display:flex;align-items:center;gap:8px;
+          padding:6px 12px;border-bottom:1px solid var(--border);
+          flex-wrap:wrap">
+          <span style="font-family:monospace;font-size:.95rem;
+            font-weight:600;min-width:90px;color:var(--text-primary)">
+            ${esc(t.caravana)}
+          </span>
+          <div style="display:flex;gap:6px;flex:1;flex-wrap:wrap">
+            <select style="font-size:.78rem;padding:2px 6px;
+              border:1px solid var(--border);border-radius:4px;
+              background:var(--surface-bg);color:var(--text-primary);
+              cursor:pointer" class="toro-sel-campo"
+              data-toro-id="${t.id}">
+              <option value="">— Campo —</option>
+              ${estancias.map(e =>
+                `<option value="${e.id}"
+                  ${e.id === t.campo_id ? 'selected' : ''}>
+                  ${esc(e.nombre)}</option>`
+              ).join('')}
+            </select>
+            <select style="font-size:.78rem;padding:2px 6px;
+              border:1px solid var(--border);border-radius:4px;
+              background:var(--surface-bg);color:var(--text-primary);
+              cursor:pointer" class="toro-sel-rodeo"
+              data-toro-id="${t.id}"
+              ${!t.campo_id ? 'disabled' : ''}>
+              <option value="">— Rodeo —</option>
+              ${t.campo_id
+                ? (estancias.find(e => e.id === t.campo_id)?.rodeos || [])
+                    .map(g => `<option value="${g.id}"
+                      ${g.id === t.rodeo_id ? 'selected' : ''}>
+                      ${esc(g.nombre)}</option>`).join('')
+                : ''}
+            </select>
+            <select style="font-size:.78rem;padding:2px 6px;
+              border:1px solid var(--border);border-radius:4px;
+              background:var(--surface-bg);color:var(--text-primary);
+              cursor:pointer" class="toro-sel-safra"
+              data-toro-id="${t.id}"
+              ${!t.rodeo_id ? 'disabled' : ''}>
+              <option value="">— Safra —</option>
+              ${t.rodeo_id
+                ? (this._ciclos || [])
+                    .filter(c => c.grupoId === t.rodeo_id)
+                    .map(c => `<option value="${c.id}"
+                      ${c.id === t.ciclo_id ? 'selected' : ''}>
+                      ${esc(c.nombre)}</option>`).join('')
+                : ''}
+            </select>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button class="gtree-btn-icon btn-edit-toro"
+              data-id="${t.id}"
+              data-caravana="${esc(t.caravana)}"
+              title="Editar caravana">
+              <svg width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="gtree-btn-icon gtree-btn-danger btn-del-toro"
+              data-id="${t.id}" title="Eliminar toro">
+              <svg width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              </svg>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="gtree-campo" id="gtree-toros-block">
+        <div class="gtree-campo-header">
+          <div class="gtree-campo-left">
+            <span class="gtree-campo-icon">🐂</span>
+            <span class="gtree-campo-name">TOROS</span>
+          </div>
+          <div class="gtree-campo-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-add-toro">＋ Toro</button>
+          </div>
+        </div>
+        <div class="gtree-toros-list" id="gtree-toros-list">
+          ${toros.length
+            ? filasToros
+            : `<div class="gtree-rodeo-empty">Sin toros registrados.</div>`}
+        </div>
+      </div>`;
+  },
+
+  _bindTorosEvents() {
+    document.getElementById('btn-add-toro')
+      ?.addEventListener('click', () => this._modalAgregarToros());
+
+    document.querySelectorAll('.btn-edit-toro').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._modalEditarToro(btn.dataset.id, btn.dataset.caravana);
+      });
+    });
+
+    document.querySelectorAll('.btn-del-toro').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('¿Eliminar este toro?')) return;
+        try {
+          await BBT.API.del(`/api/toros/${btn.dataset.id}`);
+          Toast.success('Toro eliminado.');
+          await this._reloadToros();
+        } catch { Toast.error('Error al eliminar.'); }
+      });
+    });
+
+    document.querySelectorAll('.toro-sel-campo').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const toroId  = sel.dataset.toroId;
+        const campoId = sel.value;
+        const row     = sel.closest('.gtree-toro-row');
+        if (!row) return;
+        const selRodeo = row.querySelector('.toro-sel-rodeo');
+        const selSafra = row.querySelector('.toro-sel-safra');
+        const rodeos   = campoId
+          ? (BBT.Estancias.getAll().find(e => e.id === campoId)?.rodeos || [])
+          : [];
+        selRodeo.innerHTML = '<option value="">— Rodeo —</option>'
+          + rodeos.map(g =>
+              `<option value="${g.id}">${BBT.Security.sanitize(g.nombre)}</option>`
+            ).join('');
+        selRodeo.disabled = !campoId;
+        selSafra.innerHTML = '<option value="">— Safra —</option>';
+        selSafra.disabled  = true;
+        await BBT.API.put(`/api/toros/${toroId}`, { ciclo_id: null }).catch(() => {});
+      });
+    });
+
+    document.querySelectorAll('.toro-sel-rodeo').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const toroId  = sel.dataset.toroId;
+        const rodeoId = sel.value;
+        const row     = sel.closest('.gtree-toro-row');
+        if (!row) return;
+        const selSafra = row.querySelector('.toro-sel-safra');
+        console.log('rodeoId:', rodeoId, 'ciclos disponibles:',
+          this._ciclos.length,
+          'match:', this._ciclos.filter(c => c.grupoId === rodeoId).length);
+        const safras   = rodeoId
+          ? (this._ciclos || []).filter(c => c.grupoId === rodeoId)
+          : [];
+        selSafra.innerHTML = '<option value="">— Safra —</option>'
+          + safras.map(c =>
+              `<option value="${c.id}">${BBT.Security.sanitize(c.nombre)}</option>`
+            ).join('');
+        selSafra.disabled = !rodeoId;
+        await BBT.API.put(`/api/toros/${toroId}`, { ciclo_id: null }).catch(() => {});
+      });
+    });
+
+    document.querySelectorAll('.toro-sel-safra').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const toroId  = sel.dataset.toroId;
+        const cicloId = sel.value || null;
+        try {
+          await BBT.API.put(`/api/toros/${toroId}`, { ciclo_id: cicloId });
+          Toast.success('Toro asignado.');
+          await this._reloadToros();
+        } catch { Toast.error('Error al asignar.'); }
+      });
+    });
+  },
+
+  async _reloadToros() {
+    try {
+      this._toros = await BBT.API.get('/api/toros');
+      const block = document.getElementById('gtree-toros-block');
+      if (block) {
+        block.outerHTML = this._renderToros();
+        this._bindTorosEvents();
+      }
+    } catch { Toast.error('Error al recargar toros.'); }
+  },
+
+  _modalAgregarToros() {
+    const m = Modal.show({
+      title: 'Agregar toros',
+      body: `
+        <div class="form-group">
+          <label class="form-label">
+            IDs / caravanas
+            <span style="font-size:.72rem;color:var(--text-muted);font-weight:400"> — uno por línea</span>
+          </label>
+          <textarea class="input textarea" id="toro-ids-input"
+            rows="6" style="resize:none;font-family:monospace"
+            placeholder="EF394DF&#10;EF394DG&#10;KD077G123"></textarea>
+        </div>`,
+      footer: `
+        <button class="btn btn-secondary" id="toro-add-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="toro-add-ok">Agregar</button>`
+    });
+    m.querySelector('#toro-add-cancel')
+      .addEventListener('click', () => Modal.close(m), { once: true });
+    m.querySelector('#toro-add-ok')
+      .addEventListener('click', async () => {
+        const btn = m.querySelector('#toro-add-ok');
+        const raw = m.querySelector('#toro-ids-input').value;
+        const caravanas = raw.split('\n')
+          .map(s => s.trim().toUpperCase())
+          .filter(Boolean);
+        if (!caravanas.length) { Toast.error('Ingresá al menos un ID.'); return; }
+        btn.disabled = true; btn.textContent = 'Guardando...';
+        try {
+          const res = await BBT.API.post('/api/toros', { caravanas });
+          Modal.close(m);
+          const n   = res.creados.length;
+          const dup = res.duplicados.length;
+          const msg = `${n} toro${n !== 1 ? 's' : ''} agregado${n !== 1 ? 's' : ''}.`
+            + (dup ? ` (${dup} duplicado${dup !== 1 ? 's' : ''}: ${res.duplicados.join(', ')})` : '');
+          Toast.success(msg);
+          await this._reloadToros();
+        } catch {
+          Toast.error('Error al agregar toros.');
+          btn.disabled = false; btn.textContent = 'Agregar';
+        }
+      }, { once: true });
+  },
+
+  _modalEditarToro(id, caravanaActual) {
+    const m = Modal.show({
+      title: 'Editar toro',
+      body: `
+        <div class="form-group">
+          <label class="form-label">ID / Caravana</label>
+          <input class="input" type="text" id="toro-edit-input"
+            value="${BBT.Security.sanitize(caravanaActual)}"
+            style="text-transform:uppercase">
+        </div>`,
+      footer: `
+        <button class="btn btn-secondary" id="toro-edit-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="toro-edit-ok">Guardar</button>`
+    });
+    m.querySelector('#toro-edit-cancel')
+      .addEventListener('click', () => Modal.close(m), { once: true });
+    m.querySelector('#toro-edit-ok')
+      .addEventListener('click', async () => {
+        const btn      = m.querySelector('#toro-edit-ok');
+        const caravana = m.querySelector('#toro-edit-input').value.trim().toUpperCase();
+        if (!caravana) { Toast.error('El ID no puede estar vacío.'); return; }
+        btn.disabled = true; btn.textContent = 'Guardando...';
+        try {
+          await BBT.API.put(`/api/toros/${id}`, { caravana });
+          Modal.close(m);
+          Toast.success('Toro actualizado.');
+          await this._reloadToros();
+        } catch (err) {
+          Toast.error(err.message || 'Error al actualizar.');
+          btn.disabled = false; btn.textContent = 'Guardar';
+        }
+      }, { once: true });
   },
 
   hide() {

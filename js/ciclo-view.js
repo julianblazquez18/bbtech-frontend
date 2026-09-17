@@ -32,6 +32,7 @@ function _toastMoverTraspasar(res, singularVerb, pluralVerb) {
 
 const CicloView = {
   cicloId: null,
+  _toros: [],
 
   async render(cicloId) {
     this.cicloId = cicloId;
@@ -48,6 +49,7 @@ const CicloView = {
     const cerrado = ciclo.estado === 'cerrado';
     const lotes = (await BBT.Estancias.getLotesNombres().catch(() => []));
     const loteOpts = lotes.map(l => `<option value="${BBT.Security.sanitize(l)}"${ciclo.lote === l ? ' selected' : ''}>${BBT.Security.sanitize(l)}</option>`).join('');
+    this._toros = await BBT.API.get('/api/toros').catch(() => []);
 
     const isFullscreen = document.getElementById('app').classList.contains('fullscreen');
     const bcRodeo = App._breadcrumbRodeo;
@@ -106,7 +108,7 @@ const CicloView = {
         ${!cerrado ? `
         <div class="card mb-6">
           <div class="card-body" style="padding:var(--space-4) var(--space-6)">
-            <div style="display:grid;grid-template-columns:220px 1fr;gap:var(--space-4);align-items:start">
+            <div style="display:grid;grid-template-columns:220px 1fr 180px;gap:var(--space-4);align-items:start">
               <div class="form-group">
                 <label class="form-label">Lote actual</label>
                 <select class="select" id="ciclo-lote">
@@ -121,13 +123,34 @@ const CicloView = {
                   placeholder="Notas generales..."
                   >${BBT.Security.sanitize(ciclo.obs || '')}</textarea>
               </div>
+              <div class="form-group">
+                <label class="form-label">Toros</label>
+                <div style="font-size:.82rem;line-height:1.6;color:var(--text-primary);min-height:36px">
+                  ${(() => {
+                    const torosDeSafra = (this._toros || [])
+                      .filter(t => t.ciclo_id === cicloId);
+                    if (!torosDeSafra.length) {
+                      return `<span style="color:var(--text-muted);font-style:italic">Sin toros asignados</span>`;
+                    }
+                    return torosDeSafra
+                      .map(t => `<span style="display:inline-block;background:var(--surface-bg);border:1px solid var(--border);border-radius:4px;padding:1px 6px;margin:1px;font-family:monospace;font-size:.92rem">${BBT.Security.sanitize(t.caravana)}</span>`)
+                      .join('');
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        ` : (ciclo.lote || ciclo.obs) ? `
+        ` : (ciclo.lote || ciclo.obs || (this._toros||[]).some(t => t.ciclo_id === cicloId)) ? `
         <div class="card mb-6"><div class="card-body" style="display:flex;gap:var(--space-6);flex-wrap:wrap">
           ${ciclo.lote ? `<span class="text-sm"><strong>Lote:</strong> ${BBT.Security.sanitize(ciclo.lote)}</span>` : ''}
           ${ciclo.obs ? `<span class="text-sm text-muted">${BBT.Security.sanitize(ciclo.obs)}</span>` : ''}
+          ${(() => {
+            const torosDeSafra = (this._toros || []).filter(t => t.ciclo_id === cicloId);
+            return torosDeSafra.length
+              ? `<span class="text-sm"><strong>Toros:</strong> ${torosDeSafra.map(t => BBT.Security.sanitize(t.caravana)).join(', ')}</span>`
+              : '';
+          })()}
         </div></div>` : ''}
 
         <!-- Stats -->
