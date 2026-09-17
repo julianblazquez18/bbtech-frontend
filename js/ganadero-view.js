@@ -657,7 +657,7 @@ const GanaderoView = {
     }).join('');
 
     return `
-      <div class="gtree-campo" id="gtree-toros-block">
+      <div class="gtree-campo" id="gtree-toros-block" style="margin-top:16px">
         <div class="gtree-campo-header">
           <div class="gtree-campo-left">
             <span class="gtree-campo-icon">🐂</span>
