@@ -43,7 +43,7 @@ const AgroCicloView = {
           BBT.API.get('/api/agro/camiones'),
           BBT.API.get('/api/agro/entidades'),
           BBT.API.get('/api/agro/establecimientos'),
-          BBT.API.get('/api/agro/cultivos').catch(() => []),
+          BBT.API.get('/api/agro/cultivos?t=' + Date.now()).catch(() => []),
           BBT.API.get('/api/agro/cultivos-pastura').catch(() => []),
           BBT.API.get('/api/agro/tipos-cultivo').catch(() => []),
           BBT.API.get(`/api/agro/ciclos/${cicloId}/asignaciones`).catch(() => []),
@@ -1011,7 +1011,7 @@ const AgroCicloView = {
 
   // ── Modales ─────────────────────────────────────────
 
-  _modalSiembra(reg = null) {
+  async _modalSiembra(reg = null) {
     const isEdit       = reg !== null;
     const ciclo        = this._ciclo;
     const tieneSiembra = !isEdit && ciclo?.cultivo;
@@ -1033,6 +1033,37 @@ const AgroCicloView = {
           return `<option value="${esc(t.nombre)}"${sel?' selected':''}>${esc(t.nombre)}</option>`;
         }).join('')
       : '<option value="">Sin tipos configurados</option>';
+
+    const cultivoNombre = isEdit
+      ? reg.cultivo
+      : (ciclo?.cultivo || null);
+    let cultivoObj = cultivoNombre
+      ? (this._cultivos || []).find(c => c.nombre === cultivoNombre)
+      : null;
+    let variedadesCultivo = cultivoObj?.variedades || [];
+
+    // Si no hay variedades en caché, fetchear por id
+    if (cultivoObj && !variedadesCultivo.length) {
+      try {
+        variedadesCultivo = await BBT.API.get(
+          `/api/agro/cultivos/${cultivoObj.id}/variedades`
+        );
+      } catch {}
+    }
+
+    // Si cultivoObj es null (caché vacío), buscar el cultivo
+    // por nombre y fetchear variedades
+    if (!cultivoObj && cultivoNombre) {
+      try {
+        const todosLosCultivos = await BBT.API.get('/api/agro/cultivos');
+        cultivoObj = todosLosCultivos.find(
+          c => c.nombre === cultivoNombre) || null;
+        variedadesCultivo = cultivoObj?.variedades || [];
+        if (todosLosCultivos.length) {
+          this._cultivos = todosLosCultivos;
+        }
+      } catch {}
+    }
 
     const fechaVal    = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
     const variedadVal = isEdit ? esc(reg.obs||'') : esc(ciclo?.variedad||'');
@@ -1109,12 +1140,21 @@ const AgroCicloView = {
                 </select>
               </div>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="ms-variedad-wrap">
               <label class="form-label">Variedad</label>
-              <input class="input" id="ms-variedad" maxlength="80"
-                value="${variedadVal}"
-                ${tieneSiembra ? 'readonly style="opacity:.6"' : ''}
-                placeholder="Ej: SRM 5900, DM 50i20...">
+              ${variedadesCultivo.length
+                ? `<select class="select" id="ms-variedad">
+                     <option value="">— Sin variedad —</option>
+                     ${variedadesCultivo.map(v =>
+                       `<option value="${esc(v.nombre)}"
+                         ${isEdit && reg?.obs === v.nombre ? ' selected' : ''}>
+                         ${esc(v.nombre)}
+                       </option>`
+                     ).join('')}
+                   </select>`
+                : `<input class="input" id="ms-variedad" maxlength="80"
+                     value="${variedadVal}"
+                     placeholder="Ej: SRM 5900, DM 50i20...">`}
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div class="form-group">
@@ -1222,6 +1262,45 @@ const AgroCicloView = {
 
       m.querySelector('#ms-add-pastura')
         ?.addEventListener('click', () => addPasturaRow());
+
+      // Listener cultivo → actualizar variedad dinámicamente
+      const selCultivo = m.querySelector('#ms-cultivo');
+      if (selCultivo && !tieneSiembra) {
+        selCultivo.addEventListener('change', async () => {
+          const cultNombre = selCultivo.value;
+          const wrap = m.querySelector('#ms-variedad-wrap');
+          if (!wrap) return;
+
+          let cObj = (this._cultivos || []).find(
+            c => c.nombre === cultNombre) || null;
+          let vars = cObj?.variedades || [];
+
+          if (cObj && !vars.length) {
+            try {
+              vars = await BBT.API.get(
+                `/api/agro/cultivos/${cObj.id}/variedades`);
+            } catch {}
+          }
+
+          const varActual = m.querySelector('#ms-variedad')?.value || '';
+          wrap.innerHTML = `
+            <label class="form-label">Variedad</label>
+            ${vars.length
+              ? `<select class="select" id="ms-variedad">
+                   <option value="">— Sin variedad —</option>
+                   ${vars.map(v =>
+                     `<option value="${esc(v.nombre)}"
+                       ${varActual === v.nombre ? ' selected' : ''}>
+                       ${esc(v.nombre)}
+                     </option>`
+                   ).join('')}
+                 </select>`
+              : `<input class="input" id="ms-variedad"
+                   maxlength="80"
+                   value="${varActual}"
+                   placeholder="Ej: SRM 5900, DM 50i20...">`}`;
+        });
+      }
     }, 30);
 
     m.querySelector('#ms-cancel').addEventListener('click',

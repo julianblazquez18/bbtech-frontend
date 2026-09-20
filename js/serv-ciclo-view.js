@@ -588,6 +588,12 @@ const ServCicloView = {
         </button>
       </div>`;
 
+    const cultivoNombre = isEdit ? reg.cultivo : (ciclo?.cultivo || null);
+    const cultivoObj = cultivoNombre
+      ? (this._cultivos || []).find(c => c.nombre === cultivoNombre)
+      : null;
+    const variedadesCultivo = cultivoObj?.variedades || [];
+
     const fechaVal  = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
     const fechaFinV = isEdit ? String(reg.fecha_fin||'').slice(0,10) : '';
     const haVal     = isEdit ? (reg.hectareas||'') : '';
@@ -635,12 +641,23 @@ const ServCicloView = {
                   </select>
                 </div>
               </div>
-              <div class="form-group">
+              <div class="form-group" id="ss-variedad-wrap">
                 <label class="form-label">Variedad</label>
-                <input class="input" id="ss-variedad" maxlength="80"
-                  value="${esc(isEdit ? reg.variedad||'' : ciclo?.variedad||'')}"
-                  ${tieneSiembra ? 'readonly style="opacity:.6"' : ''}
-                  placeholder="Ej: SRM 5900...">
+                ${variedadesCultivo.length
+                  ? `<select class="select" id="ss-variedad"
+                       ${tieneSiembra ? 'disabled style="opacity:.6"' : ''}>
+                       <option value="">— Sin variedad —</option>
+                       ${variedadesCultivo.map(v =>
+                         `<option value="${esc(v.nombre)}"
+                           ${isEdit && reg?.variedad === v.nombre ? ' selected' : ''}>
+                           ${esc(v.nombre)}
+                         </option>`
+                       ).join('')}
+                     </select>`
+                  : `<input class="input" id="ss-variedad" maxlength="80"
+                       value="${esc(isEdit ? reg.variedad||'' : ciclo?.variedad||'')}"
+                       ${tieneSiembra ? 'readonly style="opacity:.6"' : ''}
+                       placeholder="Ej: SRM 5900...">`}
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-group">
@@ -739,6 +756,42 @@ const ServCicloView = {
         pasturaList.appendChild(div.firstElementChild);
         bindPasturaRow(pasturaList.lastElementChild);
       });
+
+      const selCultivo = m.querySelector('#ss-cultivo');
+      if (selCultivo && !tieneSiembra) {
+        selCultivo.addEventListener('change', async () => {
+          const cultNombre = selCultivo.value;
+          const wrap = m.querySelector('#ss-variedad-wrap');
+          if (!wrap) return;
+          const esc = s => BBT.Security.sanitize(String(s||''));
+          let cObj = (this._cultivos || []).find(
+            c => c.nombre === cultNombre) || null;
+          let vars = cObj?.variedades || [];
+          if (cObj && !vars.length) {
+            try {
+              vars = await BBT.API.get(
+                `/api/agro/cultivos/${cObj.id}/variedades`);
+            } catch {}
+          }
+          const varActual = m.querySelector('#ss-variedad')?.value || '';
+          wrap.innerHTML = `
+            <label class="form-label">Variedad</label>
+            ${vars.length
+              ? `<select class="select" id="ss-variedad">
+                   <option value="">— Sin variedad —</option>
+                   ${vars.map(v =>
+                     `<option value="${esc(v.nombre)}"
+                       ${varActual === v.nombre ? ' selected' : ''}>
+                       ${esc(v.nombre)}
+                     </option>`
+                   ).join('')}
+                 </select>`
+              : `<input class="input" id="ss-variedad"
+                   maxlength="80"
+                   value="${varActual}"
+                   placeholder="Ej: SRM 5900, DM 50i20...">`}`;
+        });
+      }
     }, 30);
 
     m.querySelector('#ss-cancel').addEventListener('click',

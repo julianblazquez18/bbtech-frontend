@@ -365,10 +365,7 @@ const AgroAdmin = {
         document.getElementById('tab-' + btn.dataset.tab).style.display = '';
         if (btn.dataset.tab === 'catalogo') {
           document.getElementById('cultivos-list').innerHTML =
-            this._renderSimpleList(
-              this._cultivos.map(c => ({...c, _tipo:'cultivo'})),
-              'Sin cultivos configurados'
-            );
+            this._renderCultivosList();
           document.getElementById('cultivos-pastura-list').innerHTML =
             this._renderSimpleList(
               this._cultivosPastura.map(c => ({...c, _tipo:'cultivo-pastura'})),
@@ -759,6 +756,54 @@ const AgroAdmin = {
 
   // ── Cultivos / Tipos (listas simples) ──────────────
 
+  _renderCultivosList() {
+    const esc = s => BBT.Security.sanitize(String(s||''));
+    if (!this._cultivos?.length) {
+      return `<div class="empty-state" style="padding:20px">
+        <div class="empty-title">Sin cultivos</div>
+      </div>`;
+    }
+    return `<ul style="list-style:none;padding:0;margin:0">
+      ${this._cultivos.map(c => `
+        <li style="display:flex;align-items:center;
+          justify-content:space-between;padding:10px 16px;
+          border-bottom:1px solid var(--border-color)">
+          <div>
+            <span style="font-weight:500">${esc(c.nombre)}</span>
+            ${c.variedades?.length
+              ? `<span style="font-size:.72rem;color:var(--text-muted);margin-left:6px">
+                  · ${c.variedades.length} variedad${c.variedades.length !== 1 ? 'es' : ''}
+                </span>`
+              : ''}
+          </div>
+          <div style="display:flex;gap:4px">
+            <button class="gtree-btn-icon btn-edit-cultivo"
+              data-id="${c.id}"
+              data-nombre="${esc(c.nombre)}"
+              data-unidad="${c.unidad||'kg'}"
+              title="Editar cultivo">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="gtree-btn-icon gtree-btn-danger btn-del-cultivo"
+              data-id="${c.id}"
+              data-nombre="${esc(c.nombre)}"
+              title="Eliminar cultivo">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              </svg>
+            </button>
+          </div>
+        </li>`
+      ).join('')}
+    </ul>`;
+  },
+
   _renderSimpleList(items, emptyMsg) {
     if (!items.length) return `<div class="empty-state" style="padding:32px">
       <div class="empty-title">${BBT.Security.sanitize(emptyMsg)}</div>
@@ -890,6 +935,139 @@ const AgroAdmin = {
     }, { once: true });
   },
 
+  async _modalEditarCultivo(cultivoId, nombreActual, unidadActual) {
+    const esc = s => BBT.Security.sanitize(String(s||''));
+
+    let variedades = [];
+    try {
+      variedades = await BBT.API.get(
+        `/api/agro/cultivos/${cultivoId}/variedades`);
+    } catch {}
+
+    const _renderVarList = (vars) =>
+      vars.length
+        ? vars.map(v => `
+            <div style="display:flex;align-items:center;
+              justify-content:space-between;padding:4px 0;
+              border-bottom:1px solid var(--border-color)"
+              data-var-id="${v.id}">
+              <span style="font-size:.85rem">${esc(v.nombre)}</span>
+              <button class="gtree-btn-icon gtree-btn-danger btn-del-variedad"
+                data-id="${v.id}" data-nombre="${esc(v.nombre)}">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+              </button>
+            </div>`
+          ).join('')
+        : `<div style="font-size:.8rem;color:var(--text-muted);
+            font-style:italic;padding:6px 0">
+            Sin variedades — el campo será texto libre
+          </div>`;
+
+    const m = Modal.show({
+      title: `Editar cultivo — ${esc(nombreActual)}`,
+      body: `
+        <div class="flex flex-col gap-4">
+          <div class="form-group">
+            <label class="form-label">Unidad de siembra</label>
+            <div style="display:flex;gap:16px;margin-top:4px">
+              <label style="display:flex;align-items:center;gap:6px;
+                font-size:.85rem;cursor:pointer">
+                <input type="radio" name="ecult-unidad" value="kg"
+                  ${(unidadActual||'kg')==='kg' ? 'checked' : ''}> kg/ha
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;
+                font-size:.85rem;cursor:pointer">
+                <input type="radio" name="ecult-unidad" value="plantas"
+                  ${unidadActual==='plantas' ? 'checked' : ''}> plantas/ha
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Variedades
+              <span style="font-size:.72rem;color:var(--text-muted);
+                font-weight:400"> — si no hay, el campo es texto libre</span>
+            </label>
+            <div id="ecult-var-list" style="margin-bottom:8px;min-height:20px">
+              ${_renderVarList(variedades)}
+            </div>
+            <div style="display:flex;gap:8px">
+              <input class="input" id="ecult-var-nueva"
+                placeholder="Nueva variedad..."
+                style="flex:1;font-size:.85rem" maxlength="50">
+              <button class="btn btn-secondary btn-sm" id="ecult-var-add">
+                ＋ Agregar
+              </button>
+            </div>
+          </div>
+        </div>`,
+      footer: `
+        <button class="btn btn-secondary" id="ecult-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="ecult-ok">Guardar</button>`
+    });
+
+    const bindDelVar = () => {
+      m.querySelectorAll('.btn-del-variedad').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm(`¿Eliminar variedad "${btn.dataset.nombre}"?`)) return;
+          try {
+            await BBT.API.del(
+              `/api/agro/cultivos/${cultivoId}/variedades/${btn.dataset.id}`);
+            variedades = variedades.filter(v => v.id !== btn.dataset.id);
+            m.querySelector('#ecult-var-list').innerHTML =
+              _renderVarList(variedades);
+            bindDelVar();
+          } catch { Toast.error('Error al eliminar variedad.'); }
+        });
+      });
+    };
+    bindDelVar();
+
+    m.querySelector('#ecult-var-add').addEventListener('click', async () => {
+      const input = m.querySelector('#ecult-var-nueva');
+      const nombre = input.value.trim();
+      if (!nombre) return;
+      try {
+        const nueva = await BBT.API.post(
+          `/api/agro/cultivos/${cultivoId}/variedades`, { nombre });
+        variedades.push(nueva);
+        m.querySelector('#ecult-var-list').innerHTML = _renderVarList(variedades);
+        bindDelVar();
+        input.value = '';
+        Toast.success('Variedad agregada.');
+      } catch (err) { Toast.error(err.message || 'Error.'); }
+    });
+
+    m.querySelector('#ecult-var-nueva').addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        m.querySelector('#ecult-var-add').click();
+      }
+    });
+
+    m.querySelector('#ecult-cancel')
+      .addEventListener('click', () => Modal.close(m), { once: true });
+
+    m.querySelector('#ecult-ok').addEventListener('click', async () => {
+      const btn = m.querySelector('#ecult-ok');
+      const unidad = m.querySelector('input[name="ecult-unidad"]:checked')
+        ?.value || 'kg';
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      try {
+        await BBT.API.put(`/api/agro/cultivos/${cultivoId}`, { unidad });
+        Modal.close(m);
+        Toast.success('Cultivo actualizado.');
+        await this.render(this._fromAgro);
+      } catch {
+        Toast.error('Error al guardar.');
+        btn.disabled = false; btn.textContent = 'Guardar';
+      }
+    }, { once: true });
+  },
+
   async _delSimple(tipo, id, nombre) {
     const label = tipo === 'cultivo' ? 'cultivo'
       : tipo === 'cultivo-pastura' ? 'cultivo de pastura'
@@ -936,7 +1114,26 @@ const AgroAdmin = {
       this._renderSimpleList(
         this._prodsPulv.map(p => ({...p, _tipo:'prod-pulv'})), 'Sin productos');
 
-    ['cultivos-list', 'cultivos-pastura-list', 'tipos-list',
+    document.getElementById('cultivos-list')
+      ?.addEventListener('click', async e => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        if (btn.classList.contains('btn-edit-cultivo')) {
+          this._modalEditarCultivo(btn.dataset.id, btn.dataset.nombre, btn.dataset.unidad);
+        } else if (btn.classList.contains('btn-del-cultivo')) {
+          const ok = await Modal.confirm('Eliminar cultivo',
+            `¿Eliminar "${BBT.Security.sanitize(btn.dataset.nombre)}"?`,
+            'Eliminar', 'danger');
+          if (!ok) return;
+          try {
+            await BBT.API.del(`/api/agro/cultivos/${btn.dataset.id}`);
+            Toast.success('Cultivo eliminado.');
+            await this.render(this._fromAgro);
+          } catch (err) { Toast.error(err.message || 'Error.'); }
+        }
+      });
+
+    ['cultivos-pastura-list', 'tipos-list',
      'prod-fert-list', 'prod-pulv-list'].forEach(listId => {
       document.getElementById(listId)?.addEventListener('click', async e => {
         const btn = e.target.closest('.btn-del-item');
