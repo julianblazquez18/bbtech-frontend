@@ -843,6 +843,30 @@ const AgroView = {
       );
     } catch {}
 
+    let todasBolsas = [];
+    try {
+      if (cultivo) {
+        todasBolsas = await BBT.API.get(
+          `/api/agro/bolsas/activas?cultivo=${encodeURIComponent(cultivo)}`
+        );
+        todasBolsas = todasBolsas.filter(b => b.id !== bolsaId);
+      }
+    } catch {}
+    const estMap = {};
+    todasBolsas.forEach(b => {
+      const k = b.establecimiento_id;
+      if (!estMap[k]) estMap[k] = {
+        id:     b.establecimiento_id,
+        nombre: b.establecimiento_nombre,
+        bolsas: []
+      };
+      estMap[k].bolsas.push(b);
+    });
+    const establecimientos = Object.values(estMap);
+    const estOpts = establecimientos.map(e =>
+      `<option value="${e.id}">${BBT.Security.sanitize(e.nombre)}</option>`
+    ).join('');
+
     const camOpts  = this._camiones.map(c =>
       `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
     const extOpts  = entidades.map(e =>
@@ -871,6 +895,7 @@ const AgroView = {
               <option value="">— Seleccionar —</option>
               ${camOpts ? '<option value="camion">🚛 Camión</option>' : ''}
               ${siloOpts ? '<option value="silo">🏗 Silo</option>' : ''}
+              ${establecimientos.length ? '<option value="bolsa">🌾 Silo Bolsa</option>' : ''}
               <option value="siembra">🌱 Para Siembra</option>
               <option value="externo">📦 Externo</option>
             </select>
@@ -894,6 +919,26 @@ const AgroView = {
               ${siloOpts||'<option>Sin silos compatibles</option>'}
             </select>
           </div>
+          <div id="mb-bolsa-wrap" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Establecimiento</label>
+              <select class="select" id="mb-bolsa-est">
+                <option value="">— Seleccionar —</option>
+                ${estOpts||'<option disabled>Sin bolsas disponibles</option>'}
+              </select>
+            </div>
+            <div class="form-group" style="margin-top:8px">
+              <label class="form-label">Silo Bolsa destino</label>
+              <select class="select" id="mb-bolsa-id" disabled>
+                <option value="">— Primero seleccioná establecimiento —</option>
+              </select>
+            </div>
+            ${cultivo ? `
+            <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">
+              Solo bolsas con cultivo:
+              <strong>${BBT.Security.sanitize(cultivo)}</strong>
+            </div>` : ''}
+          </div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="mb-cancel">Cancelar</button>
                <button class="btn btn-primary" id="mb-ok">Confirmar</button>`
@@ -906,7 +951,18 @@ const AgroView = {
         const v = sel.value;
         m.querySelector('#mb-camion-wrap').style.display = v==='camion' ? '' : 'none';
         m.querySelector('#mb-silo-wrap').style.display   = v==='silo'   ? '' : 'none';
+        m.querySelector('#mb-bolsa-wrap').style.display  = v==='bolsa'  ? '' : 'none';
       });
+      m.querySelector('#mb-bolsa-est')
+        ?.addEventListener('change', () => {
+          const estId    = m.querySelector('#mb-bolsa-est').value;
+          const selBolsa = m.querySelector('#mb-bolsa-id');
+          const bolsasEst = estId ? (estMap[estId]?.bolsas || []) : [];
+          selBolsa.innerHTML =
+            '<option value="">— Seleccionar bolsa —</option>'
+            + bolsasEst.map(b => `<option value="${b.id}">${BBT.Security.sanitize(b.lote_nombre)} → ${BBT.Security.sanitize(b.nombre)}</option>`).join('');
+          selBolsa.disabled = !estId || !bolsasEst.length;
+        });
     }, 50);
 
     m.querySelector('#mb-cancel').addEventListener('click',
@@ -930,6 +986,12 @@ const AgroView = {
           body.destino_silo_id = m.querySelector('#mb-silo').value;
           if (!body.destino_silo_id) {
             Toast.error('Seleccioná un silo.');
+            btn.disabled=false; btn.textContent='Confirmar'; return;
+          }
+        } else if (destTipo === 'bolsa') {
+          body.destino_bolsa_id = m.querySelector('#mb-bolsa-id').value;
+          if (!body.destino_bolsa_id) {
+            Toast.error('Seleccioná una bolsa.');
             btn.disabled=false; btn.textContent='Confirmar'; return;
           }
         }
@@ -1474,7 +1536,7 @@ const AgroView = {
             <th>Fecha</th><th>Bolsa</th><th>Establecimiento</th>
             <th>Lote</th><th>Cultivo</th>
             <th>Tipo</th><th>Variedad</th>
-            <th>Ciclo / Silo origen</th>
+            <th>Origen</th>
             <th style="text-align:right">Kilos</th>
           </tr></thead>
           <tbody>${entradas.map(e => `<tr>
@@ -1487,6 +1549,8 @@ const AgroView = {
             <td>${esc(e.variedad||'—')}</td>
             <td>${e.silo_origen
               ? `Silo: ${esc(e.silo_origen)}`
+              : e.bolsa_origen_nombre
+              ? `Bolsa: ${[e.bolsa_origen_est, e.bolsa_origen_lote, e.bolsa_origen_nombre].filter(Boolean).map(esc).join(' — ')}`
               : esc(e.ciclo_nombre||'—')}</td>
             <td style="text-align:right">${fmtKg(e.kilos)}</td>
           </tr>`).join('')}</tbody>
