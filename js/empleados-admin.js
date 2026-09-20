@@ -170,10 +170,17 @@ const EmpleadosAdmin = {
     if (!this._tipos.length) {
       return '<div class="empty-state" style="padding:var(--space-6)"><div class="empty-title">Sin tipos</div></div>';
     }
-    const presencias = this._tipos.filter(t => t.categoria === 'presencia');
-    const ausencias  = this._tipos.filter(t => t.categoria === 'ausencia');
-    const otros      = this._tipos.filter(t => !t.categoria ||
-      (t.categoria !== 'presencia' && t.categoria !== 'ausencia'));
+    const _sortOrden = arr =>
+      [...arr].sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
+
+    const presencias = _sortOrden(
+      this._tipos.filter(t => t.categoria === 'presencia'));
+    const ausencias  = _sortOrden(
+      this._tipos.filter(t => t.categoria === 'ausencia'));
+    const otros      = _sortOrden(
+      this._tipos.filter(t =>
+        !t.categoria ||
+        (t.categoria !== 'presencia' && t.categoria !== 'ausencia')));
 
     const renderTipo = t => `
       <div class="emp-row" data-tipo-id="${t.id}">
@@ -191,6 +198,16 @@ const EmpleadosAdmin = {
           </div>
         </div>
         <div class="emp-row-actions">
+          <button class="gtree-btn-icon btn-orden-up"
+            data-id="${t.id}" data-categoria="${t.categoria || 'otros'}"
+            title="Subir" style="font-size:.9rem;padding:2px 5px">
+            ↑
+          </button>
+          <button class="gtree-btn-icon btn-orden-down"
+            data-id="${t.id}" data-categoria="${t.categoria || 'otros'}"
+            title="Bajar" style="font-size:.9rem;padding:2px 5px">
+            ↓
+          </button>
           <button class="gtree-btn-icon btn-edit-tipo" data-id="${t.id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -269,6 +286,35 @@ const EmpleadosAdmin = {
         const id = btn.dataset.id;
         if (btn.classList.contains('btn-edit-tipo')) { await this._editTipo(id);   return; }
         if (btn.classList.contains('btn-del-tipo'))  { await this._deleteTipo(id); return; }
+        if (btn.classList.contains('btn-orden-up') || btn.classList.contains('btn-orden-down')) {
+          const categoria = btn.dataset.categoria;
+          const subir     = btn.classList.contains('btn-orden-up');
+
+          const grupo = this._tipos
+            .filter(t => (t.categoria || 'otros') === categoria)
+            .sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
+
+          const idx = grupo.findIndex(t => t.id === id);
+          if (subir  && idx === 0) return;
+          if (!subir && idx === grupo.length - 1) return;
+
+          const otro    = grupo[subir ? idx - 1 : idx + 1];
+          const miOrden = this._tipos.find(t => t.id === id)?.orden ?? idx;
+          const suOrden = this._tipos.find(t => t.id === otro.id)?.orden ?? (subir ? idx - 1 : idx + 1);
+
+          try {
+            await Promise.all([
+              BBT.API.put(`/api/empleados/tipos/${id}`,      { orden: suOrden }),
+              BBT.API.put(`/api/empleados/tipos/${otro.id}`, { orden: miOrden }),
+            ]);
+            this._tipos = await BBT.API.get('/api/empleados/tipos');
+            const tiposListEl = document.getElementById('tipos-list');
+            if (tiposListEl) tiposListEl.innerHTML = this._renderTiposList();
+          } catch {
+            Toast.error('Error al reordenar.');
+          }
+          return;
+        }
       });
     }
   },
@@ -515,7 +561,7 @@ const EmpleadosAdmin = {
       style="text-align:center;background:#dcfce7;color:#166534">✓ Presencias</th>`;
     if (ausSpan)  groupRow += `<th colspan="${ausSpan}"
       style="text-align:center;background:#fee2e2;color:#991b1b">✗ Ausencias</th>`;
-    groupRow += `<th rowspan="2" style="text-align:center">Total<br>a pagar</th>`;
+    groupRow += `<th rowspan="2" style="text-align:center">Días<br>trabajados</th>`;
 
     let subRow = '';
     colsPresencia.forEach(t => {

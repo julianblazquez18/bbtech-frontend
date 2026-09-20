@@ -254,9 +254,35 @@ const EmpleadosView = {
           </span>
           <select class="select emp-bulk-tipo" id="emp-bulk-tipo">
             <option value="">— Seleccionar estado —</option>
-            ${this._tipos.map(t =>
-              `<option value="${t.id}">${t.icono} ${BBT.Security.sanitize(t.nombre)}</option>`
-            ).join('')}
+            ${(() => {
+              const _sortOrden = arr =>
+                [...arr].sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
+              const _opts = arr => arr.map(t =>
+                `<option value="${t.id}">
+                  ${BBT.Security.sanitize(t.icono)}
+                  ${BBT.Security.sanitize(t.nombre)}
+                </option>`
+              ).join('');
+              const presencias = _sortOrden(
+                this._tipos.filter(t => t.categoria === 'presencia'));
+              const ausencias  = _sortOrden(
+                this._tipos.filter(t => t.categoria === 'ausencia'));
+              const otros      = _sortOrden(
+                this._tipos.filter(t =>
+                  !t.categoria ||
+                  (t.categoria !== 'presencia' && t.categoria !== 'ausencia')));
+              return [
+                presencias.length
+                  ? `<optgroup label="✓ Presencias">${_opts(presencias)}</optgroup>`
+                  : '',
+                ausencias.length
+                  ? `<optgroup label="✗ Ausencias">${_opts(ausencias)}</optgroup>`
+                  : '',
+                otros.length
+                  ? `<optgroup label="◈ Otros">${_opts(otros)}</optgroup>`
+                  : '',
+              ].join('');
+            })()}
             <option value="__borrar__">🗑 Quitar registro</option>
           </select>
           <div class="emp-bulk-rango">
@@ -391,11 +417,38 @@ const EmpleadosView = {
     const d     = new Date(fecha + 'T12:00:00');
     const label = `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
 
-    const tiposOpts = this._tipos.map(t =>
-      `<option value="${t.id}" ${asist && asist.tipo_id === t.id ? 'selected' : ''}>
-        ${t.icono} ${BBT.Security.sanitize(t.nombre)}
-      </option>`
-    ).join('');
+    const _buildOpts = (lista, selId) =>
+      lista.map(t =>
+        `<option value="${t.id}" ${selId === t.id ? 'selected' : ''}>
+          ${BBT.Security.sanitize(t.icono)} ${BBT.Security.sanitize(t.nombre)}
+        </option>`
+      ).join('');
+
+    const selId      = asist?.tipo_id || null;
+    const presencias = this._tipos
+      .filter(t => t.categoria === 'presencia')
+      .sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
+    const ausencias  = this._tipos
+      .filter(t => t.categoria === 'ausencia')
+      .sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
+    const otros      = this._tipos
+      .filter(t => !t.categoria ||
+        (t.categoria !== 'presencia' && t.categoria !== 'ausencia'))
+      .sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
+
+    const tiposOpts = `
+      ${presencias.length
+        ? `<optgroup label="✓ Presencias">
+             ${_buildOpts(presencias, selId)}
+           </optgroup>` : ''}
+      ${ausencias.length
+        ? `<optgroup label="✗ Ausencias">
+             ${_buildOpts(ausencias, selId)}
+           </optgroup>` : ''}
+      ${otros.length
+        ? `<optgroup label="◈ Otros">
+             ${_buildOpts(otros, selId)}
+           </optgroup>` : ''}`;
 
     const m = Modal.show({
       title: `${BBT.Security.sanitize(emp ? emp.nombre + ' ' + emp.apellido : '')} — ${label}`,
@@ -726,7 +779,7 @@ const EmpleadosView = {
       style="text-align:center;background:#dcfce7;color:#166534">✓ Presencias</th>`;
     if (ausSpan)  groupRow += `<th colspan="${ausSpan}"
       style="text-align:center;background:#fee2e2;color:#991b1b">✗ Ausencias</th>`;
-    groupRow += `<th rowspan="2" style="text-align:center">Total<br>a pagar</th>`;
+    groupRow += `<th rowspan="2" style="text-align:center">Días<br>trabajados</th>`;
 
     let subRow = '';
     colsPresencia.forEach(t => {
