@@ -614,8 +614,14 @@ const AgroCicloView = {
       const fmtAsigDestino = a => {
         if (a.destino_tipo === 'silo')
           return `Silo: ${esc(a.silo_nombre||'—')}`;
-        if (a.destino_tipo === 'bolsa')
-          return `Bolsa: ${esc(a.bolsa_nombre||'—')}`;
+        if (a.destino_tipo === 'bolsa') {
+          const partes = [
+            a.establecimiento_nombre,
+            a.lote_nombre,
+            a.bolsa_nombre
+          ].filter(Boolean).map(esc);
+          return `Bolsa: ${partes.join(' — ')||'—'}`;
+        }
         if (a.destino_tipo === 'camion')
           return `Camión: ${esc(a.camion_nombre||'—')} → ${esc(a.entidad_nombre||'—')}`;
         return '—';
@@ -1869,12 +1875,30 @@ const AgroCicloView = {
     const silosOk = this._silos.filter(s =>
       !s.cultivo_actual || s.cultivo_actual === (this._ciclo?.cultivo||'')
     );
-    const bolsasOk = this._bolsas.filter(b => !b.cerrada);
+    const cultivoCiclo = this._ciclo?.cultivo || null;
+    const todasBolsas  = cultivoCiclo
+      ? await BBT.API.get(
+          `/api/agro/bolsas/activas?cultivo=${encodeURIComponent(cultivoCiclo)}`)
+          .catch(() => [])
+      : [];
+
+    const estMap = {};
+    todasBolsas.forEach(b => {
+      const k = b.establecimiento_id;
+      if (!estMap[k]) estMap[k] = {
+        id:     b.establecimiento_id,
+        nombre: b.establecimiento_nombre,
+        bolsas: []
+      };
+      estMap[k].bolsas.push(b);
+    });
+    const establecimientos = Object.values(estMap);
+    const estOpts = establecimientos.map(e =>
+      `<option value="${esc(e.id)}">${esc(e.nombre)}</option>`
+    ).join('');
+
     const siloOpts = silosOk.map(s =>
       `<option value="${s.id}">${esc(s.nombre)} — ${parseFloat(s.toneladas_actuales||0).toLocaleString('es-AR')} kg ocup.</option>`
-    ).join('');
-    const bolsaOpts = bolsasOk.map(b =>
-      `<option value="${b.id}">${esc(b.nombre)}</option>`
     ).join('');
     const camOpts = this._camiones.map(c =>
       `<option value="${c.id}">${esc(c.nombre)}</option>`
@@ -1903,7 +1927,7 @@ const AgroCicloView = {
             <select class="select" id="ad-tipo">
               <option value="">— Seleccionar —</option>
               ${siloOpts ? '<option value="silo">🏗 Silo</option>' : ''}
-              ${bolsaOpts ? '<option value="bolsa">🌾 Silo Bolsa existente</option>' : ''}
+              ${establecimientos.length ? '<option value="bolsa">🌾 Silo Bolsa existente</option>' : ''}
               <option value="bolsa_nueva">🌾 Nueva Silo Bolsa</option>
               ${camOpts ? '<option value="camion">🚛 Camión</option>' : ''}
               <option value="siembra">🌱 Para Siembra</option>
@@ -1916,11 +1940,27 @@ const AgroCicloView = {
               ${siloOpts||'<option>Sin silos disponibles</option>'}
             </select>
           </div>
-          <div id="ad-bolsa-wrap" class="form-group" style="display:none">
-            <label class="form-label">Silo Bolsa</label>
-            <select class="select" id="ad-bolsa">
-              ${bolsaOpts||'<option>Sin bolsas disponibles</option>'}
-            </select>
+          <div id="ad-bolsa-wrap" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Establecimiento</label>
+              <select class="select" id="ad-bolsa-est">
+                <option value="">— Seleccionar —</option>
+                ${establecimientos.length
+                  ? estOpts
+                  : '<option disabled>Sin bolsas disponibles para este cultivo</option>'}
+              </select>
+            </div>
+            <div class="form-group" style="margin-top:8px">
+              <label class="form-label">Silo Bolsa</label>
+              <select class="select" id="ad-bolsa" disabled>
+                <option value="">— Primero seleccioná establecimiento —</option>
+              </select>
+            </div>
+            ${cultivoCiclo ? `
+            <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">
+              Solo se muestran bolsas con cultivo:
+              <strong>${esc(cultivoCiclo)}</strong>
+            </div>` : ''}
           </div>
           <div id="ad-bolsa-nueva-wrap" class="form-group" style="display:none">
             <label class="form-label">Nombre de la nueva bolsa</label>
@@ -1955,6 +1995,24 @@ const AgroCicloView = {
         m.querySelector('#ad-bolsa-nueva-wrap').style.display = v === 'bolsa_nueva' ? '' : 'none';
         m.querySelector('#ad-camion-wrap').style.display      = v === 'camion'      ? '' : 'none';
       });
+
+      m.querySelector('#ad-bolsa-est')
+        ?.addEventListener('change', () => {
+          const estId    = m.querySelector('#ad-bolsa-est').value;
+          const selBolsa = m.querySelector('#ad-bolsa');
+          const bolsasEst = estId ? (estMap[estId]?.bolsas || []) : [];
+          selBolsa.innerHTML =
+            '<option value="">— Seleccionar bolsa —</option>'
+            + bolsasEst.map(b =>
+              `<option value="${b.id}">
+                ${esc(b.lote_nombre)} → ${esc(b.nombre)}
+                ${b.toneladas_totales
+                  ? ` (${parseFloat(b.toneladas_totales).toLocaleString('es-AR')} kg)`
+                  : ''}
+              </option>`
+            ).join('');
+          selBolsa.disabled = !estId || !bolsasEst.length;
+        });
     }, 50);
 
     m.querySelector('#ad-cancel').addEventListener('click',
@@ -2249,7 +2307,6 @@ const AgroCicloView = {
           <th>Variedad</th>
           <th style="text-align:right">Hectáreas</th>
           <th style="text-align:right">Kilos totales</th>
-          <th>Destino</th>
         </tr>`,
         cosNormal.map(r => {
           const fechaDisplay = r.fecha_fin
@@ -2262,14 +2319,12 @@ const AgroCicloView = {
             <td>${esc(ciclo.variedad||'—')}</td>
             <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
             <td style="text-align:right">${fmtNum(r.toneladas)} kg</td>
-            <td>${fmtDestino(r)}</td>
           </tr>`;
         }).join(''),
         cosNormal.length ? `<tr>
           <td colspan="4">Total</td>
           <td style="text-align:right">${fmtNum(totCosHa)} ha</td>
           <td style="text-align:right">${fmtNum(totCosKg)} kg</td>
-          <td></td>
         </tr>` : ''
       )}
 
