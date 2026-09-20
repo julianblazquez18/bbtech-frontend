@@ -842,6 +842,54 @@ const AgroAdmin = {
     }, { once: true });
   },
 
+  async _addCultivo() {
+    const m = Modal.show({
+      title: 'Agregar cultivo',
+      body: `
+        <div class="form-group">
+          <label class="form-label">Nombre *</label>
+          <input class="input" id="acult-nombre" maxlength="50"
+            placeholder="Ej: Soja, Maíz, Trigo...">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label class="form-label">Unidad de siembra</label>
+          <div style="display:flex;gap:16px;margin-top:4px">
+            <label style="display:flex;align-items:center;
+              gap:6px;font-size:.85rem;cursor:pointer">
+              <input type="radio" name="acult-unidad" value="kg" checked>
+              kg/ha
+            </label>
+            <label style="display:flex;align-items:center;
+              gap:6px;font-size:.85rem;cursor:pointer">
+              <input type="radio" name="acult-unidad" value="plantas">
+              plantas/ha
+            </label>
+          </div>
+        </div>`,
+      footer: `<button class="btn btn-secondary" id="acult-cancel">Cancelar</button>
+               <button class="btn btn-primary" id="acult-ok">Agregar</button>`
+    });
+    setTimeout(() => m.querySelector('#acult-nombre').focus(), 50);
+    m.querySelector('#acult-cancel').addEventListener('click',
+      () => Modal.close(m), { once: true });
+    m.querySelector('#acult-ok').addEventListener('click', async () => {
+      const btn    = m.querySelector('#acult-ok');
+      const nombre = m.querySelector('#acult-nombre').value.trim();
+      if (!nombre) { Toast.error('Nombre requerido.'); return; }
+      const unidad = m.querySelector('input[name="acult-unidad"]:checked')?.value || 'kg';
+      btn.disabled = true; btn.textContent = 'Agregando...';
+      try {
+        await BBT.API.post('/api/agro/cultivos', { nombre, unidad });
+        Modal.close(m);
+        Toast.success(`Cultivo "${BBT.Security.sanitize(nombre)}" agregado.`);
+        await this.render(this._fromAgro);
+      } catch (err) {
+        Toast.error(err.message || 'Error.');
+        btn.disabled = false; btn.textContent = 'Agregar';
+      }
+    }, { once: true });
+  },
+
   async _delSimple(tipo, id, nombre) {
     const label = tipo === 'cultivo' ? 'cultivo'
       : tipo === 'cultivo-pastura' ? 'cultivo de pastura'
@@ -866,7 +914,7 @@ const AgroAdmin = {
 
   _bindCatalogoEvents() {
     document.getElementById('btn-add-cultivo')
-      ?.addEventListener('click', () => this._addSimple('cultivo'));
+      ?.addEventListener('click', () => this._addCultivo());
     document.getElementById('btn-add-cultivo-pastura')
       ?.addEventListener('click', () => this._addSimple('cultivo-pastura'));
     document.getElementById('btn-add-tipo-cult')

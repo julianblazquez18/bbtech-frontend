@@ -177,8 +177,11 @@ const ServCicloView = {
     if (tab === 'siembra') {
       const rowsNormal  = this._registros.filter(r => r.tipo === 'siembra' && !r.es_pastura);
       const totHa       = rowsNormal.reduce((s,r) => s+parseFloat(r.hectareas||0), 0);
-      const totKgTotal  = rowsNormal.reduce((s,r) =>
-        s + parseFloat(r.hectareas||0) * parseFloat(r.kilos||0), 0);
+      const totUnit     = rowsNormal.length ? (rowsNormal[0].unidad || 'kg') : 'kg';
+      const allSameUnit = rowsNormal.every(r => (r.unidad||'kg') === totUnit);
+      const totTotal    = allSameUnit
+        ? rowsNormal.reduce((s,r) => s+parseFloat(r.hectareas||0)*parseFloat(r.kilos||0), 0)
+        : null;
       return `
         <div class="agro-tab-header">${addBtn}</div>
         ${rowsNormal.length ? `
@@ -187,8 +190,8 @@ const ServCicloView = {
             <thead><tr>
               <th>Fecha</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
               <th style="text-align:right">Hectáreas</th>
-              <th style="text-align:right">kg/ha</th>
-              <th style="text-align:right">Total kg</th>
+              <th style="text-align:right">Cantidad/ha</th>
+              <th style="text-align:right">Total</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
@@ -196,8 +199,12 @@ const ServCicloView = {
                 const fechaDisplay = r.fecha_fin
                   ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
                   : fmt(r.fecha);
-                const totalKg = r.hectareas && r.kilos
-                  ? fmtKg(parseFloat(r.hectareas) * parseFloat(r.kilos))
+                const rUnidad = r.unidad || 'kg';
+                const cantDisplay = r.kilos != null
+                  ? fmtNum(r.kilos) + (rUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
+                  : '—';
+                const totalVal = r.hectareas && r.kilos
+                  ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.kilos)) + (rUnidad === 'kg' ? ' kg' : ' pl')
                   : '—';
                 return `<tr>
                   <td>${fechaDisplay}</td>
@@ -205,8 +212,8 @@ const ServCicloView = {
                   <td>${esc(r.tipo_cult||'—')}</td>
                   <td>${esc(r.variedad||'—')}</td>
                   <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-                  <td style="text-align:right">${fmtKg(r.kilos)}</td>
-                  <td style="text-align:right">${totalKg}</td>
+                  <td style="text-align:right">${cantDisplay}</td>
+                  <td style="text-align:right">${totalVal}</td>
                   ${!cerrado ? `<td>${editBtns(r.id)}</td>` : ''}
                 </tr>`;
               }).join('')}
@@ -215,7 +222,7 @@ const ServCicloView = {
               <td colspan="4">Total</td>
               <td style="text-align:right">${fmtNum(totHa)} ha</td>
               <td></td>
-              <td style="text-align:right">${fmtKg(totKgTotal)}</td>
+              <td style="text-align:right">${totTotal != null ? fmtNum(totTotal) + (totUnit === 'kg' ? ' kg' : ' pl') : '—'}</td>
               ${!cerrado ? '<td></td>' : ''}
             </tr></tfoot>
           </table>
@@ -306,8 +313,8 @@ const ServCicloView = {
               <th>Fecha</th>
               <th style="text-align:right">Hectáreas</th>
               <th>Producto</th>
-              <th style="text-align:right">kg/ha</th>
-              <th style="text-align:right">Total kg</th>
+              <th style="text-align:right">Cantidad/ha</th>
+              <th style="text-align:right">Total</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
@@ -647,7 +654,7 @@ const ServCicloView = {
                     min="0" step="0.1" value="${haVal}">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Kilos semilla (kg/ha)</label>
+                  <label class="form-label">Semilla</label>
                   <input class="input" type="number" id="ss-kilos"
                     min="0" step="0.1" value="${kilosVal}">
                 </div>
@@ -788,6 +795,7 @@ const ServCicloView = {
         variedad:   m.querySelector('#ss-variedad').value.trim() || null,
         hectareas:  m.querySelector('#ss-ha').value || null,
         kilos:      m.querySelector('#ss-kilos').value || null,
+        unidad:     this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
       };
       try {
         if (isEdit) {
@@ -1091,8 +1099,11 @@ const ServCicloView = {
     const cosPastRes   = cosechasAll.filter(r => r.clase === 'pastoreo' || r.clase === 'reserva');
     const claseLabel   = c => c === 'pastoreo' ? 'Pastoreo' : c === 'reserva' ? 'Reserva' : 'Cosecha';
     const totSHa       = siembras.reduce((s,r) => s+parseFloat(r.hectareas||0), 0);
-    const totSKgTotal  = siembras.reduce((s,r) =>
-      s + parseFloat(r.hectareas||0) * parseFloat(r.kilos||0), 0);
+    const pdfSUnit     = siembras.length ? (siembras[0].unidad || 'kg') : 'kg';
+    const pdfAllSameU  = siembras.every(r => (r.unidad||'kg') === pdfSUnit);
+    const totSTotal    = pdfAllSameU
+      ? siembras.reduce((s,r) => s+parseFloat(r.hectareas||0)*parseFloat(r.kilos||0), 0)
+      : null;
     const totCHa       = cosNormal.reduce((s,r) => s+parseFloat(r.hectareas||0), 0);
     const totCKg       = cosNormal.reduce((s,r) => s+parseFloat(r.kilos||0), 0);
 
@@ -1143,15 +1154,19 @@ const ServCicloView = {
         <thead><tr>
           <th>Fecha</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
           <th style="text-align:right">Hectáreas</th>
-          <th style="text-align:right">kg/ha</th>
-          <th style="text-align:right">Total kg</th>
+          <th style="text-align:right">Cant/ha</th>
+          <th style="text-align:right">Total</th>
         </tr></thead>
         <tbody>${siembras.map(r => {
           const fechaDisplay = r.fecha_fin
             ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
             : fmtFecha(r.fecha);
-          const totalKg = r.hectareas && r.kilos
-            ? fmtNum(parseFloat(r.hectareas)*parseFloat(r.kilos))+' kg'
+          const pdfRUnidad = r.unidad || 'kg';
+          const pdfCant = r.kilos != null
+            ? fmtNum(r.kilos) + (pdfRUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
+            : '—';
+          const pdfTotal = r.hectareas && r.kilos
+            ? fmtNum(parseFloat(r.hectareas)*parseFloat(r.kilos)) + (pdfRUnidad === 'kg' ? ' kg' : ' pl')
             : '—';
           return `<tr>
             <td>${fechaDisplay}</td>
@@ -1159,15 +1174,15 @@ const ServCicloView = {
             <td>${esc(r.tipo_cult||'—')}</td>
             <td>${esc(r.variedad||'—')}</td>
             <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-            <td style="text-align:right">${fmtNum(r.kilos)} kg</td>
-            <td style="text-align:right">${totalKg}</td>
+            <td style="text-align:right">${pdfCant}</td>
+            <td style="text-align:right">${pdfTotal}</td>
           </tr>`;
         }).join('')}</tbody>
         <tfoot><tr>
           <td colspan="4">Total</td>
           <td style="text-align:right">${fmtNum(totSHa)} ha</td>
           <td></td>
-          <td style="text-align:right">${fmtNum(totSKgTotal)} kg</td>
+          <td style="text-align:right">${totSTotal != null ? fmtNum(totSTotal) + (pdfSUnit === 'kg' ? ' kg' : ' pl') : '—'}</td>
         </tr></tfoot>
       </table>` : '<p style="color:#999;font-style:italic;margin-bottom:8px">Sin siembras.</p>'}
 

@@ -207,8 +207,11 @@ const AgroCicloView = {
       const rows        = this._registros.filter(r => r.tipo === 'siembra');
       const rowsNormal  = rows.filter(r => !r.es_pastura);
       const totHa       = rowsNormal.reduce((s, r) => s + parseFloat(r.hectareas||0), 0);
-      const totKgTotal  = rowsNormal.reduce((s, r) =>
-        s + parseFloat(r.hectareas||0) * parseFloat(r.toneladas||0), 0);
+      const totUnit     = rowsNormal.length ? (rowsNormal[0].unidad || 'kg') : 'kg';
+      const allSameUnit = rowsNormal.every(r => (r.unidad||'kg') === totUnit);
+      const totTotal    = allSameUnit
+        ? rowsNormal.reduce((s,r) => s + parseFloat(r.hectareas||0)*parseFloat(r.toneladas||0), 0)
+        : null;
 
       const editDelBtns = (r) => `<div style="display:flex;gap:4px">
         <button class="gtree-btn-icon btn-edit-reg"
@@ -240,8 +243,8 @@ const AgroCicloView = {
               <th>Tipo</th>
               <th>Variedad</th>
               <th style="text-align:right">Hectáreas</th>
-              <th style="text-align:right">kg/ha</th>
-              <th style="text-align:right">Total kg</th>
+              <th style="text-align:right">Cantidad/ha</th>
+              <th style="text-align:right">Total</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
@@ -249,8 +252,12 @@ const AgroCicloView = {
                 const fechaDisplay = r.fecha_fin
                   ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
                   : fmt(r.fecha);
-                const totalKg = r.hectareas && r.toneladas
-                  ? fmtKg(parseFloat(r.hectareas) * parseFloat(r.toneladas))
+                const rUnidad = r.unidad || 'kg';
+                const cantDisplay = r.toneladas != null
+                  ? fmtNum(r.toneladas) + (rUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
+                  : '—';
+                const totalVal = r.hectareas && r.toneladas
+                  ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.toneladas)) + (rUnidad === 'kg' ? ' kg' : ' pl')
                   : '—';
                 return `<tr>
                   <td>${fechaDisplay}</td>
@@ -258,8 +265,8 @@ const AgroCicloView = {
                   <td>${esc(r.variedad||'—')}</td>
                   <td>${esc(r.obs||'—')}</td>
                   <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-                  <td style="text-align:right">${fmtKg(r.toneladas)}</td>
-                  <td style="text-align:right">${totalKg}</td>
+                  <td style="text-align:right">${cantDisplay}</td>
+                  <td style="text-align:right">${totalVal}</td>
                   ${!cerrado ? `<td>${editDelBtns(r)}</td>` : ''}
                 </tr>`;
               }).join('')}
@@ -268,7 +275,7 @@ const AgroCicloView = {
               <td colspan="4">Total</td>
               <td style="text-align:right">${fmtNum(totHa)} ha</td>
               <td></td>
-              <td style="text-align:right">${fmtKg(totKgTotal)}</td>
+              <td style="text-align:right">${totTotal != null ? fmtNum(totTotal) + (totUnit === 'kg' ? ' kg' : ' pl') : '—'}</td>
               ${!cerrado ? '<td></td>' : ''}
             </tr></tfoot>
           </table>
@@ -373,8 +380,8 @@ const AgroCicloView = {
               <th>Fecha</th>
               <th style="text-align:right">Hectáreas</th>
               <th>Producto</th>
-              <th style="text-align:right">kg/ha</th>
-              <th style="text-align:right">Total kg</th>
+              <th style="text-align:right">Cantidad/ha</th>
+              <th style="text-align:right">Total</th>
               ${!cerrado ? '<th></th>' : ''}
             </tr></thead>
             <tbody>
@@ -1112,9 +1119,9 @@ const AgroCicloView = {
                   min="0" step="0.1" placeholder="0" value="${haVal}">
               </div>
               <div class="form-group">
-                <label class="form-label">Kilos semilla</label>
+                <label class="form-label">Semilla</label>
                 <input class="input" type="number" id="ms-kilos"
-                  min="0" step="1" placeholder="0" value="${kilosVal}">
+                  min="0" step="0.1" placeholder="0" value="${kilosVal}">
               </div>
             </div>
             ${tieneSiembra ? `<div style="font-size:.75rem;color:var(--green-700);
@@ -1278,6 +1285,7 @@ const AgroCicloView = {
             obs:       variedad,
             hectareas: m.querySelector('#ms-ha').value || null,
             kilos:     m.querySelector('#ms-kilos').value || null,
+            unidad:    this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
           });
           Toast.success('Siembra actualizada.');
         } else {
@@ -1290,6 +1298,7 @@ const AgroCicloView = {
             obs:       variedad,
             hectareas: m.querySelector('#ms-ha').value || null,
             toneladas: m.querySelector('#ms-kilos').value || null,
+            unidad:    this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
           });
           Toast.success('Siembra registrada.');
         }
@@ -2024,9 +2033,12 @@ const AgroCicloView = {
 
     const claseLabel = c => c === 'pastoreo' ? 'Pastoreo' : c === 'reserva' ? 'Reserva' : 'Cosecha';
 
-    const totSiemHa = siembras.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
-    const totSiemKg = siembras.reduce((s,r) =>
-      s+parseFloat(r.hectareas||0)*parseFloat(r.toneladas||0),0);
+    const totSiemHa    = siembras.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
+    const pdfSiemUnit  = siembras.length ? (siembras[0].unidad || 'kg') : 'kg';
+    const pdfAllSameU  = siembras.every(r => (r.unidad||'kg') === pdfSiemUnit);
+    const totSiemTotal = pdfAllSameU
+      ? siembras.reduce((s,r) => s+parseFloat(r.hectareas||0)*parseFloat(r.toneladas||0),0)
+      : null;
     const totFertHa = ferts.reduce((s,g) => s+parseFloat(g.hectareas||0),0)
                     + fertsViej.reduce((s,r) => s+parseFloat(r.hectareas||0),0);
     const totFertKg = ferts.reduce((s,g) =>
@@ -2102,15 +2114,19 @@ const AgroCicloView = {
         `<tr>
           <th>Fecha</th><th>Cultivo</th><th>Tipo</th><th>Variedad</th>
           <th style="text-align:right">Hectáreas</th>
-          <th style="text-align:right">kg/ha</th>
-          <th style="text-align:right">Total kg</th>
+          <th style="text-align:right">Cant/ha</th>
+          <th style="text-align:right">Total</th>
         </tr>`,
         siembras.map(r => {
           const fechaDisplay = r.fecha_fin
             ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
             : fmtFecha(r.fecha);
-          const totalKg = r.hectareas && r.toneladas
-            ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.toneladas)) + ' kg'
+          const pdfRUnidad = r.unidad || 'kg';
+          const pdfCant = r.toneladas != null
+            ? fmtNum(r.toneladas) + (pdfRUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
+            : '—';
+          const pdfTotal = r.hectareas && r.toneladas
+            ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.toneladas)) + (pdfRUnidad === 'kg' ? ' kg' : ' pl')
             : '—';
           return `<tr>
             <td>${fechaDisplay}</td>
@@ -2118,8 +2134,8 @@ const AgroCicloView = {
             <td>${esc(r.variedad||'—')}</td>
             <td>${esc(r.obs||'—')}</td>
             <td style="text-align:right">${fmtNum(r.hectareas)} ha</td>
-            <td style="text-align:right">${fmtNum(r.toneladas)} kg</td>
-            <td style="text-align:right">${totalKg}</td>
+            <td style="text-align:right">${pdfCant}</td>
+            <td style="text-align:right">${pdfTotal}</td>
           </tr>`;
         }).join(''),
         siembras.length ? `<tr>
@@ -2127,8 +2143,7 @@ const AgroCicloView = {
           <td style="text-align:right">${fmtNum(totSiemHa)} ha</td>
           <td></td>
           <td style="text-align:right">
-            ${fmtNum(siembras.reduce((s,r) =>
-              s + parseFloat(r.hectareas||0) * parseFloat(r.toneladas||0), 0))} kg
+            ${totSiemTotal != null ? fmtNum(totSiemTotal) + (pdfSiemUnit === 'kg' ? ' kg' : ' pl') : '—'}
           </td>
         </tr>` : ''
       )}
