@@ -215,6 +215,15 @@ const App = {
     await ServCicloView.render(cicloId);
   },
 
+  async navigateToAgroCamiones() {
+    this.currentView    = 'agro-camiones';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#agro-camiones')
+      window.location.hash = 'agro-camiones';
+    this._enterFullscreen();
+    await AgroCamionesView.render();
+  },
+
   async navigateToAgroHistorial() {
     this.currentView    = 'agro-historial';
     this.currentCicloId = null;
@@ -297,6 +306,7 @@ const App = {
     if (hash === 'empleados')          { this.navigateToEmpleados();      return; }
     if (hash === 'empleados-admin')    { this.navigateToEmpleadosAdmin(); return; }
     if (hash === 'agro')              { this.navigateToAgro();           return; }
+    if (hash === 'agro-camiones')     { this.navigateToAgroCamiones();   return; }
     if (hash === 'agro-historial')    { this.navigateToAgroHistorial();  return; }
     if (hash === 'agro-admin')        { this.navigateToAgroAdmin();      return; }
     if (hash.startsWith('agro-est/')) {
@@ -336,6 +346,8 @@ const App = {
         this.navigateToEmpleados();
       } else if (hash === 'agro' && this.currentView !== 'agro') {
         this.navigateToAgro();
+      } else if (hash === 'agro-camiones' && this.currentView !== 'agro-camiones') {
+        this.navigateToAgroCamiones();
       } else if (hash === 'agro-historial' && this.currentView !== 'agro-historial') {
         this.navigateToAgroHistorial();
       } else if (hash === 'agro-admin' && this.currentView !== 'agro-admin') {

@@ -136,34 +136,19 @@ const AgroView = {
           ${this._renderBolsas()}
         </section>
 
-        <!-- ── SECCIÓN 4: CAMIONES ── -->
-        <section class="agro-section" id="agro-seccion-camiones" style="padding-bottom:60px">
-          <div class="agro-section-header">
-            <h2 class="agro-section-title">Camiones</h2>
-            <button class="btn btn-secondary btn-sm" id="btn-reporte-camiones">
-              📄 Reporte
-            </button>
-            <div class="agro-mes-nav">
-              <button class="emp-nav-btn" id="agro-mes-prev">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                  <path d="M15 18l-6-6 6-6"/>
-                </svg>
-              </button>
-              <span class="agro-mes-label" id="agro-mes-label">
-                ${this._getMesLabel()}
-              </span>
-              <button class="emp-nav-btn" id="agro-mes-next"
-                ${this._mesOffset >= 0 ? 'disabled' : ''}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                  <path d="M9 18l6-6-6-6"/>
-                </svg>
-              </button>
-            </div>
+        <div class="gtree-historial" id="agro-btn-camiones">
+          <div class="gtree-historial-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round">
+              <rect x="1" y="3" width="15" height="13"/>
+              <path d="M16 8h4l3 3v5h-7V8z"/>
+              <circle cx="5.5" cy="18.5" r="2.5"/>
+              <circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
           </div>
-          ${this._renderCamiones()}
-        </section>
+          <span>Camiones</span>
+        </div>
 
         <div class="gtree-historial" id="agro-btn-historial">
           <div class="gtree-historial-icon">
@@ -452,14 +437,18 @@ const AgroView = {
 
   _renderCamiones() {
     const esc = s => BBT.Security.sanitize(String(s || ''));
-    if (!this._movimientos.length) {
+    const movsVis = this._movimientos.filter(m =>
+      m.camion_id ||
+      (m.destino_categoria !== 'bolsa' && m.destino_categoria !== 'silo')
+    );
+    if (!movsVis.length) {
       return `<div class="empty-state" style="padding:24px">
         <div class="empty-title">Sin movimientos en este período.</div>
       </div>`;
     }
 
     const porCam = {};
-    this._movimientos.forEach(m => {
+    movsVis.forEach(m => {
       if (!porCam[m.camion_id]) {
         porCam[m.camion_id] = { nombre: m.camion_nombre, movs: [] };
       }
@@ -617,29 +606,9 @@ const AgroView = {
       ?.addEventListener('click', () => this._generarReporte('silos'));
     document.getElementById('btn-reporte-bolsas')
       ?.addEventListener('click', () => this._generarReporte('bolsas'));
-    document.getElementById('btn-reporte-camiones')
-      ?.addEventListener('click', () => this._generarReporte('camiones'));
 
-    document.getElementById('agro-mes-prev')?.addEventListener('click', async () => {
-      this._mesOffset--;
-      await this._loadMovimientos();
-      const label   = document.getElementById('agro-mes-label');
-      const nextBtn = document.getElementById('agro-mes-next');
-      if (label)   label.textContent = this._getMesLabel();
-      if (nextBtn) nextBtn.disabled  = this._mesOffset >= 0;
-      this._refreshCamionesDOM();
-    });
-
-    document.getElementById('agro-mes-next')?.addEventListener('click', async () => {
-      if (this._mesOffset >= 0) return;
-      this._mesOffset++;
-      await this._loadMovimientos();
-      const label   = document.getElementById('agro-mes-label');
-      const nextBtn = document.getElementById('agro-mes-next');
-      if (label)   label.textContent = this._getMesLabel();
-      if (nextBtn) nextBtn.disabled  = this._mesOffset >= 0;
-      this._refreshCamionesDOM();
-    });
+    document.getElementById('agro-btn-camiones')
+      ?.addEventListener('click', () => App.navigateToAgroCamiones());
   },
 
   _refreshCamionesDOM() {
@@ -1156,11 +1125,20 @@ const AgroView = {
     let entidades = [];
     try { entidades = await BBT.API.get('/api/agro/entidades'); } catch {}
 
-    const camOpts = this._camiones.map(c =>
-      `<option value="${c.id}">${esc(c.nombre)}</option>`
+    const camiones = (this._camiones?.length
+      ? this._camiones
+      : AgroCamionesView?._camiones || []);
+    const camOpts = camiones.map(c =>
+      `<option value="${c.id}"
+        ${c.id === data.camionId ? 'selected' : ''}>
+        ${esc(c.nombre)}
+      </option>`
     ).join('');
     const extOpts = entidades.map(e =>
-      `<option value="${e.id}">${esc(e.nombre)}</option>`
+      `<option value="${e.id}"
+        ${e.id === data.entidadId ? 'selected' : ''}>
+        ${esc(e.nombre)}
+      </option>`
     ).join('');
 
     const m = Modal.show({
@@ -1185,9 +1163,6 @@ const AgroView = {
                <button class="btn btn-primary" id="amov-ok">Actualizar</button>`
     });
 
-    if (data.camionId) m.querySelector('#amov-camion').value = data.camionId;
-    if (data.entidadId) m.querySelector('#amov-entidad').value = data.entidadId;
-
     m.querySelector('#amov-cancel').addEventListener('click',
       () => Modal.close(m), { once: true });
 
@@ -1204,8 +1179,13 @@ const AgroView = {
         });
         Modal.close(m);
         Toast.success('Movimiento actualizado.');
-        await this._loadMovimientos();
-        this._refreshCamionesDOM();
+        if (typeof AgroCamionesView !== 'undefined'
+          && window.location.hash === '#agro-camiones') {
+          await AgroCamionesView.render();
+        } else {
+          await this._loadMovimientos();
+          this._refreshCamionesDOM();
+        }
       } catch (err) {
         Toast.error(err.message || 'Error al actualizar.');
         btn.disabled = false; btn.textContent = 'Actualizar';
@@ -1613,72 +1593,110 @@ const AgroView = {
     // ═══════════════════════════════════════
     } else if (tipo === 'camiones') {
       const movimientos = data.movimientos || [];
+      const ventasPDF   = data.ventas || [];
 
       contenido += `<h2>🚛 Movimientos y salidas — ${mesNombre}</h2>`;
-      if (!movimientos.length) {
+      if (!movimientos.length && !ventasPDF.length) {
         contenido += '<div class="empty">Sin movimientos en este período.</div>';
       } else {
-        const capitalizeCam = str => str
-          ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
-          : '—';
         const porCamion = {};
+
         movimientos.forEach(m => {
           const k = m.camion_nombre || 'Sin camión asignado';
           if (!porCamion[k]) porCamion[k] = [];
-          porCamion[k].push(m);
+          porCamion[k].push({ esVenta: false, mov: m });
         });
-        Object.entries(porCamion).forEach(([camNom, movs]) => {
-          const esSinCamion = camNom === 'Sin camión asignado';
-          const totKg = movs.reduce((s,m)=>s+parseFloat(m.toneladas||0),0);
-          const tipoMostrar = m => m.tipo || '—';
-          const variedadMostrar = m => m.variedad || '—';
-          contenido += `
-            <h3>${esSinCamion ? '📦' : '🚛'} ${esc(camNom)}
+
+        ventasPDF.forEach(v => {
+          const k = v.camion_nombre || 'Sin camión asignado';
+          if (!porCamion[k]) porCamion[k] = [];
+          porCamion[k].push({ esVenta: true, venta: v });
+        });
+
+        contenido += Object.entries(porCamion).map(([camNom, items]) => {
+          const totalKg = items.reduce((s, item) => {
+            if (item.esVenta) {
+              return s + (item.venta.origenes||[]).reduce(
+                (ss, o) => ss + parseFloat(o.toneladas||0), 0);
+            }
+            return s + parseFloat(item.mov.toneladas||0);
+          }, 0);
+
+          const filas = items.map(item => {
+            if (item.esVenta) {
+              const v        = item.venta;
+              const origenes = v.origenes || [];
+              const n        = origenes.length || 1;
+              return origenes.map((o, idx) => {
+                const origen = o.silo_nombre
+                  ? `Silo: ${esc(o.silo_nombre)}`
+                  : o.bolsa_nombre
+                  ? [o.establecimiento_nombre, o.lote_nombre, o.bolsa_nombre]
+                      .filter(Boolean).map(esc).join(' — ')
+                  : '—';
+                if (idx === 0) {
+                  return `<tr>
+                    <td rowspan="${n}">${fmtFecha(v.fecha)}</td>
+                    <td>${origen}</td>
+                    <td rowspan="${n}">${esc(v.cultivo)}</td>
+                    <td>${esc(o.tipo||'—')}</td>
+                    <td>${esc(o.variedad||'—')}</td>
+                    <td rowspan="${n}">${esc(v.entidad_nombre||'—')}</td>
+                    <td style="text-align:right">${fmtKg(o.toneladas)}</td>
+                  </tr>`;
+                }
+                return `<tr>
+                  <td>${origen}</td>
+                  <td>${esc(o.tipo||'—')}</td>
+                  <td>${esc(o.variedad||'—')}</td>
+                  <td style="text-align:right">${fmtKg(o.toneladas)}</td>
+                </tr>`;
+              }).join('');
+            } else {
+              const m = item.mov;
+              const origen = m.silo_nombre
+                ? `Silo: ${esc(m.silo_nombre)}`
+                : m.bolsa_nombre
+                ? `Bolsa: ${esc(m.bolsa_nombre)}${
+                    m.lote_nombre ? ' — '+esc(m.lote_nombre) : ''}`
+                : m.ciclo_nombre
+                ? `Cosecha: ${esc(m.ciclo_est_nombre||'—')} / ${
+                    esc(m.ciclo_lote_nombre||'—')} — ${esc(m.ciclo_nombre)}`
+                : '—';
+              const tipoMostrar    = m.tipo || (m.tipo === null ? m.variedad : '—');
+              const variedadMostrar = m.tipo ? (m.variedad||'—') : '—';
+              return `<tr>
+                <td>${fmtFecha(m.fecha)}</td>
+                <td>${origen}</td>
+                <td>${esc(m.cultivo||'—')}</td>
+                <td>${esc(tipoMostrar||'—')}</td>
+                <td>${esc(variedadMostrar||'—')}</td>
+                <td>${esc(m.entidad_nombre||'—')}</td>
+                <td style="text-align:right">${fmtKg(m.toneladas)}</td>
+              </tr>`;
+            }
+          }).join('');
+
+          return `
+            <h3>🚛 ${esc(camNom)}
               <span style="font-weight:400;font-size:9px;color:#666">
-                — ${movs.length} mov. · ${fmtKg(totKg)} total
+                — ${fmtKg(totalKg)} total
               </span>
             </h3>
             <table>
               <thead><tr>
                 <th>Fecha</th><th>Origen</th><th>Cultivo</th>
                 <th>Tipo</th><th>Variedad</th>
-                ${esSinCamion ? '<th>Destino</th>' : ''}
-                <th>${esSinCamion ? 'Entidad' : 'Entidad destino'}</th>
+                <th>Entidad destino</th>
                 <th style="text-align:right">Kilos</th>
               </tr></thead>
-              <tbody>${movs.map(m => {
-                const origen = m.silo_nombre
-                  ? `Silo: ${esc(m.silo_nombre)}`
-                  : m.bolsa_nombre
-                  ? `Bolsa: ${esc(m.bolsa_nombre)}${
-                      m.establecimiento_nombre ? ' — '+esc(m.establecimiento_nombre) : ''}${
-                      m.lote_nombre ? ' / '+esc(m.lote_nombre) : ''}`
-                  : m.ciclo_nombre
-                  ? `Cosecha: ${esc(m.ciclo_est_nombre||'—')} / ${
-                      esc(m.ciclo_lote_nombre||'—')} — ${esc(m.ciclo_nombre)}`
-                  : '—';
-                const destino = m.destino_categoria === 'silo' && m.destino_silo_nombre
-                  ? `Silo: ${esc(m.destino_silo_nombre)}`
-                  : m.destino_categoria === 'bolsa' && m.destino_bolsa_nombre
-                  ? `Bolsa: ${esc(m.destino_bolsa_nombre)}`
-                  : capitalizeCam(m.destino_categoria||'');
-                return `<tr>
-                  <td>${fmtFecha(m.fecha)}</td>
-                  <td>${origen}</td>
-                  <td>${esc(m.cultivo||'—')}</td>
-                  <td>${esc(tipoMostrar(m))}</td>
-                  <td>${esc(variedadMostrar(m))}</td>
-                  ${esSinCamion ? `<td>${destino}</td>` : ''}
-                  <td>${esc(m.entidad_nombre||'—')}</td>
-                  <td style="text-align:right">${fmtKg(m.toneladas)}</td>
-                </tr>`;
-              }).join('')}</tbody>
+              <tbody>${filas}</tbody>
               <tfoot><tr>
-                <td colspan="${esSinCamion ? 7 : 6}">Total ${esc(camNom)}</td>
-                <td style="text-align:right">${fmtKg(totKg)}</td>
+                <td colspan="6">Total ${esc(camNom)}</td>
+                <td style="text-align:right">${fmtKg(totalKg)}</td>
               </tr></tfoot>
             </table>`;
-        });
+        }).join('');
       }
     }
 
