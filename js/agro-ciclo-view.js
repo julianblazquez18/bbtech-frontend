@@ -253,12 +253,33 @@ const AgroCicloView = {
                   ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
                   : fmt(r.fecha);
                 const rUnidad = r.unidad || 'kg';
-                const cantDisplay = r.toneladas != null
-                  ? fmtNum(r.toneladas) + (rUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
-                  : '—';
-                const totalVal = r.hectareas && r.toneladas
-                  ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.toneladas)) + (rUnidad === 'kg' ? ' kg' : ' pl')
-                  : '—';
+                let cantDisplay;
+                if (rUnidad === 'plantas' && r.cantidades_ha) {
+                  try {
+                    const vals = JSON.parse(r.cantidades_ha);
+                    if (Array.isArray(vals) && vals.length) {
+                      cantDisplay = vals.map(v => fmtNum(v) + ' pl/ha').join('<br>');
+                    } else {
+                      cantDisplay = r.toneladas != null ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+                    }
+                  } catch {
+                    cantDisplay = r.toneladas != null ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+                  }
+                } else {
+                  cantDisplay = r.toneladas != null
+                    ? fmtNum(r.toneladas) + (rUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
+                    : '—';
+                }
+                let totalVal;
+                if (rUnidad === 'plantas') {
+                  totalVal = r.toneladas != null
+                    ? 'Prom: ' + fmtNum(r.toneladas) + ' pl/ha'
+                    : '—';
+                } else {
+                  totalVal = r.hectareas && r.toneladas
+                    ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.toneladas)) + ' kg'
+                    : '—';
+                }
                 return `<tr>
                   <td>${fechaDisplay}</td>
                   <td>${esc(r.cultivo||'—')}</td>
@@ -1069,6 +1090,7 @@ const AgroCicloView = {
     const variedadVal = isEdit ? esc(reg.obs||'') : esc(ciclo?.variedad||'');
     const haVal       = isEdit ? (reg.hectareas||'') : '';
     const kilosVal    = isEdit ? (reg.toneladas||'') : '';
+    const unidad      = cultivoObj?.unidad || 'kg';
 
     const renderFilaPastura = (cult = '') => `
       <div class="pastura-row" style="display:grid;
@@ -1094,7 +1116,7 @@ const AgroCicloView = {
     const m = Modal.show({
       title: isEdit ? 'Editar siembra' : 'Agregar siembra',
       body: `
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col" style="max-height:65vh;overflow-y:auto;padding-right:4px;display:flex;flex-direction:column;gap:20px">
           <div style="display:flex;align-items:center;gap:10px;
             padding:10px 14px;background:var(--surface-bg);
             border-radius:8px;border:1px solid var(--border);
@@ -1110,7 +1132,7 @@ const AgroCicloView = {
               — permite múltiples cultivos, sin tipo ni variedad
             </span>
           </div>
-          <div id="ms-normal-fields">
+          <div id="ms-normal-fields" style="display:flex;flex-direction:column;gap:16px">
             <div class="form-group">
               <label class="form-label">Fecha *</label>
               <input class="input" type="date" id="ms-fecha" value="${fechaVal}">
@@ -1124,7 +1146,7 @@ const AgroCicloView = {
               <input class="input" type="date" id="ms-fecha-fin"
                 value="${isEdit ? String(reg.fecha_fin||'').slice(0,10) : ''}">
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
               <div class="form-group">
                 <label class="form-label">Cultivo *</label>
                 <select class="select" id="ms-cultivo"${tieneSiembra ? ' disabled' : ''}>
@@ -1155,7 +1177,7 @@ const AgroCicloView = {
                    </select>`
                 : `<input class="input" id="ms-variedad" type="hidden" value="">`}
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
               <div class="form-group">
                 <label class="form-label">Hectáreas${this._lote?.hectareas
                   ? ` <span style="font-size:.72rem;color:var(--text-muted);font-weight:400">(lote: ${parseFloat(this._lote.hectareas).toLocaleString('es-AR')} ha)</span>`
@@ -1163,11 +1185,82 @@ const AgroCicloView = {
                 <input class="input" type="number" id="ms-ha"
                   min="0" step="0.1" placeholder="0" value="${haVal}">
               </div>
-              <div class="form-group">
-                <label class="form-label">Cant./ha</label>
-                <input class="input" type="number" id="ms-kilos"
-                  min="0" step="0.1" placeholder="0" value="${kilosVal}">
+              <div id="ms-promedio-wrap">
+                ${unidad === 'plantas' ? `
+                  <div class="form-group">
+                    <label class="form-label">Promedio
+                      <span style="font-size:.72rem;
+                        color:var(--text-muted);font-weight:400">
+                        — plantas/ha promedio
+                      </span>
+                    </label>
+                    <input class="input" type="number"
+                      id="ms-kilos" min="0" step="0.1"
+                      placeholder="0"
+                      value="${isEdit ? (reg?.toneladas||'') : ''}">
+                  </div>
+                ` : `
+                  <div class="form-group">
+                    <label class="form-label">Cant./ha</label>
+                    <input class="input" type="number"
+                      id="ms-kilos" min="0" step="0.1"
+                      placeholder="0"
+                      value="${isEdit ? (reg?.toneladas||'') : ''}">
+                  </div>
+                `}
               </div>
+            </div>
+            <div id="ms-unidad-wrap">
+              ${unidad === 'plantas' ? `
+                <div class="form-group" id="ms-cantidades-wrap">
+                  <label class="form-label">Cant./ha
+                    <span style="font-size:.72rem;
+                      color:var(--text-muted);font-weight:400">
+                      — podés agregar varias
+                    </span>
+                  </label>
+                  <div id="ms-cantidades-list">
+                    ${(() => {
+                      let vals = [''];
+                      if (isEdit && reg?.cantidades_ha) {
+                        try {
+                          const parsed = JSON.parse(reg.cantidades_ha);
+                          if (Array.isArray(parsed)) vals = parsed.map(String);
+                        } catch { vals = [String(reg.cantidades_ha || '')]; }
+                      }
+                      return vals.map((v, i) => `
+                        <div class="ms-cant-row"
+                          style="display:flex;gap:6px;
+                            margin-bottom:6px;align-items:center">
+                          <input class="input ms-cant-input"
+                            type="number" min="0" step="0.1"
+                            placeholder="0"
+                            value="${esc(v)}"
+                            style="flex:1">
+                          ${i > 0 ? `
+                            <button type="button"
+                              class="gtree-btn-icon gtree-btn-danger
+                                ms-cant-remove"
+                              style="flex-shrink:0">
+                              <svg width="10" height="10"
+                                viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>` : '<div style="width:28px"></div>'}
+                        </div>`
+                      ).join('');
+                    })()}
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm"
+                    id="ms-cant-add"
+                    style="margin-top:4px">
+                    + Agregar cant./ha
+                  </button>
+                </div>
+              ` : ``}
             </div>
             ${tieneSiembra ? `<div style="font-size:.75rem;color:var(--green-700);
               background:var(--green-50,#f0fdf4);padding:8px 12px;border-radius:6px">
@@ -1301,7 +1394,126 @@ const AgroCicloView = {
               <label class="form-label">Variedad</label>
               <input class="input" id="ms-variedad" type="hidden" value="">`;
           }
+
+          // Actualizar campo Cant./ha según unidad del cultivo nuevo
+          const cultivoUnidad = cObj?.unidad || 'kg';
+          const unidadWrap = m.querySelector('#ms-unidad-wrap');
+          const promWrap = m.querySelector('#ms-promedio-wrap');
+          if (!unidadWrap || !promWrap) return;
+
+          if (cultivoUnidad === 'plantas') {
+            unidadWrap.innerHTML = `
+              <div class="form-group" id="ms-cantidades-wrap">
+                <label class="form-label">Cant./ha
+                  <span style="font-size:.72rem;
+                    color:var(--text-muted);font-weight:400">
+                    — podés agregar varias
+                  </span>
+                </label>
+                <div id="ms-cantidades-list">
+                  <div class="ms-cant-row"
+                    style="display:flex;gap:6px;
+                      margin-bottom:6px;align-items:center">
+                    <input class="input ms-cant-input"
+                      type="number" min="0" step="0.1"
+                      placeholder="0" style="flex:1">
+                    <div style="width:28px"></div>
+                  </div>
+                </div>
+                <button type="button"
+                  class="btn btn-secondary btn-sm"
+                  id="ms-cant-add"
+                  style="margin-top:4px">
+                  + Agregar cant./ha
+                </button>
+              </div>`;
+            promWrap.innerHTML = `
+              <div class="form-group">
+                <label class="form-label">Promedio
+                  <span style="font-size:.72rem;
+                    color:var(--text-muted);font-weight:400">
+                    — plantas/ha promedio
+                  </span>
+                </label>
+                <input class="input" type="number"
+                  id="ms-kilos" min="0" step="0.1"
+                  placeholder="0">
+              </div>`;
+
+            const newCantList = unidadWrap.querySelector('#ms-cantidades-list');
+            unidadWrap.querySelector('#ms-cant-add')
+              ?.addEventListener('click', () => {
+                const row = document.createElement('div');
+                row.className = 'ms-cant-row';
+                row.style.cssText =
+                  'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+                row.innerHTML = `
+                  <input class="input ms-cant-input"
+                    type="number" min="0" step="0.1"
+                    placeholder="0" style="flex:1">
+                  <button type="button"
+                    class="gtree-btn-icon gtree-btn-danger ms-cant-remove"
+                    style="flex-shrink:0">
+                    <svg width="10" height="10"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>`;
+                newCantList?.appendChild(row);
+                row.querySelector('.ms-cant-remove')
+                  ?.addEventListener('click', () => row.remove());
+              });
+          } else {
+            unidadWrap.innerHTML = ``;
+            promWrap.innerHTML = `
+              <div class="form-group">
+                <label class="form-label">Cant./ha</label>
+                <input class="input" type="number"
+                  id="ms-kilos" min="0" step="0.1"
+                  placeholder="0">
+              </div>`;
+          }
         });
+      }
+
+      // Listeners para lista de cantidades (plantas)
+      const cantWrap = m.querySelector('#ms-cantidades-list');
+      if (cantWrap) {
+        m.querySelector('#ms-cant-add')
+          ?.addEventListener('click', () => {
+            const row = document.createElement('div');
+            row.className = 'ms-cant-row';
+            row.style.cssText =
+              'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+            row.innerHTML = `
+              <input class="input ms-cant-input"
+                type="number" min="0" step="0.1"
+                placeholder="0" style="flex:1">
+              <button type="button"
+                class="gtree-btn-icon gtree-btn-danger ms-cant-remove"
+                style="flex-shrink:0">
+                <svg width="10" height="10"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>`;
+            cantWrap.appendChild(row);
+            row.querySelector('.ms-cant-remove')
+              ?.addEventListener('click', () => row.remove());
+          });
+
+        cantWrap.querySelectorAll('.ms-cant-remove')
+          .forEach(btn => {
+            btn.addEventListener('click', () => {
+              btn.closest('.ms-cant-row')?.remove();
+            });
+          });
       }
     }, 30);
 
@@ -1360,32 +1572,44 @@ const AgroCicloView = {
       if (!fecha || !cultivo) {
         Toast.error('Fecha y cultivo son requeridos.'); return;
       }
+      // Leer cantidades múltiples si aplica (plantas)
+      const cantInputs = m.querySelectorAll('.ms-cant-input');
+      let cantidadKgVal = null;
+      if (cantInputs.length) {
+        const vals = Array.from(cantInputs)
+          .map(i => parseFloat(i.value))
+          .filter(v => !isNaN(v) && v > 0);
+        if (vals.length) cantidadKgVal = JSON.stringify(vals);
+      }
+
       btn.disabled = true;
       btn.textContent = isEdit ? 'Actualizando...' : 'Guardando...';
       try {
         if (isEdit) {
           await BBT.API.put(`/api/agro/registros/${reg.id}`, {
             fecha,
-            fecha_fin: m.querySelector('#ms-fecha-fin').value || null,
+            fecha_fin:   m.querySelector('#ms-fecha-fin').value || null,
             cultivo,
-            variedad:  tipoSel,
-            obs:       variedad,
-            hectareas: m.querySelector('#ms-ha').value || null,
-            kilos:     m.querySelector('#ms-kilos').value || null,
-            unidad:    this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
+            variedad:    tipoSel,
+            obs:         variedad,
+            hectareas:   m.querySelector('#ms-ha').value || null,
+            kilos:       m.querySelector('#ms-kilos').value || null,
+            cantidades_ha: cantidadKgVal,
+            unidad:        this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
           });
           Toast.success('Siembra actualizada.');
         } else {
           await BBT.API.post(`/api/agro/ciclos/${this._cicloId}/registros`, {
-            tipo:      'siembra',
+            tipo:          'siembra',
             fecha,
-            fecha_fin: m.querySelector('#ms-fecha-fin').value || null,
+            fecha_fin:     m.querySelector('#ms-fecha-fin').value || null,
             cultivo,
-            variedad:  tipoSel,
-            obs:       variedad,
-            hectareas: m.querySelector('#ms-ha').value || null,
-            toneladas: m.querySelector('#ms-kilos').value || null,
-            unidad:    this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
+            variedad:      tipoSel,
+            obs:           variedad,
+            hectareas:     m.querySelector('#ms-ha').value || null,
+            toneladas:     m.querySelector('#ms-kilos').value || null,
+            cantidades_ha: cantidadKgVal,
+            unidad:      this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
           });
           Toast.success('Siembra registrada.');
         }
@@ -2299,12 +2523,29 @@ const AgroCicloView = {
             ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
             : fmtFecha(r.fecha);
           const pdfRUnidad = r.unidad || 'kg';
-          const pdfCant = r.toneladas != null
-            ? fmtNum(r.toneladas) + (pdfRUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
-            : '—';
-          const pdfTotal = r.hectareas && r.toneladas
-            ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.toneladas)) + (pdfRUnidad === 'kg' ? ' kg' : ' pl')
-            : '—';
+          let pdfCant, pdfTotal;
+          if (pdfRUnidad === 'plantas' && r.cantidades_ha) {
+            try {
+              const vals = JSON.parse(r.cantidades_ha);
+              if (Array.isArray(vals) && vals.length) {
+                pdfCant = vals.map(v => fmtNum(v) + ' pl/ha').join(' / ');
+              } else {
+                pdfCant = r.toneladas != null ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+              }
+            } catch {
+              pdfCant = r.toneladas != null ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+            }
+            pdfTotal = r.toneladas != null
+              ? 'Prom: ' + fmtNum(r.toneladas) + ' pl/ha'
+              : '—';
+          } else {
+            pdfCant = r.toneladas != null
+              ? fmtNum(r.toneladas) + (pdfRUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
+              : '—';
+            pdfTotal = r.hectareas && r.toneladas
+              ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.toneladas)) + (pdfRUnidad === 'kg' ? ' kg' : ' pl')
+              : '—';
+          }
           return `<tr>
             <td>${fechaDisplay}</td>
             <td>${esc(r.cultivo||'—')}</td>

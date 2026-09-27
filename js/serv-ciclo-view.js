@@ -200,12 +200,39 @@ const ServCicloView = {
                   ? `${fmt(r.fecha)} → ${fmt(r.fecha_fin)}`
                   : fmt(r.fecha);
                 const rUnidad = r.unidad || 'kg';
-                const cantDisplay = r.kilos != null
-                  ? fmtNum(r.kilos) + (rUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
-                  : '—';
-                const totalVal = r.hectareas && r.kilos
-                  ? fmtNum(parseFloat(r.hectareas) * parseFloat(r.kilos)) + (rUnidad === 'kg' ? ' kg' : ' pl')
-                  : '—';
+                let cantDisplay;
+                if (rUnidad === 'plantas' && r.cantidades_ha) {
+                  try {
+                    const vals = JSON.parse(r.cantidades_ha);
+                    if (Array.isArray(vals) && vals.length) {
+                      cantDisplay = vals
+                        .map(v => fmtNum(v) + ' pl/ha')
+                        .join('<br>');
+                    } else {
+                      cantDisplay = r.toneladas != null
+                        ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+                    }
+                  } catch {
+                    cantDisplay = r.toneladas != null
+                      ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+                  }
+                } else {
+                  cantDisplay = r.toneladas != null
+                    ? fmtNum(r.toneladas) +
+                      (rUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
+                    : '—';
+                }
+                let totalVal;
+                if (rUnidad === 'plantas') {
+                  totalVal = r.toneladas != null
+                    ? 'Prom: ' + fmtNum(r.toneladas) + ' pl/ha'
+                    : '—';
+                } else {
+                  totalVal = r.hectareas && r.toneladas
+                    ? fmtNum(parseFloat(r.hectareas) *
+                        parseFloat(r.toneladas)) + ' kg'
+                    : '—';
+                }
                 return `<tr>
                   <td>${fechaDisplay}</td>
                   <td>${esc(r.cultivo||'—')}</td>
@@ -593,16 +620,17 @@ const ServCicloView = {
       ? (this._cultivos || []).find(c => c.nombre === cultivoNombre)
       : null;
     const variedadesCultivo = cultivoObj?.variedades || [];
+    const unidad = cultivoObj?.unidad || 'kg';
 
     const fechaVal  = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
     const fechaFinV = isEdit ? String(reg.fecha_fin||'').slice(0,10) : '';
     const haVal     = isEdit ? (reg.hectareas||'') : '';
-    const kilosVal  = isEdit ? (reg.kilos||'') : '';
+    const kilosVal  = isEdit ? (reg?.toneladas||'') : '';
 
     const m = Modal.show({
       title: isEdit ? 'Editar siembra' : 'Agregar siembra',
       body: `
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col" style="max-height:65vh;overflow-y:auto;padding-right:4px;display:flex;flex-direction:column;gap:20px">
           <div class="form-group" style="display:flex;align-items:center;gap:10px">
             <input type="checkbox" id="ss-es-pastura"
               ${esPastura ? 'checked' : ''}
@@ -611,8 +639,8 @@ const ServCicloView = {
               style="margin:0;cursor:pointer">🌿 Es Pastura</label>
           </div>
 
-          <div id="ss-normal-fields" ${esPastura ? 'style="display:none"' : ''}>
-            <div class="flex flex-col gap-4">
+          <div id="ss-normal-fields" ${esPastura ? 'style="display:none"' : 'style="display:flex;flex-direction:column;gap:16px"'}>
+            <div class="flex flex-col gap-5">
               <div class="form-group">
                 <label class="form-label">Fecha *</label>
                 <input class="input" type="date" id="ss-fecha" value="${fechaVal}">
@@ -623,7 +651,7 @@ const ServCicloView = {
                 </label>
                 <input class="input" type="date" id="ss-fecha-fin" value="${fechaFinV}">
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
                 <div class="form-group">
                   <label class="form-label">Cultivo *</label>
                   <select class="select" id="ss-cultivo"
@@ -657,7 +685,7 @@ const ServCicloView = {
                      </select>`
                   : `<input class="input" id="ss-variedad" type="hidden" value="">`}
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
                 <div class="form-group">
                   <label class="form-label">Hectáreas
                     ${this._lote?.hectareas
@@ -668,11 +696,61 @@ const ServCicloView = {
                   <input class="input" type="number" id="ss-ha"
                     min="0" step="0.1" value="${haVal}">
                 </div>
-                <div class="form-group">
-                  <label class="form-label">Cant./ha</label>
-                  <input class="input" type="number" id="ss-kilos"
-                    min="0" step="0.1" value="${kilosVal}">
+                <div id="ss-promedio-wrap">
+                  ${unidad === 'plantas' ? `
+                    <div class="form-group">
+                      <label class="form-label">Promedio
+                        <span style="font-size:.72rem;
+                          color:var(--text-muted);font-weight:400">
+                          — plantas/ha promedio
+                        </span>
+                      </label>
+                      <input class="input" type="number"
+                        id="ss-kilos" min="0" step="0.1"
+                        placeholder="0"
+                        value="${kilosVal}">
+                    </div>
+                  ` : `
+                    <div class="form-group">
+                      <label class="form-label">Cant./ha</label>
+                      <input class="input" type="number"
+                        id="ss-kilos" min="0" step="0.1"
+                        placeholder="0"
+                        value="${kilosVal}">
+                    </div>
+                  `}
                 </div>
+              </div>
+
+              <div id="ss-unidad-wrap">
+                ${unidad === 'plantas' ? `
+                  <div class="form-group"
+                    id="ss-cantidades-wrap">
+                    <label class="form-label">Cant./ha
+                      <span style="font-size:.72rem;
+                        color:var(--text-muted);font-weight:400">
+                        — podés agregar varias
+                      </span>
+                    </label>
+                    <div id="ss-cantidades-list">
+                      <div class="ss-cant-row"
+                        style="display:flex;gap:6px;
+                          margin-bottom:6px;
+                          align-items:center">
+                        <input class="input ss-cant-input"
+                          type="number" min="0" step="0.1"
+                          placeholder="0" style="flex:1">
+                        <div style="width:28px"></div>
+                      </div>
+                    </div>
+                    <button type="button"
+                      class="btn btn-secondary btn-sm"
+                      id="ss-cant-add"
+                      style="margin-top:4px">
+                      + Agregar cant./ha
+                    </button>
+                  </div>
+                ` : ''}
               </div>
               ${tieneSiembra ? `<div style="font-size:.75rem;color:var(--green-700);
                 background:var(--green-50);padding:8px 12px;border-radius:6px">
@@ -683,7 +761,7 @@ const ServCicloView = {
           </div>
 
           <div id="ss-pastura-fields" ${!esPastura ? 'style="display:none"' : ''}>
-            <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-5">
               <div class="form-group">
                 <label class="form-label">Fecha *</label>
                 <input class="input" type="date" id="ss-fecha-p" value="${fechaVal}">
@@ -791,7 +869,138 @@ const ServCicloView = {
               <label class="form-label">Variedad</label>
               <input class="input" id="ss-variedad" type="hidden" value="">`;
           }
+
+          // Actualizar cant./ha según unidad
+          const cultivoUnidad = cObj?.unidad || 'kg';
+          const ssUnidadWrap = m.querySelector('#ss-unidad-wrap');
+          const ssPromedioWrap = m.querySelector('#ss-promedio-wrap');
+
+          if (ssUnidadWrap) {
+            if (cultivoUnidad === 'plantas') {
+              ssUnidadWrap.innerHTML = `
+                <div class="form-group"
+                  id="ss-cantidades-wrap">
+                  <label class="form-label">Cant./ha
+                    <span style="font-size:.72rem;
+                      color:var(--text-muted);
+                      font-weight:400">
+                      — podés agregar varias
+                    </span>
+                  </label>
+                  <div id="ss-cantidades-list">
+                    <div class="ss-cant-row"
+                      style="display:flex;gap:6px;
+                        margin-bottom:6px;
+                        align-items:center">
+                      <input class="input ss-cant-input"
+                        type="number" min="0" step="0.1"
+                        placeholder="0" style="flex:1">
+                      <div style="width:28px"></div>
+                    </div>
+                  </div>
+                  <button type="button"
+                    class="btn btn-secondary btn-sm"
+                    id="ss-cant-add"
+                    style="margin-top:4px">
+                    + Agregar cant./ha
+                  </button>
+                </div>`;
+              const newList = ssUnidadWrap.querySelector(
+                '#ss-cantidades-list');
+              ssUnidadWrap.querySelector('#ss-cant-add')
+                ?.addEventListener('click', () => {
+                  const row = document.createElement('div');
+                  row.className = 'ss-cant-row';
+                  row.style.cssText =
+                    'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+                  row.innerHTML = `
+                    <input class="input ss-cant-input"
+                      type="number" min="0" step="0.1"
+                      placeholder="0" style="flex:1">
+                    <button type="button"
+                      class="gtree-btn-icon gtree-btn-danger
+                        ss-cant-remove"
+                      style="flex-shrink:0">
+                      <svg width="10" height="10"
+                        viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>`;
+                  newList?.appendChild(row);
+                  row.querySelector('.ss-cant-remove')
+                    ?.addEventListener('click',
+                      () => row.remove());
+                });
+            } else {
+              ssUnidadWrap.innerHTML = '';
+            }
+          }
+
+          if (ssPromedioWrap) {
+            if (cultivoUnidad === 'plantas') {
+              ssPromedioWrap.innerHTML = `
+                <div class="form-group">
+                  <label class="form-label">Promedio
+                    <span style="font-size:.72rem;
+                      color:var(--text-muted);
+                      font-weight:400">
+                      — plantas/ha promedio
+                    </span>
+                  </label>
+                  <input class="input" type="number"
+                    id="ss-kilos" min="0" step="0.1"
+                    placeholder="0">
+                </div>`;
+            } else {
+              ssPromedioWrap.innerHTML = `
+                <div class="form-group">
+                  <label class="form-label">Cant./ha</label>
+                  <input class="input" type="number"
+                    id="ss-kilos" min="0" step="0.1"
+                    placeholder="0">
+                </div>`;
+            }
+          }
         });
+      }
+
+      // Listeners lista cantidades plantas
+      const ssCantList = m.querySelector('#ss-cantidades-list');
+      if (ssCantList) {
+        m.querySelector('#ss-cant-add')
+          ?.addEventListener('click', () => {
+            const row = document.createElement('div');
+            row.className = 'ss-cant-row';
+            row.style.cssText =
+              'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+            row.innerHTML = `
+              <input class="input ss-cant-input"
+                type="number" min="0" step="0.1"
+                placeholder="0" style="flex:1">
+              <button type="button"
+                class="gtree-btn-icon gtree-btn-danger
+                  ss-cant-remove"
+                style="flex-shrink:0">
+                <svg width="10" height="10"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>`;
+            ssCantList.appendChild(row);
+            row.querySelector('.ss-cant-remove')
+              ?.addEventListener('click',
+                () => row.remove());
+          });
+        ssCantList.querySelectorAll('.ss-cant-remove')
+          .forEach(btn => btn.addEventListener(
+            'click', () =>
+              btn.closest('.ss-cant-row')?.remove()));
       }
     }, 30);
 
@@ -840,16 +1049,27 @@ const ServCicloView = {
         Toast.error('Fecha y cultivo son requeridos.'); return;
       }
       btn.disabled = true; btn.textContent = 'Guardando...';
+      const ssCantInputs = m.querySelectorAll('.ss-cant-input');
+      let ssCantidadKgVal = null;
+      if (ssCantInputs.length) {
+        const vals = Array.from(ssCantInputs)
+          .map(i => parseFloat(i.value))
+          .filter(v => !isNaN(v) && v > 0);
+        if (vals.length) {
+          ssCantidadKgVal = JSON.stringify(vals);
+        }
+      }
       const body = {
-        tipo:      'siembra',
+        tipo:         'siembra',
         fecha,
-        fecha_fin:  m.querySelector('#ss-fecha-fin').value || null,
+        fecha_fin:    m.querySelector('#ss-fecha-fin').value || null,
         cultivo,
-        tipo_cult:  m.querySelector('#ss-tipo').value || null,
-        variedad:   m.querySelector('#ss-variedad').value.trim() || null,
-        hectareas:  m.querySelector('#ss-ha').value || null,
-        kilos:      m.querySelector('#ss-kilos').value || null,
-        unidad:     this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
+        tipo_cult:    m.querySelector('#ss-tipo').value || null,
+        variedad:     m.querySelector('#ss-variedad').value.trim() || null,
+        hectareas:    m.querySelector('#ss-ha').value || null,
+        kilos:        m.querySelector('#ss-kilos').value || null,
+        cantidades_ha: ssCantidadKgVal,
+        unidad:       this._cultivos.find(c => c.nombre === cultivo)?.unidad || 'kg',
       };
       try {
         if (isEdit) {
@@ -1216,11 +1436,31 @@ const ServCicloView = {
             ? `${fmtFecha(r.fecha)} → ${fmtFecha(r.fecha_fin)}`
             : fmtFecha(r.fecha);
           const pdfRUnidad = r.unidad || 'kg';
-          const pdfCant = r.kilos != null
-            ? fmtNum(r.kilos) + (pdfRUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
-            : '—';
-          const pdfTotal = r.hectareas && r.kilos
-            ? fmtNum(parseFloat(r.hectareas)*parseFloat(r.kilos)) + (pdfRUnidad === 'kg' ? ' kg' : ' pl')
+          let pdfCant;
+          if (pdfRUnidad === 'plantas' && r.cantidades_ha) {
+            try {
+              const pdfVals = JSON.parse(r.cantidades_ha);
+              if (Array.isArray(pdfVals) && pdfVals.length) {
+                pdfCant = pdfVals
+                  .map(v => fmtNum(v) + ' pl/ha')
+                  .join(' / ');
+              } else {
+                pdfCant = r.toneladas != null
+                  ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+              }
+            } catch {
+              pdfCant = r.toneladas != null
+                ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+            }
+          } else {
+            pdfCant = r.toneladas != null
+              ? fmtNum(r.toneladas) +
+                (pdfRUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
+              : '—';
+          }
+          const pdfTotal = r.hectareas && r.toneladas
+            ? fmtNum(parseFloat(r.hectareas)*parseFloat(r.toneladas)) +
+              (pdfRUnidad === 'kg' ? ' kg' : ' pl')
             : '—';
           return `<tr>
             <td>${fechaDisplay}</td>
