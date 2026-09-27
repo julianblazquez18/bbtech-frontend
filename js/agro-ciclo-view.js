@@ -1140,7 +1140,8 @@ const AgroCicloView = {
                 </select>
               </div>
             </div>
-            <div class="form-group" id="ms-variedad-wrap">
+            <div class="form-group" id="ms-variedad-wrap"
+              ${!variedadesCultivo.length ? 'style="display:none"' : ''}>
               <label class="form-label">Variedad</label>
               ${variedadesCultivo.length
                 ? `<select class="select" id="ms-variedad">
@@ -1152,9 +1153,7 @@ const AgroCicloView = {
                        </option>`
                      ).join('')}
                    </select>`
-                : `<input class="input" id="ms-variedad" maxlength="80"
-                     value="${variedadVal}"
-                     placeholder="Ej: SRM 5900, DM 50i20...">`}
+                : `<input class="input" id="ms-variedad" type="hidden" value="">`}
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div class="form-group">
@@ -1165,7 +1164,7 @@ const AgroCicloView = {
                   min="0" step="0.1" placeholder="0" value="${haVal}">
               </div>
               <div class="form-group">
-                <label class="form-label">Semilla</label>
+                <label class="form-label">Cant./ha</label>
                 <input class="input" type="number" id="ms-kilos"
                   min="0" step="0.1" placeholder="0" value="${kilosVal}">
               </div>
@@ -1283,22 +1282,25 @@ const AgroCicloView = {
           }
 
           const varActual = m.querySelector('#ms-variedad')?.value || '';
-          wrap.innerHTML = `
-            <label class="form-label">Variedad</label>
-            ${vars.length
-              ? `<select class="select" id="ms-variedad">
-                   <option value="">— Sin variedad —</option>
-                   ${vars.map(v =>
-                     `<option value="${esc(v.nombre)}"
-                       ${varActual === v.nombre ? ' selected' : ''}>
-                       ${esc(v.nombre)}
-                     </option>`
-                   ).join('')}
-                 </select>`
-              : `<input class="input" id="ms-variedad"
-                   maxlength="80"
-                   value="${varActual}"
-                   placeholder="Ej: SRM 5900, DM 50i20...">`}`;
+          if (vars.length) {
+            wrap.style.display = '';
+            wrap.innerHTML = `
+              <label class="form-label">Variedad</label>
+              <select class="select" id="ms-variedad">
+                <option value="">— Sin variedad —</option>
+                ${vars.map(v =>
+                  `<option value="${esc(v.nombre)}"
+                    ${varActual === v.nombre ? ' selected' : ''}>
+                    ${esc(v.nombre)}
+                  </option>`
+                ).join('')}
+              </select>`;
+          } else {
+            wrap.style.display = 'none';
+            wrap.innerHTML = `
+              <label class="form-label">Variedad</label>
+              <input class="input" id="ms-variedad" type="hidden" value="">`;
+          }
         });
       }
     }, 30);
@@ -2018,6 +2020,12 @@ const AgroCicloView = {
             <select class="select" id="ad-silo">
               ${siloOpts||'<option>Sin silos disponibles</option>'}
             </select>
+            <div id="ad-silo-mix-warn"
+              style="display:none;margin-top:6px;padding:8px 12px;
+                border-radius:6px;background:var(--orange-50,#fff7ed);
+                border:1px solid var(--orange-300,#fdba74);
+                font-size:.8rem;color:var(--orange-800,#9a3412)">
+            </div>
           </div>
           <div id="ad-bolsa-wrap" style="display:none">
             <div class="form-group">
@@ -2073,6 +2081,38 @@ const AgroCicloView = {
         m.querySelector('#ad-bolsa-wrap').style.display       = v === 'bolsa'       ? '' : 'none';
         m.querySelector('#ad-bolsa-nueva-wrap').style.display = v === 'bolsa_nueva' ? '' : 'none';
         m.querySelector('#ad-camion-wrap').style.display      = v === 'camion'      ? '' : 'none';
+
+        const _checkSiloWarn = () => {
+          const selSilo = m.querySelector('#ad-silo');
+          if (!selSilo) return;
+          const silo = (this._silos || []).find(s => s.id === selSilo.value);
+          const cicloVariedad = this._ciclo?.variedad || null;
+          const warn = m.querySelector('#ad-silo-mix-warn');
+          if (!warn) return;
+          const partesActuales = silo?.variedad
+            ? silo.variedad.split(' + ').map(v => v.trim())
+            : [];
+          const esNueva = cicloVariedad
+            && !partesActuales.includes(cicloVariedad.trim());
+          const hayMezcla = silo?.variedad && cicloVariedad && esNueva;
+
+          if (hayMezcla) {
+            const resultado = partesActuales.concat([cicloVariedad.trim()]).join(' + ');
+            warn.style.display = '';
+            warn.textContent = `⚠️ Este silo ya tiene variedad ${esc(silo.variedad)}. Se va a agregar ${esc(cicloVariedad)} (quedará ${esc(resultado)}).`;
+          } else {
+            warn.style.display = 'none';
+          }
+        };
+
+        if (v === 'silo') {
+          _checkSiloWarn();
+          const selSilo = m.querySelector('#ad-silo');
+          if (selSilo && !selSilo._warnBound) {
+            selSilo._warnBound = true;
+            selSilo.addEventListener('change', _checkSiloWarn);
+          }
+        }
       });
 
       m.querySelector('#ad-bolsa-est')

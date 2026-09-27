@@ -641,7 +641,8 @@ const ServCicloView = {
                   </select>
                 </div>
               </div>
-              <div class="form-group" id="ss-variedad-wrap">
+              <div class="form-group" id="ss-variedad-wrap"
+                ${!variedadesCultivo.length ? 'style="display:none"' : ''}>
                 <label class="form-label">Variedad</label>
                 ${variedadesCultivo.length
                   ? `<select class="select" id="ss-variedad"
@@ -654,10 +655,7 @@ const ServCicloView = {
                          </option>`
                        ).join('')}
                      </select>`
-                  : `<input class="input" id="ss-variedad" maxlength="80"
-                       value="${esc(isEdit ? reg.variedad||'' : ciclo?.variedad||'')}"
-                       ${tieneSiembra ? 'readonly style="opacity:.6"' : ''}
-                       placeholder="Ej: SRM 5900...">`}
+                  : `<input class="input" id="ss-variedad" type="hidden" value="">`}
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-group">
@@ -671,7 +669,7 @@ const ServCicloView = {
                     min="0" step="0.1" value="${haVal}">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Semilla</label>
+                  <label class="form-label">Cant./ha</label>
                   <input class="input" type="number" id="ss-kilos"
                     min="0" step="0.1" value="${kilosVal}">
                 </div>
@@ -774,22 +772,25 @@ const ServCicloView = {
             } catch {}
           }
           const varActual = m.querySelector('#ss-variedad')?.value || '';
-          wrap.innerHTML = `
-            <label class="form-label">Variedad</label>
-            ${vars.length
-              ? `<select class="select" id="ss-variedad">
-                   <option value="">— Sin variedad —</option>
-                   ${vars.map(v =>
-                     `<option value="${esc(v.nombre)}"
-                       ${varActual === v.nombre ? ' selected' : ''}>
-                       ${esc(v.nombre)}
-                     </option>`
-                   ).join('')}
-                 </select>`
-              : `<input class="input" id="ss-variedad"
-                   maxlength="80"
-                   value="${varActual}"
-                   placeholder="Ej: SRM 5900, DM 50i20...">`}`;
+          if (vars.length) {
+            wrap.style.display = '';
+            wrap.innerHTML = `
+              <label class="form-label">Variedad</label>
+              <select class="select" id="ss-variedad">
+                <option value="">— Sin variedad —</option>
+                ${vars.map(v =>
+                  `<option value="${esc(v.nombre)}"
+                    ${varActual === v.nombre ? ' selected' : ''}>
+                    ${esc(v.nombre)}
+                  </option>`
+                ).join('')}
+              </select>`;
+          } else {
+            wrap.style.display = 'none';
+            wrap.innerHTML = `
+              <label class="form-label">Variedad</label>
+              <input class="input" id="ss-variedad" type="hidden" value="">`;
+          }
         });
       }
     }, 30);

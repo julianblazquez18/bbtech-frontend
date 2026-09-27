@@ -261,7 +261,14 @@ const AgroView = {
           <div class="agro-silo-stats">
             <div class="agro-silo-stat">
               <span class="agro-silo-stat-label">Cultivo</span>
-              <span class="agro-silo-stat-val">${esc(s.cultivo_actual || 'Vacío')}</span>
+              <span class="agro-silo-stat-val">
+                ${s.cultivo_actual
+                  ? esc(s.cultivo_actual)
+                    + (s.variedad
+                      ? ` <span style="font-size:.75rem;color:var(--text-muted);font-weight:400">— ${esc(s.variedad)}</span>`
+                      : '')
+                  : 'Vacío'}
+              </span>
             </div>
             <div class="agro-silo-stat">
               <span class="agro-silo-stat-label" style="color:var(--green-600)">Ocupado</span>
@@ -278,7 +285,8 @@ const AgroView = {
           </div>
           <button class="btn btn-secondary btn-sm agro-silo-mover"
             data-silo-id="${s.id}" data-silo-nombre="${esc(s.nombre)}"
-            data-ton="${ton}" data-cultivo="${esc(s.cultivo_actual || '')}">
+            data-ton="${ton}" data-cultivo="${esc(s.cultivo_actual || '')}"
+            data-variedad="${esc(s.variedad || '')}">
             ↗ Mover
           </button>
         </div>`;
@@ -386,7 +394,7 @@ const AgroView = {
                 <div class="agro-bolsa-titulo-row">
                   <span class="agro-bolsa-nombre">${esc(b.nombre)}</span>
                   ${b.cultivo ? `<span class="agro-bolsa-cultivo">
-                    ${esc(b.cultivo)}${b.tipo ? ' · ' + esc(b.tipo) : ''}
+                    ${esc(b.cultivo)}${b.variedad ? ' · ' + esc(b.variedad) : ''}
                   </span>` : ''}
                 </div>
                 <div class="agro-bolsa-datos-row">
@@ -413,7 +421,8 @@ const AgroView = {
                   data-bolsa-id="${b.id}"
                   data-bolsa-nombre="${esc(b.nombre)}"
                   data-ton="${ton}"
-                  data-cultivo="${esc(b.cultivo || '')}">
+                  data-cultivo="${esc(b.cultivo || '')}"
+                  data-variedad="${esc(b.variedad || '')}">
                   ↗ Mover
                 </button>
               </div>
@@ -683,7 +692,7 @@ const AgroView = {
   },
 
   async _modalMoverSilo(data) {
-    const { siloId, siloNombre, ton, cultivo } = data;
+    const { siloId, siloNombre, ton, cultivo, variedad } = data;
     const esc     = s => BBT.Security.sanitize(String(s||''));
     const tonDisp = parseFloat(ton || 0);
     if (tonDisp <= 0) { Toast.error('El silo está vacío.'); return; }
@@ -799,7 +808,7 @@ const AgroView = {
   },
 
   async _modalMoverBolsa(data) {
-    const { bolsaId, bolsaNombre, ton, cultivo } = data;
+    const { bolsaId, bolsaNombre, ton, cultivo, variedad } = data;
     const esc     = s => BBT.Security.sanitize(String(s||''));
     const tonDisp = parseFloat(ton || 0);
     if (tonDisp <= 0) { Toast.error('La bolsa está vacía.'); return; }
@@ -887,6 +896,12 @@ const AgroView = {
             <select class="select" id="mb-silo">
               ${siloOpts||'<option>Sin silos compatibles</option>'}
             </select>
+            <div id="mb-mix-warn"
+              style="display:none;margin-top:6px;padding:8px 12px;
+                border-radius:6px;background:var(--orange-50,#fff7ed);
+                border:1px solid var(--orange-300,#fdba74);
+                font-size:.8rem;color:var(--orange-800,#9a3412)">
+            </div>
           </div>
           <div id="mb-bolsa-wrap" style="display:none">
             <div class="form-group">
@@ -921,6 +936,41 @@ const AgroView = {
         m.querySelector('#mb-camion-wrap').style.display = v==='camion' ? '' : 'none';
         m.querySelector('#mb-silo-wrap').style.display   = v==='silo'   ? '' : 'none';
         m.querySelector('#mb-bolsa-wrap').style.display  = v==='bolsa'  ? '' : 'none';
+
+        const bolsaVariedad = variedad || null;
+        const _checkMbSiloWarn = () => {
+          const selSilo = m.querySelector('#mb-silo');
+          if (!selSilo) return;
+          const silo = (this._silos || []).find(s => s.id === selSilo.value);
+          const warn = m.querySelector('#mb-mix-warn');
+          if (!warn) return;
+          const partesActualesMb = silo?.variedad
+            ? silo.variedad.split(' + ').map(v => v.trim())
+            : [];
+          // Calcular merge iterativo para el mensaje
+          const partesNuevasMb = bolsaVariedad
+            ? bolsaVariedad.split(' + ').map(v => v.trim()).filter(Boolean)
+            : [];
+          const partesAgregar = partesNuevasMb.filter(
+            p => !partesActualesMb.includes(p));
+          const hayMezcla = silo?.variedad && partesAgregar.length > 0;
+          if (hayMezcla) {
+            const resultadoMb = [...partesActualesMb, ...partesAgregar].join(' + ');
+            warn.style.display = '';
+            warn.textContent = `⚠️ Este silo ya tiene variedad ${esc(silo.variedad)}. Se va a agregar ${esc(partesAgregar.join(' + '))} (quedará ${esc(resultadoMb)}).`;
+          } else {
+            warn.style.display = 'none';
+          }
+        };
+
+        if (v === 'silo') {
+          _checkMbSiloWarn();
+          const selSilo = m.querySelector('#mb-silo');
+          if (selSilo && !selSilo._warnBound) {
+            selSilo._warnBound = true;
+            selSilo.addEventListener('change', _checkMbSiloWarn);
+          }
+        }
       });
       m.querySelector('#mb-bolsa-est')
         ?.addEventListener('change', () => {
@@ -1351,7 +1401,7 @@ const AgroView = {
                 <strong>${esc(s.nombre)}</strong>
                 ${s.cultivo_actual
                   ? `<span class="badge badge-v" style="margin-left:6px">
-                      ${esc(s.cultivo_actual)}</span>`
+                      ${esc(s.cultivo_actual)}${s.variedad ? ` — ${esc(s.variedad)}` : ''}</span>`
                   : '<span class="badge badge-g" style="margin-left:6px">Vacío</span>'}
               </div>
               <div style="text-align:right;font-size:10px">
