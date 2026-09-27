@@ -663,8 +663,42 @@ const GanaderoView = {
             <span class="gtree-campo-icon">🐂</span>
             <span class="gtree-campo-name">TOROS</span>
           </div>
-          <div class="gtree-campo-actions">
-            <button class="btn btn-secondary btn-sm" id="btn-add-toro">＋ Toro</button>
+          <div class="gtree-campo-actions"
+            style="display:flex;align-items:center;gap:8px">
+            <div style="position:relative">
+              <input class="input" id="toro-buscar"
+                type="text"
+                placeholder="Buscar por ID..."
+                maxlength="30"
+                style="font-size:.78rem;
+                  padding:3px 24px 3px 8px;
+                  height:26px;width:140px">
+              <button id="toro-buscar-clear"
+                style="display:none;position:absolute;
+                  right:4px;top:50%;
+                  transform:translateY(-50%);
+                  background:none;border:none;
+                  cursor:pointer;
+                  color:var(--text-muted);
+                  font-size:.8rem;padding:0;
+                  line-height:1">
+                ✕
+              </button>
+            </div>
+            <button class="gtree-btn-icon"
+              id="btn-add-toro"
+              title="Agregar toro"
+              style="font-size:.75rem;padding:2px 6px;
+                width:auto;gap:4px">
+              <svg width="12" height="12"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Toro
+            </button>
           </div>
         </div>
         <div class="gtree-toros-list" id="gtree-toros-list">
@@ -676,6 +710,33 @@ const GanaderoView = {
   },
 
   _bindTorosEvents() {
+    // Buscador de toros
+    const toroBuscar = document.getElementById('toro-buscar');
+    const toroBuscarClear = document.getElementById('toro-buscar-clear');
+
+    if (toroBuscar) {
+      toroBuscar.addEventListener('input', () => {
+        const val = toroBuscar.value.trim().toLowerCase();
+        toroBuscarClear.style.display = val ? '' : 'none';
+
+        const filas = document.querySelectorAll('.gtree-toro-row');
+        filas.forEach(fila => {
+          const caravana = (fila.querySelector('span[style*="monospace"]')
+            ?.textContent || '').trim().toLowerCase();
+          const coincide = !val || caravana.includes(val);
+          fila.style.display = coincide ? 'flex' : 'none';
+        });
+      });
+
+      toroBuscarClear.addEventListener('click', () => {
+        toroBuscar.value = '';
+        toroBuscarClear.style.display = 'none';
+        document.querySelectorAll('.gtree-toro-row')
+          .forEach(f => f.style.display = 'flex');
+        toroBuscar.focus();
+      });
+    }
+
     document.getElementById('btn-add-toro')
       ?.addEventListener('click', () => this._modalAgregarToros());
 
