@@ -209,28 +209,28 @@ const ServCicloView = {
                         .map(v => fmtNum(v) + ' pl/ha')
                         .join('<br>');
                     } else {
-                      cantDisplay = r.toneladas != null
-                        ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+                      cantDisplay = r.kilos != null
+                        ? fmtNum(r.kilos) + ' pl/ha' : '—';
                     }
                   } catch {
-                    cantDisplay = r.toneladas != null
-                      ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+                    cantDisplay = r.kilos != null
+                      ? fmtNum(r.kilos) + ' pl/ha' : '—';
                   }
                 } else {
-                  cantDisplay = r.toneladas != null
-                    ? fmtNum(r.toneladas) +
+                  cantDisplay = r.kilos != null
+                    ? fmtNum(r.kilos) +
                       (rUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
                     : '—';
                 }
                 let totalVal;
                 if (rUnidad === 'plantas') {
-                  totalVal = r.toneladas != null
-                    ? 'Prom: ' + fmtNum(r.toneladas) + ' pl/ha'
+                  totalVal = r.kilos != null
+                    ? 'Prom: ' + fmtNum(r.kilos) + ' pl/ha'
                     : '—';
                 } else {
-                  totalVal = r.hectareas && r.toneladas
+                  totalVal = r.hectareas && r.kilos
                     ? fmtNum(parseFloat(r.hectareas) *
-                        parseFloat(r.toneladas)) + ' kg'
+                        parseFloat(r.kilos)) + ' kg'
                     : '—';
                 }
                 return `<tr>
@@ -625,7 +625,7 @@ const ServCicloView = {
     const fechaVal  = isEdit ? String(reg.fecha||'').slice(0,10) : new Date().toISOString().slice(0,10);
     const fechaFinV = isEdit ? String(reg.fecha_fin||'').slice(0,10) : '';
     const haVal     = isEdit ? (reg.hectareas||'') : '';
-    const kilosVal  = isEdit ? (reg?.toneladas||'') : '';
+    const kilosVal  = isEdit ? (reg?.kilos||'') : '';
 
     const m = Modal.show({
       title: isEdit ? 'Editar siembra' : 'Agregar siembra',
@@ -1445,21 +1445,21 @@ const ServCicloView = {
                   .map(v => fmtNum(v) + ' pl/ha')
                   .join(' / ');
               } else {
-                pdfCant = r.toneladas != null
-                  ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+                pdfCant = r.kilos != null
+                  ? fmtNum(r.kilos) + ' pl/ha' : '—';
               }
             } catch {
-              pdfCant = r.toneladas != null
-                ? fmtNum(r.toneladas) + ' pl/ha' : '—';
+              pdfCant = r.kilos != null
+                ? fmtNum(r.kilos) + ' pl/ha' : '—';
             }
           } else {
-            pdfCant = r.toneladas != null
-              ? fmtNum(r.toneladas) +
+            pdfCant = r.kilos != null
+              ? fmtNum(r.kilos) +
                 (pdfRUnidad === 'kg' ? ' kg/ha' : ' pl/ha')
               : '—';
           }
-          const pdfTotal = r.hectareas && r.toneladas
-            ? fmtNum(parseFloat(r.hectareas)*parseFloat(r.toneladas)) +
+          const pdfTotal = r.hectareas && r.kilos
+            ? fmtNum(parseFloat(r.hectareas)*parseFloat(r.kilos)) +
               (pdfRUnidad === 'kg' ? ' kg' : ' pl')
             : '—';
           return `<tr>
