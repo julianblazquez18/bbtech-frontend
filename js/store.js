@@ -72,8 +72,15 @@ const Auth = {
     try {
       const data = await API.post('/api/auth/login', { email, password });
       API.setToken(data.token, remember || false);
-      this._user = data.user;
-      return { ok: true, user: data.user };
+      this._user = {
+        ...data.user,
+        modulosEfectivos: data.user.modulosEfectivos?.length
+          ? data.user.modulosEfectivos
+          : data.user.modulos?.length
+            ? data.user.modulos
+            : ['ganadero', 'agro', 'empleados', 'serv'],
+      };
+      return { ok: true, user: this._user };
     } catch (err) {
       return { ok: false, error: err.message };
     }
@@ -88,7 +95,14 @@ const Auth = {
     if (!this._verifying) {
       this._verifying = true;
       API.get('/api/auth/me').then(user => {
-        this._user = user;
+        this._user = {
+          ...user,
+          modulosEfectivos: user.modulosEfectivos?.length
+            ? user.modulosEfectivos
+            : user.modulos?.length
+              ? user.modulos
+              : ['ganadero', 'agro', 'empleados', 'serv'],
+        };
         this._verifying = false;
       }).catch(() => {
         API.clearToken();

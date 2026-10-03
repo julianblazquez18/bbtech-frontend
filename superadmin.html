@@ -10,207 +10,355 @@
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/login.css">
   <style>
-    /* ── Panel layout ── */
-    .sa-wrapper {
-      position: relative; z-index: 1;
-      width: 100%; max-width: 860px;
-      padding: 0 var(--space-4);
+    :root {
+      --sa-bg:         #0f172a;
+      --sa-surface:    #1e293b;
+      --sa-surface2:   #162032;
+      --sa-border:     #334155;
+      --sa-text:       #e2e8f0;
+      --sa-text-main:  #f1f5f9;
+      --sa-text-muted: #64748b;
+      --sa-text-sub:   #94a3b8;
+      --sa-hover:      #334155;
+      --sa-hover-text: #f1f5f9;
+      --sa-nav-active-bg:    #334155;
+      --sa-nav-active-color: #4ade80;
+      --sa-row-hover:  #ffffff08;
+      --sa-mod-on-bg:    #1e3a5f;
+      --sa-mod-on-color: #60a5fa;
+      --sa-mod-on-border:#1d4ed8;
+      --sa-mod-off-bg:    #1e293b;
+      --sa-mod-off-color: #475569;
+      --sa-mod-off-border:#334155;
+      --sa-btn-users-bg:    #1e3a5f;
+      --sa-btn-users-color: #60a5fa;
+      --sa-btn-users-border:#1d4ed8;
+      --sa-badge-active-bg:    #14532d44;
+      --sa-badge-active-color: #4ade80;
+      --sa-badge-active-border:#166534;
+      --sa-badge-pending-bg:    #78350f44;
+      --sa-badge-pending-color: #fbbf24;
+      --sa-badge-pending-border:#92400e;
+      --sa-badge-suspended-bg:    #7f1d1d44;
+      --sa-badge-suspended-color: #f87171;
+      --sa-badge-suspended-border:#991b1b;
+      --sa-btn-approve-bg:    #14532d;
+      --sa-btn-approve-color: #4ade80;
+      --sa-btn-approve-border:#166534;
+      --sa-btn-suspend-bg:    #7f1d1d22;
+      --sa-btn-suspend-color: #f87171;
+      --sa-btn-suspend-border:#991b1b;
+      --sa-btn-activate-bg:    #14532d22;
+      --sa-btn-activate-color: #4ade80;
+      --sa-btn-activate-border:#166534;
     }
 
-    /* Header */
-    .sa-header {
-      text-align: center;
-      margin-bottom: var(--space-8);
+    :root.light {
+      --sa-bg:         #f1f5f9;
+      --sa-surface:    #ffffff;
+      --sa-surface2:   #f4f6f8;
+      --sa-border:     #e2e8f0;
+      --sa-text:       #1e293b;
+      --sa-text-main:  #0f172a;
+      --sa-text-muted: #94a3b8;
+      --sa-text-sub:   #64748b;
+      --sa-hover:      #f1f5f9;
+      --sa-hover-text: #0f172a;
+      --sa-nav-active-bg:    #f0fdf4;
+      --sa-nav-active-color: #16a34a;
+      --sa-row-hover:  #f8fafc;
+      --sa-mod-on-bg:    #eff6ff;
+      --sa-mod-on-color: #2563eb;
+      --sa-mod-on-border:#bfdbfe;
+      --sa-mod-off-bg:    #f9fafb;
+      --sa-mod-off-color: #9ca3af;
+      --sa-mod-off-border:#e5e7eb;
+      --sa-btn-users-bg:    #eff6ff;
+      --sa-btn-users-color: #2563eb;
+      --sa-btn-users-border:#bfdbfe;
+      --sa-badge-active-bg:    #dcfce7;
+      --sa-badge-active-color: #16a34a;
+      --sa-badge-active-border:#bbf7d0;
+      --sa-badge-pending-bg:    #fef9c3;
+      --sa-badge-pending-color: #ca8a04;
+      --sa-badge-pending-border:#fde047;
+      --sa-badge-suspended-bg:    #fee2e2;
+      --sa-badge-suspended-color: #dc2626;
+      --sa-badge-suspended-border:#fecaca;
+      --sa-btn-approve-bg:    #dcfce7;
+      --sa-btn-approve-color: #16a34a;
+      --sa-btn-approve-border:#bbf7d0;
+      --sa-btn-suspend-bg:    #fee2e2;
+      --sa-btn-suspend-color: #dc2626;
+      --sa-btn-suspend-border:#fecaca;
+      --sa-btn-activate-bg:    #dcfce7;
+      --sa-btn-activate-color: #16a34a;
+      --sa-btn-activate-border:#bbf7d0;
     }
 
-    /* Card panel — mismo glassmorphism que el login */
-    .sa-card {
-      background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.2);
-      backdrop-filter: blur(12px);
-      border-radius: var(--radius-xl);
-      padding: var(--space-6) var(--space-8);
-      box-shadow: 0 24px 64px rgba(0,0,0,.4);
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--sa-bg);
+      color: var(--sa-text);
+      min-height: 100vh;
     }
 
-    .sa-card-title {
-      font-family: var(--font-display);
-      color: #fff; font-size: 1.15rem; font-weight: 700;
-      margin-bottom: var(--space-5);
-      display: flex; align-items: center; gap: var(--space-3);
-    }
-    .sa-card-title span.sa-badge {
-      font-size: .7rem; font-weight: 700; letter-spacing: .08em;
-      background: rgba(255,255,255,.15); color: rgba(255,255,255,.8);
-      padding: 3px 10px; border-radius: 99px;
-    }
+    .sa-layout { display: flex; min-height: 100vh; }
 
-    /* Topbar mínimo del panel */
-    .sa-topbar {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: var(--space-6);
+    /* Sidebar */
+    .sa-sidebar {
+      width: 220px;
+      background: var(--sa-surface);
+      border-right: 1px solid var(--sa-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
     }
-    .sa-topbar-user {
-      font-size: .82rem; color: rgba(255,255,255,.55);
+    .sa-sidebar-logo {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--sa-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
-    .sa-topbar-user strong {
-      color: rgba(255,255,255,.9);
-    }
-    .sa-logout {
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.15);
-      color: rgba(255,255,255,.7);
-      font-size: .78rem; font-weight: 600;
-      padding: 5px 14px; border-radius: var(--radius-md);
+    .sa-sidebar-logo-icon { font-size: 1.4rem; }
+    .sa-sidebar-logo-text { font-size: .95rem; font-weight: 700; color: var(--sa-text-main); letter-spacing: -.01em; }
+    .sa-sidebar-logo-sub { font-size: .7rem; color: var(--sa-text-muted); font-weight: 400; display: block; }
+    .sa-nav { flex: 1; padding: 12px 0; }
+    .sa-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      color: var(--sa-text-sub);
       cursor: pointer;
-      transition: background var(--transition-fast);
-    }
-    .sa-logout:hover { background: rgba(255,255,255,.15); color: #fff; }
-
-    /* Tabla de tenants */
-    .sa-table {
-      width: 100%; border-collapse: collapse;
-      font-size: .85rem; color: rgba(255,255,255,.88);
-    }
-    .sa-table th {
-      font-size: .65rem; font-weight: 700; letter-spacing: .1em;
-      text-transform: uppercase; color: rgba(255,255,255,.45);
-      padding: var(--space-2) var(--space-3);
-      border-bottom: 1px solid rgba(255,255,255,.1);
+      border: none;
+      background: none;
+      width: 100%;
       text-align: left;
+      font-size: .875rem;
+      transition: all .15s;
     }
-    .sa-table td {
-      padding: var(--space-3) var(--space-3);
-      border-bottom: 1px solid rgba(255,255,255,.07);
-      vertical-align: middle;
+    .sa-nav-item:hover { background: var(--sa-hover); color: var(--sa-hover-text); }
+    .sa-nav-item.active { background: var(--sa-nav-active-bg); color: var(--sa-nav-active-color); font-weight: 600; }
+    .sa-nav-icon { font-size: 1rem; width: 20px; }
+    .sa-sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--sa-border); }
+    .sa-user-info { font-size: .78rem; color: var(--sa-text-muted); margin-bottom: 10px; }
+    .sa-user-info strong { color: var(--sa-text-sub); display: block; font-size: .82rem; }
+    .sa-logout-btn {
+      width: 100%; padding: 8px 12px;
+      background: var(--sa-hover); border: none; border-radius: 6px;
+      color: var(--sa-text-sub); font-size: .8rem; cursor: pointer; transition: all .15s;
     }
+    .sa-logout-btn:hover { background: #ef4444; color: #fff; }
+
+    /* Main */
+    .sa-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .sa-topbar {
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--sa-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--sa-surface);
+    }
+    .sa-topbar-title { font-size: 1.1rem; font-weight: 700; color: var(--sa-text-main); }
+    .sa-topbar-sub { font-size: .78rem; color: var(--sa-text-muted); margin-top: 2px; }
+    .sa-content { flex: 1; overflow-y: auto; padding: 28px; background: var(--sa-bg); }
+
+    /* Stats */
+    .sa-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .sa-stat-card { background: var(--sa-surface); border: 1px solid var(--sa-border); border-radius: 10px; padding: 16px 20px; }
+    .sa-stat-label { font-size: .72rem; color: var(--sa-text-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+    .sa-stat-value { font-size: 1.8rem; font-weight: 700; color: var(--sa-text-main); margin-top: 4px; }
+    .sa-stat-value.green { color: #4ade80; }
+    .sa-stat-value.yellow { color: #fbbf24; }
+    .sa-stat-value.red { color: #f87171; }
+
+    /* Table card */
+    .sa-table-card { background: var(--sa-surface); border: 1px solid var(--sa-border); border-radius: 10px; overflow: hidden; }
+    .sa-table-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--sa-border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .sa-table-title { font-size: .9rem; font-weight: 700; color: var(--sa-text-main); }
+    .sa-table-sub { font-size: .75rem; color: var(--sa-text-muted); margin-top: 2px; }
+
+    /* Table */
+    .sa-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .sa-table th {
+      padding: 10px 16px; text-align: left;
+      font-size: .7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--sa-text-muted);
+      border-bottom: 1px solid var(--sa-border); background: var(--sa-surface2);
+    }
+    .sa-table td { padding: 12px 16px; border-bottom: 1px solid var(--sa-border); color: var(--sa-text); vertical-align: middle; }
     .sa-table tr:last-child td { border-bottom: none; }
-    .sa-table tr:hover td { background: rgba(255,255,255,.04); }
+    .sa-table tr:hover td { background: var(--sa-row-hover); }
 
-    /* Badge de estado */
-    .badge-aprobado {
-      display: inline-block;
-      font-size: .7rem; font-weight: 700; letter-spacing: .06em;
-      padding: 2px 10px; border-radius: 99px;
+    /* Badges */
+    .sa-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 20px; font-size: .72rem; font-weight: 600;
     }
-    .badge-aprobado.si {
-      background: rgba(52,211,153,.18); color: #6ee7b7;
+    .sa-badge-active    { background: var(--sa-badge-active-bg); color: var(--sa-badge-active-color); border: 1px solid var(--sa-badge-active-border); }
+    .sa-badge-pending   { background: var(--sa-badge-pending-bg); color: var(--sa-badge-pending-color); border: 1px solid var(--sa-badge-pending-border); }
+    .sa-badge-suspended { background: var(--sa-badge-suspended-bg); color: var(--sa-badge-suspended-color); border: 1px solid var(--sa-badge-suspended-border); }
+
+    /* Módulos */
+    .sa-modulos { display: flex; gap: 4px; flex-wrap: wrap; }
+    .sa-modulo-chip {
+      padding: 2px 8px; border-radius: 4px; font-size: .68rem; font-weight: 600;
+      cursor: pointer; border: 1px solid transparent; transition: all .15s; user-select: none;
     }
-    .badge-aprobado.no {
-      background: rgba(251,191,36,.15); color: #fcd34d;
+    .sa-modulo-chip.on  { background: var(--sa-mod-on-bg); color: var(--sa-mod-on-color); border-color: var(--sa-mod-on-border); }
+    .sa-modulo-chip.off { background: var(--sa-mod-off-bg); color: var(--sa-mod-off-color); border-color: var(--sa-mod-off-border); text-decoration: line-through; }
+
+    /* Botones */
+    .sa-btn { padding: 5px 12px; border-radius: 6px; font-size: .75rem; font-weight: 600; border: none; cursor: pointer; transition: all .15s; }
+    .sa-btn-approve  { background: var(--sa-btn-approve-bg); color: var(--sa-btn-approve-color); border: 1px solid var(--sa-btn-approve-border); }
+    .sa-btn-approve:hover { background: #166534; color: #fff; }
+    .sa-btn-suspend  { background: var(--sa-btn-suspend-bg); color: var(--sa-btn-suspend-color); border: 1px solid var(--sa-btn-suspend-border); }
+    .sa-btn-suspend:hover { background: #dc2626; color: #fff; }
+    .sa-btn-activate { background: var(--sa-btn-activate-bg); color: var(--sa-btn-activate-color); border: 1px solid var(--sa-btn-activate-border); }
+    .sa-btn-activate:hover { background: #166534; color: #fff; }
+    .sa-btn-users    { background: var(--sa-btn-users-bg); color: var(--sa-btn-users-color); border: 1px solid var(--sa-btn-users-border); }
+    .sa-btn-users:hover { background: #1d4ed8; color: #fff; }
+
+    /* Modal */
+    #sa-modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    #sa-modal-overlay .sa-modal-box {
+      background: var(--sa-surface); border: 1px solid var(--sa-border); border-radius: 12px;
+      max-width: 720px; width: 100%; max-height: 85vh; overflow-y: auto; color: var(--sa-text);
+    }
+    .sa-modal-head {
+      padding: 18px 24px; border-bottom: 1px solid var(--sa-border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .sa-modal-head h3 { font-size: 1rem; font-weight: 700; color: var(--sa-text-main); }
+    .sa-modal-close { background: none; border: none; color: var(--sa-text-muted); cursor: pointer; font-size: 1.1rem; }
+    .sa-modal-body { padding: 20px 24px; }
+    .sa-modal-foot { padding: 14px 24px; border-top: 1px solid var(--sa-border); display: flex; justify-content: flex-end; }
+    .sa-modal-close-btn {
+      padding: 8px 16px; background: var(--sa-hover); border: none; border-radius: 6px;
+      color: var(--sa-text-sub); cursor: pointer; font-size: .82rem;
     }
 
-    /* Botón de aprobar/revocar */
-    .btn-aprobar {
-      font-size: .75rem; font-weight: 700;
-      padding: 4px 14px; border-radius: var(--radius-md);
-      border: none; cursor: pointer;
-      transition: opacity var(--transition-fast);
-    }
-    .btn-aprobar:hover { opacity: .85; }
-    .btn-aprobar.aprobar {
-      background: var(--green-500); color: #fff;
-    }
-    .btn-aprobar.revocar {
-      background: rgba(248,113,113,.2);
-      border: 1px solid rgba(248,113,113,.3);
-      color: #fca5a5;
-    }
-
-    /* Empty / loading state */
-    .sa-empty {
-      text-align: center; padding: var(--space-10) 0;
-      color: rgba(255,255,255,.35); font-size: .88rem;
-    }
-
-    /* Footer */
-    .sa-footer {
-      text-align: center; margin-top: var(--space-6);
-      font-size: 0.72rem; color: rgba(255,255,255,.3);
-    }
-
-    /* Tabs */
-    .sa-tabs {
-      display: flex; gap: 4px; margin-bottom: var(--space-5);
-      border-bottom: 1px solid rgba(255,255,255,.1);
-      padding-bottom: 0;
-    }
-    .sa-tab {
-      padding: 8px 18px 10px;
-      font-size: .82rem; font-weight: 700; letter-spacing: .03em;
-      color: rgba(255,255,255,.45); background: none; border: none;
-      cursor: pointer; border-bottom: 2px solid transparent;
-      margin-bottom: -1px; transition: color .15s, border-color .15s;
-    }
-    .sa-tab:hover { color: rgba(255,255,255,.8); }
-    .sa-tab.active { color: #fff; border-bottom-color: var(--green-500); }
-
-    /* Spinner simple */
-    .sa-spinner {
-      display: inline-block;
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.2);
-      border-top-color: rgba(255,255,255,.7);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      vertical-align: middle; margin-right: 6px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Empty */
+    .sa-empty { text-align: center; padding: 48px; color: var(--sa-text-muted); font-size: .9rem; }
   </style>
 </head>
 
-<body class="login-page">
+<body>
 
-  <!-- Fondo igual al login -->
-  <div class="login-bg" aria-hidden="true">
-    <div class="login-bg-grid"></div>
-    <div class="login-bg-circle1"></div>
-    <div class="login-bg-circle2"></div>
-  </div>
+<div class="sa-layout">
 
-  <div class="sa-wrapper">
+  <!-- Sidebar -->
+  <aside class="sa-sidebar">
+    <div class="sa-sidebar-logo">
+      <span class="sa-sidebar-logo-icon">🐄</span>
+      <div>
+        <span class="sa-sidebar-logo-text">
+          BBTECH
+          <span class="sa-sidebar-logo-sub">Superadmin</span>
+        </span>
+      </div>
+    </div>
+    <nav class="sa-nav">
+      <button class="sa-nav-item active" onclick="SA.switchTab('tenants')" id="tab-tenants">
+        <span class="sa-nav-icon">🏢</span>
+        Empresas
+        <span id="sa-tenant-count" style="margin-left:auto;background:#334155;padding:1px 7px;border-radius:10px;font-size:.7rem"></span>
+      </button>
+      <button class="sa-nav-item" onclick="SA.switchTab('leads')" id="tab-leads">
+        <span class="sa-nav-icon">📧</span>
+        Leads
+        <span id="sa-leads-count" style="margin-left:auto;background:#334155;padding:1px 7px;border-radius:10px;font-size:.7rem"></span>
+      </button>
+    </nav>
+    <div class="sa-sidebar-footer">
+      <div class="sa-user-info">
+        Sesión activa
+        <strong id="sa-username">—</strong>
+      </div>
+      <button class="sa-logout-btn" id="sa-logout-btn">Cerrar sesión</button>
+    </div>
+  </aside>
 
-    <!-- Logo / header -->
-    <div class="sa-header">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
-        <img src="assets/logo.png" alt="BBTECH Logo" class="login-logo-img"
-          onerror="this.style.display='none';document.getElementById('sa-logo-fallback').style.display='flex'">
-        <div id="sa-logo-fallback" style="display:none;align-items:center;gap:12px">
-          <div class="login-logo-icon" aria-hidden="true">🐄</div>
-          <span class="login-logo-text">BBTECH</span>
+  <!-- Main -->
+  <main class="sa-main">
+    <div class="sa-topbar">
+      <div>
+        <div class="sa-topbar-title" id="sa-page-title">Empresas</div>
+        <div class="sa-topbar-sub">Gestioná accesos, módulos y estados</div>
+      </div>
+      <button id="sa-theme-toggle"
+        style="background:none;border:1px solid var(--sa-border);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--sa-text-sub);font-size:.8rem;transition:all .15s"
+        title="Cambiar tema">
+        ☀️ Claro
+      </button>
+    </div>
+    <div class="sa-content">
+
+      <!-- Sección tenants -->
+      <div id="sa-tenants-section">
+        <div class="sa-stats" id="sa-stats">
+          <div class="sa-stat-card">
+            <div class="sa-stat-label">Total</div>
+            <div class="sa-stat-value" id="stat-total">—</div>
+          </div>
+          <div class="sa-stat-card">
+            <div class="sa-stat-label">Activas</div>
+            <div class="sa-stat-value green" id="stat-activas">—</div>
+          </div>
+          <div class="sa-stat-card">
+            <div class="sa-stat-label">Pendientes</div>
+            <div class="sa-stat-value yellow" id="stat-pendientes">—</div>
+          </div>
+          <div class="sa-stat-card">
+            <div class="sa-stat-label">Suspendidas</div>
+            <div class="sa-stat-value red" id="stat-suspendidas">—</div>
+          </div>
+        </div>
+
+        <div class="sa-table-card">
+          <div class="sa-table-header">
+            <div>
+              <div class="sa-table-title">Empresas registradas</div>
+              <div class="sa-table-sub">Click en un módulo para activarlo/desactivarlo</div>
+            </div>
+          </div>
+          <div id="sa-table-wrapper">
+            <div class="sa-empty">Cargando...</div>
+          </div>
         </div>
       </div>
-      <div class="login-tagline">Panel de Administración</div>
-    </div>
 
-    <!-- Topbar con usuario y logout -->
-    <div class="sa-topbar">
-      <div class="sa-topbar-user">Sesión: <strong id="sa-username">—</strong></div>
-      <button class="sa-logout" id="sa-logout-btn">Cerrar sesión</button>
-    </div>
-
-    <!-- Card principal con tabs -->
-    <div class="sa-card">
-      <div class="sa-tabs">
-        <button class="sa-tab active" id="tab-tenants" onclick="SA.switchTab('tenants')">
-          🏢 Empresas <span class="sa-badge" id="sa-tenant-count" style="margin-left:6px">—</span>
-        </button>
-        <button class="sa-tab" id="tab-leads" onclick="SA.switchTab('leads')">
-          📧 Leads <span class="sa-badge" id="sa-leads-count" style="margin-left:6px">—</span>
-        </button>
-      </div>
-
-      <div id="sa-table-wrapper">
-        <div class="sa-empty"><span class="sa-spinner"></span>Cargando...</div>
-      </div>
-
+      <!-- Sección leads (oculta) -->
       <div id="sa-leads-wrapper" style="display:none">
-        <div class="sa-empty"><span class="sa-spinner"></span>Cargando...</div>
+        <div class="sa-table-card">
+          <div class="sa-table-header">
+            <div class="sa-table-title">Leads capturados</div>
+          </div>
+          <div id="sa-leads-inner">
+            <div class="sa-empty">Hacé click en la pestaña para cargar</div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="sa-footer">© 2026 BBTECH · Solo acceso autorizado</div>
-  </div>
+    </div>
+  </main>
+</div>
 
   <script src="config.js"></script>
   <script src="js/store.js"></script>

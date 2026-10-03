@@ -188,6 +188,11 @@ const App = {
   },
 
   async navigateToServ() {
+    if (!this._tieneModulo('serv')) {
+      Toast.error('No tenés acceso a este módulo.');
+      this.navigateToDashboard();
+      return;
+    }
     this.currentView    = 'serv';
     this.currentCicloId = null;
     if (window.location.hash !== '#serv') window.location.hash = 'serv';
@@ -234,6 +239,11 @@ const App = {
   },
 
   async navigateToAgro() {
+    if (!this._tieneModulo('agro')) {
+      Toast.error('No tenés acceso a este módulo.');
+      this.navigateToDashboard();
+      return;
+    }
     this.currentView    = 'agro';
     this.currentCicloId = null;
     if (window.location.hash !== '#agro') window.location.hash = 'agro';
@@ -272,6 +282,11 @@ const App = {
   },
 
   async navigateToEmpleados() {
+    if (!this._tieneModulo('empleados')) {
+      Toast.error('No tenés acceso a este módulo.');
+      this.navigateToDashboard();
+      return;
+    }
     this.currentView    = 'empleados';
     this.currentCicloId = null;
     if (window.location.hash !== '#empleados') window.location.hash = 'empleados';
@@ -289,6 +304,11 @@ const App = {
   },
 
   async navigateToGanadero(expandRodeoId) {
+    if (!this._tieneModulo('ganadero')) {
+      Toast.error('No tenés acceso a este módulo.');
+      this.navigateToDashboard();
+      return;
+    }
     this.currentView    = 'ganadero';
     this.currentCicloId = null;
     if (window.location.hash !== '#ganadero') window.location.hash = 'ganadero';
@@ -465,6 +485,12 @@ const App = {
       const ok = await Modal.confirm('Cerrar sesión', '¿Cerrár la sesión?', 'Cerrar sesión', 'danger');
       if (ok) { BBT.Auth.logout(); window.location.href = 'index.html'; }
     });
+  },
+
+  _tieneModulo(mod) {
+    const mods = BBT.Auth._user?.modulosEfectivos;
+    if (!mods || !mods.length) return true;
+    return mods.includes(mod);
   }
 };
 

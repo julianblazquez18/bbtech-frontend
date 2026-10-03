@@ -52,6 +52,12 @@ const DashboardView = {
       servEsts = sests.length;
     } catch (e) {}
 
+    const tieneModulo = (mod) => {
+      const mods = BBT.Auth._user?.modulosEfectivos;
+      if (!mods || !mods.length) return true;
+      return mods.includes(mod);
+    };
+
     main.innerHTML = `
     <div class="dashboard-page">
 
@@ -65,6 +71,7 @@ const DashboardView = {
 
       <div class="dashboard-modules">
 
+        ${tieneModulo('ganadero') ? `
         <!-- Ganadero — activo -->
         <div class="module-card module-active" id="mod-ganadero">
           <div class="module-icon">
@@ -85,7 +92,9 @@ const DashboardView = {
           </div>
           <div class="module-cta">Ingresar →</div>
         </div>
+        ` : ''}
 
+        ${tieneModulo('agro') ? `
         <!-- Agrícola — activo -->
         <div class="module-card module-active" id="mod-agro">
           <div class="module-icon">
@@ -104,7 +113,9 @@ const DashboardView = {
           </div>
           <div class="module-cta">Ingresar →</div>
         </div>
+        ` : ''}
 
+        ${tieneModulo('serv') ? `
         <!-- Servicios — activo -->
         <div class="module-card module-active" id="mod-serv">
           <div class="module-icon">
@@ -123,7 +134,9 @@ const DashboardView = {
           </div>
           <div class="module-cta">Ingresar →</div>
         </div>
+        ` : ''}
 
+        ${tieneModulo('empleados') ? `
         <!-- Empleados — activo -->
         <div class="module-card module-active" id="mod-empleados">
           <div class="module-icon">
@@ -142,14 +155,15 @@ const DashboardView = {
           </div>
           <div class="module-cta">Ingresar →</div>
         </div>
+        ` : ''}
 
       </div>
     </div>`;
 
-    document.getElementById('mod-ganadero').addEventListener('click', () => App.navigateToGanadero());
-    document.getElementById('mod-agro').addEventListener('click', () => App.navigateToAgro());
-    document.getElementById('mod-serv').addEventListener('click', () => App.navigateToServ());
-    document.getElementById('mod-empleados').addEventListener('click', () => App.navigateToEmpleados());
+    document.getElementById('mod-ganadero')?.addEventListener('click', () => App.navigateToGanadero());
+    document.getElementById('mod-agro')?.addEventListener('click', () => App.navigateToAgro());
+    document.getElementById('mod-serv')?.addEventListener('click', () => App.navigateToServ());
+    document.getElementById('mod-empleados')?.addEventListener('click', () => App.navigateToEmpleados());
 
     document.getElementById('dash-logout').addEventListener('click', async () => {
       const ok = await Modal.confirm('Cerrar sesión', '¿Cerrar la sesión?', 'Cerrar sesión', 'danger');
