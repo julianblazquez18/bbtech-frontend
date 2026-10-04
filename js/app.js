@@ -11,14 +11,19 @@ const App = {
   currentUser:   null,
 
   async init() {
-    this.currentUser = BBT.Auth.getCurrentUser();
+    this.currentUser = await BBT.Auth.getCurrentUser();
     if (!this.currentUser) { window.location.href = 'index.html'; return; }
     // Superadmin no debe ver la interfaz bovina
-    var tok = localStorage.getItem('bbtech_token') || sessionStorage.getItem('bbtech_token');
-    try { if (JSON.parse(atob(tok.split('.')[1])).rol === 'superadmin') { window.location.href = 'superadmin.html'; return; } } catch(e) {}
+    if (this.currentUser.rol === 'superadmin') { window.location.href = 'superadmin.html'; return; }
     this._renderTopbar();
     this._bindMobileMenu();
     this._bindLogout();
+    // Update topbar and company branding con usuario ya verificado
+    const nombre = this.currentUser.nombre || '';
+    const av = $('#topbar-avatar'), un = $('#topbar-username');
+    if (av) { av.textContent = nombre.charAt(0).toUpperCase(); av.title = nombre; }
+    if (un) un.textContent = nombre;
+    this._updateCompanyBranding(this.currentUser);
     // Cargar datos desde la API antes de renderizar
     try {
       await BBT.Estancias.fetchAll();
@@ -26,15 +31,6 @@ const App = {
       await Promise.all(rodeos.map(r => BBT.Ciclos.fetchByGrupo(r.id)));
     } catch (err) {
       console.error('Error cargando datos:', err);
-    }
-    // Update topbar and company branding with real user data
-    const realUser = BBT.Auth._user;
-    if (realUser) {
-      const nombre = realUser.nombre || '';
-      const av = $('#topbar-avatar'), un = $('#topbar-username');
-      if (av) { av.textContent = nombre.charAt(0).toUpperCase(); av.title = nombre; }
-      if (un) un.textContent = nombre;
-      this._updateCompanyBranding(realUser);
     }
     this._bindHashChange();
     this._navigateFromHash();
@@ -166,17 +162,29 @@ const App = {
   },
 
   async navigateToAdmin() {
-    const fromGanadero = ['ganadero', 'ciclo', 'dashboard'].includes(this.currentView);
+    const rol = BBT.Auth._user?.rol;
+    if (rol !== 'admin' && rol !== 'superadmin') {
+      Toast.error('No tenés permiso.');
+      this.navigateToDashboard();
+      return;
+    }
     this.currentView    = 'admin';
     this.currentCicloId = null;
     if (window.location.hash !== '#admin') window.location.hash = 'admin';
-    if (fromGanadero) {
-      this._enterFullscreen();
-    } else {
-      this._exitFullscreen();
-      this._updateBreadcrumb(['Administración']);
+    this._enterFullscreen();
+    await AdminView.render(false);
+  },
+
+  async navigateToAdminFromGanadero() {
+    if (!this._tieneModulo('ganadero')) {
+      Toast.error('No tenés acceso.');
+      return;
     }
-    await AdminView.render(fromGanadero);
+    this.currentView    = 'admin';
+    this.currentCicloId = null;
+    if (window.location.hash !== '#admin') window.location.hash = 'admin';
+    this._enterFullscreen();
+    await AdminView.render(true);
   },
 
   async navigateToDashboard() {

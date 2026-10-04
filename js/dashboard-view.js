@@ -158,12 +158,29 @@ const DashboardView = {
         ` : ''}
 
       </div>
+
+      ${['admin', 'superadmin'].includes(BBT.Auth._user?.rol) ? `
+        <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border)">
+          <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px">
+            Administración
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div class="module-card module-active" id="mod-admin-usuarios" style="max-width:200px;cursor:pointer">
+              <div class="module-icon">👤</div>
+              <div class="module-title">Usuarios</div>
+              <div class="module-stats">Gestión de accesos</div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
     </div>`;
 
     document.getElementById('mod-ganadero')?.addEventListener('click', () => App.navigateToGanadero());
     document.getElementById('mod-agro')?.addEventListener('click', () => App.navigateToAgro());
     document.getElementById('mod-serv')?.addEventListener('click', () => App.navigateToServ());
     document.getElementById('mod-empleados')?.addEventListener('click', () => App.navigateToEmpleados());
+    document.getElementById('mod-admin-usuarios')?.addEventListener('click', () => App.navigateToAdmin());
 
     document.getElementById('dash-logout').addEventListener('click', async () => {
       const ok = await Modal.confirm('Cerrar sesión', '¿Cerrar la sesión?', 'Cerrar sesión', 'danger');

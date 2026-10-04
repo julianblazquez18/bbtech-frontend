@@ -86,31 +86,24 @@ const Auth = {
     }
   },
 
-  // Síncrono — para compatibilidad con el código existente
-  // Devuelve usuario en caché o placeholder si hay token guardado
-  getCurrentUser() {
+  async getCurrentUser() {
     if (this._user) return this._user;
     if (!API.getToken()) return null;
-    // Hay token guardado — devolver placeholder y verificar en background
-    if (!this._verifying) {
-      this._verifying = true;
-      API.get('/api/auth/me').then(user => {
-        this._user = {
-          ...user,
-          modulosEfectivos: user.modulosEfectivos?.length
-            ? user.modulosEfectivos
-            : user.modulos?.length
-              ? user.modulos
-              : ['ganadero', 'agro', 'empleados', 'serv'],
-        };
-        this._verifying = false;
-      }).catch(() => {
-        API.clearToken();
-        window.location.href = 'index.html';
-      });
+    try {
+      const user = await API.get('/api/auth/me');
+      this._user = {
+        ...user,
+        modulosEfectivos: user.modulosEfectivos?.length
+          ? user.modulosEfectivos
+          : user.modulos?.length
+            ? user.modulos
+            : ['ganadero','agro','empleados','serv'],
+      };
+      return this._user;
+    } catch {
+      API.clearToken();
+      return null;
     }
-    // Devolver datos mínimos del token (sin verificar aún)
-    return { id: 'loading', name: 'Cargando...', email: '', rol: 'usuario' };
   },
 
   logout() {

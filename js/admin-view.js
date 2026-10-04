@@ -13,12 +13,15 @@ const AdminView = {
       <div class="page" id="admin-page">
         <div class="page-header">
           <div>
-            ${fromGanadero ? '<button class="ganadero-back-btn" id="admin-back">← Control Ganadero</button>' : ''}
-            <div class="page-title">Administración</div>
-            <div class="page-subtitle">Gestión de lotes y usuarios</div>
+            ${!fromGanadero
+              ? '<button class="ganadero-back-btn" id="admin-back-dashboard">← Controles</button>'
+              : '<button class="ganadero-back-btn" id="admin-back-ganadero">← Control Ganadero</button>'}
+            <div class="page-title">${fromGanadero ? 'Lotes' : 'Usuarios'}</div>
+            <div class="page-subtitle">${fromGanadero ? 'Gestión de lotes' : 'Gestión de accesos'}</div>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:var(--space-6)">
+          ${fromGanadero ? `
           <div class="card">
             <div class="card-header">
               <h4 style="font-family:var(--font-display);font-weight:700">🗂 Lotes</h4>
@@ -30,6 +33,7 @@ const AdminView = {
               </div>
             </div>
           </div>
+          ` : `
           <div class="card">
             <div class="card-header">
               <h4 style="font-family:var(--font-display);font-weight:700">👤 Usuarios</h4>
@@ -41,16 +45,17 @@ const AdminView = {
               </div>
             </div>
           </div>
+          `}
         </div>
       </div>`;
 
     this._bindEvents();
 
-    // Cargar datos desde API
-    await Promise.all([
-      this._loadLotes(),
-      this._loadUsuarios(),
-    ]);
+    if (fromGanadero) {
+      await this._loadLotes();
+    } else {
+      await this._loadUsuarios();
+    }
   },
 
   /* ── LOTES ── */
@@ -87,8 +92,10 @@ const AdminView = {
   _bindEvents() {
     const self = this;
 
-    const adminBack = document.getElementById('admin-back');
-    if (adminBack) adminBack.addEventListener('click', () => App.navigateToGanadero(), { once: true });
+    document.getElementById('admin-back-ganadero')
+      ?.addEventListener('click', () => App.navigateToGanadero(), { once: true });
+    document.getElementById('admin-back-dashboard')
+      ?.addEventListener('click', () => App.navigateToDashboard(), { once: true });
 
     const lotesList = $('#lotes-list');
     if (lotesList) {
@@ -253,6 +260,19 @@ const AdminView = {
               <option value="admin">Administrador</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label">
+              Módulos
+              <span style="font-size:.72rem;color:var(--text-muted);font-weight:400"> — dejá vacío para dar acceso a todos</span>
+            </label>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">
+              ${(BBT.Auth._user?.modulos || ['ganadero','agro','empleados','serv']).map(mod => `
+                <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;cursor:pointer">
+                  <input type="checkbox" class="au-mod-check" value="${mod}"> ${mod}
+                </label>`).join('')}
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">Sin selección = hereda todos los módulos de la empresa</div>
+          </div>
           <div id="nu-error" style="display:none;color:var(--status-muerte);font-size:.82rem;background:var(--status-rechazo-bg);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md)"></div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="nu-cancel">Cancelar</button><button class="btn btn-primary" id="nu-ok">Crear usuario</button>`
@@ -265,6 +285,8 @@ const AdminView = {
       const password = m.querySelector('#nu-password').value;
       const rol      = m.querySelector('#nu-rol').value;
       const errEl    = m.querySelector('#nu-error');
+      const modChecks = m.querySelectorAll('.au-mod-check:checked');
+      const modulos = modChecks.length ? Array.from(modChecks).map(c => c.value) : null;
 
       if (!nombre || !email || !password) { errEl.textContent = 'Completá todos los campos.'; errEl.style.display = 'block'; return; }
       if (password.length < 8)            { errEl.textContent = 'La contraseña debe tener al menos 8 caracteres.'; errEl.style.display = 'block'; return; }
@@ -273,7 +295,7 @@ const AdminView = {
       const btn = m.querySelector('#nu-ok');
       btn.disabled = true; btn.textContent = 'Creando...';
       try {
-        await BBT.API.post('/api/usuarios', { nombre, email, password, rol });
+        await BBT.API.post('/api/usuarios', { nombre, email, password, rol, modulos });
         Modal.close(m);
         Toast.success(`Usuario "${nombre}" creado.`);
         await this._loadUsuarios();
@@ -312,6 +334,19 @@ const AdminView = {
               <option value="admin"   ${u.rol === 'admin'   ? 'selected' : ''}>Administrador</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label">
+              Módulos
+              <span style="font-size:.72rem;color:var(--text-muted);font-weight:400"> — dejá vacío para dar acceso a todos</span>
+            </label>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">
+              ${(BBT.Auth._user?.modulos || ['ganadero','agro','empleados','serv']).map(mod => `
+                <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;cursor:pointer">
+                  <input type="checkbox" class="eu-mod-check" value="${mod}" ${(u.modulos || []).includes(mod) ? 'checked' : ''}> ${mod}
+                </label>`).join('')}
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px">Sin selección = hereda todos los módulos de la empresa</div>
+          </div>
           <div id="eu-error" style="display:none;color:var(--status-muerte);font-size:.82rem;background:var(--status-rechazo-bg);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md)"></div>
         </div>`,
       footer: `<button class="btn btn-secondary" id="eu-cancel">Cancelar</button><button class="btn btn-primary" id="eu-ok">Guardar</button>`
@@ -323,6 +358,8 @@ const AdminView = {
       const password = m.querySelector('#eu-password').value;
       const rol      = m.querySelector('#eu-rol').value;
       const errEl    = m.querySelector('#eu-error');
+      const euModChecks = m.querySelectorAll('.eu-mod-check:checked');
+      const modulos = euModChecks.length ? Array.from(euModChecks).map(c => c.value) : null;
 
       if (!nombre) { errEl.textContent = 'El nombre es requerido.'; errEl.style.display = 'block'; return; }
       if (password && password.length < 8) { errEl.textContent = 'La contraseña debe tener al menos 8 caracteres.'; errEl.style.display = 'block'; return; }
@@ -331,7 +368,7 @@ const AdminView = {
       const btn = m.querySelector('#eu-ok');
       btn.disabled = true; btn.textContent = 'Guardando...';
 
-      const body = { nombre, rol };
+      const body = { nombre, rol, modulos };
       if (password) body.password = password;
 
       try {

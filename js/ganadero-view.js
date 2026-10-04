@@ -63,7 +63,7 @@ const GanaderoView = {
           <h1 class="ganadero-title">Control Ganadero</h1>
         </div>
         <div class="ganadero-header-actions">
-          <button class="btn btn-secondary btn-sm" id="btn-ganadero-admin">⚙ Administración</button>
+          <button class="btn btn-secondary btn-sm" id="btn-admin-ganadero">⚙ Administración</button>
           <button class="btn btn-primary btn-sm" id="btn-add-campo">＋ Campo</button>
         </div>
       </div>`;
@@ -111,7 +111,8 @@ const GanaderoView = {
           </svg>
         </div>
         <span>Historial</span>
-      </div>`;
+      </div>
+`;
 
     html += '</div>';
     main.innerHTML = html;
@@ -262,10 +263,11 @@ const GanaderoView = {
     if (!main) return;
 
     document.getElementById('btn-back-dashboard').addEventListener('click', () => App.navigateToDashboard(), { once: true });
-    document.getElementById('btn-ganadero-admin').addEventListener('click', () => App.navigateToAdmin(), { once: true });
     document.getElementById('btn-add-campo').addEventListener('click', () => this._addCampo(), { once: true });
     const btnHistorial = document.getElementById('btn-historial');
     if (btnHistorial) btnHistorial.addEventListener('click', () => App.navigateToHistorial(), { once: true });
+    document.getElementById('btn-admin-ganadero')
+      ?.addEventListener('click', () => App.navigateToAdminFromGanadero());
 
     // Eliminar listener anterior antes de agregar nuevo — evita acumulación en renders repetidos
     if (this._clickHandler) main.removeEventListener('click', this._clickHandler);
